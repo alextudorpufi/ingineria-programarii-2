@@ -4,6 +4,9 @@ Software Engineering project: a web platform that connects clients with professi
 
 The project follows the [project proposal](https://docs.google.com/document/d/1k8P3i-QepIU9V51fEKPxdXBERiOJDkZDnbgApnwsyuU/edit), with implementation planned for weeks 3–14.
 
+The [C4 Level 1 system context diagram](docs/system-context.md) shows the platform, its users, and its external integrations.
+The [C4 Level 2 container diagram](docs/container-diagram.md) expands the platform into its web application, backend, and database.
+
 ## Team and proposed responsibilities
 
 The proposal defines the project scope but does not assign individual roles. The following allocation is a proposed working plan. Each member will implement, test, document, and integrate their assigned features, collaborating wherever frontend and backend work meet.
