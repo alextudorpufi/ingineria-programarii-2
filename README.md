@@ -86,4 +86,9 @@ Planned stack: **Next.js, React, TypeScript, Java, Spring Boot, Spring Security,
 
 Semantic matching with embeddings/pgvector, mobile apps, audio/video calls, and real payment processing are future extensions. They are outside the required semester deliverables.
 
-The repository currently contains this project plan. Setup and run instructions will be added as the application is implemented.
+## Running with Docker and SonarQube
+
+- **Application & Infrastructure**: Start PostgreSQL, Spring Boot, and Next.js using `docker compose up -d`.
+- **SonarQube Static Analysis**: Start SonarQube and analyze both frontend and backend by running `./run-sonar-analysis.sh` or `docker compose run --rm sonar-analyzer`. See [SonarQube Setup Guide](docs/sonarqube-setup.md) for detailed instructions.
+- **Backend Setup**: Refer to [Backend Setup Steps](docs/backend-setup-steps.md).
+- **Frontend Setup**: Refer to [Frontend Setup Steps](docs/frontend-setup-steps.md).

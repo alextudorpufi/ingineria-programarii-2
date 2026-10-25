@@ -1,0 +1,6 @@
+{
+  "name": "ServiMatch AI - Marketplace Inteligent de Lead-uri",
+  "description": "Platformă digitală inteligentă pentru conectarea clienților cu profesioniștii bazată pe lead qualification, Lead Passport, matching explicabil și monetizare per lead.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

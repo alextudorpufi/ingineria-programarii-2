@@ -2,7 +2,7 @@ spring:
   application:
     name: marketplace
   datasource:
-    url: jdbc:postgresql://localhost:${DB_PORT:5432}/${DB_NAME}
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME}
     username: ${DB_USER}
     password: ${DB_PASSWORD}
   jpa:
