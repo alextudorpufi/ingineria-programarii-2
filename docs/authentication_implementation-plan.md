@@ -3,7 +3,6 @@
 **Project:** Intelligent Services Marketplace  
 **Status:** Proposed MVP implementation; not a claim of completed functionality.  
 **Scope:** Registration, login, logout, session management, role-based authorization, protected frontend routes.  
-**Related documents:** [Project proposal](project-proposal.md) · [System context](system-context.md) · [Container diagram](container-diagram.md) · [Backend setup](backend-setup-steps.md) · [Frontend setup](frontend-setup-steps.md) · [Dashboards plan](README-dashboards.md)
 
 ## 1. Scope and role contract
 
