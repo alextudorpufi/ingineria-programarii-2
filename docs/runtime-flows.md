@@ -1,4 +1,4 @@
-# Runtime flows (proposed; not executable EMF behavior)
+# Runtime flows 
 
 ## Role-based access and loading
 
