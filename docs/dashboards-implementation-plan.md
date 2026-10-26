@@ -7,7 +7,7 @@
 
 ## 1. Scope and role-based screens
 
-The platform uses a single **Next.js / React / TypeScript** frontend and a **Spring Boot** modular backend. Dashboard content is derived from existing user, request, matching, lead, credit and dispute modules rather than storing duplicated dashboard business data.
+Dashboard content is derived from existing user, request, matching, lead, credit and dispute modules rather than storing duplicated dashboard business data.
 
 | Role | Main widgets/actions | Access |
 | --- | --- | --- |
