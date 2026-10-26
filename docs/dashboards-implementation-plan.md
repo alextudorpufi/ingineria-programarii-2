@@ -3,7 +3,7 @@
 **Project:** Intelligent Services Marketplace  
 **Status:** Proposed MVP implementation; not a claim of completed functionality.  
 **Scope:** Responsive dashboards for `CLIENT`, `PROFESSIONAL` and `ADMIN`, with backend-authorized summaries and navigation.  
-**Related documents:** [Project proposal](project-proposal.md) · [System context](system-context.md) · [Container diagram](container-diagram.md) · [Frontend setup](frontend-setup-steps.md) · [Authentication plan](README-authentication.md)
+
 
 ## 1. Scope and role-based screens
 
