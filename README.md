@@ -4,8 +4,13 @@ Software Engineering project: a web platform that connects clients with professi
 
 The project follows the [project proposal](https://docs.google.com/document/d/1k8P3i-QepIU9V51fEKPxdXBERiOJDkZDnbgApnwsyuU/edit), with implementation planned for weeks 3–14.
 
-The [C4 Level 1 system context diagram](docs/system-context.md) shows the platform, its users, and its external integrations.
-The [C4 Level 2 container diagram](docs/container-diagram.md) expands the platform into its web application, backend, and database.
+The [C4 Level 1 system context diagram](docs/%28l1%29system-context.md) shows the platform, its users, and its external integrations.
+The [C4 Level 2 container diagram](docs/%28l2%29container-diagram.md) expands the platform into its web application, backend, and database.
+
+Feature architecture and delivery plans:
+
+- [Real-time chat](docs/chat-implementation-plan.md) — architecture diagrams, access rules, and implementation checks.
+- [Stripe credit purchases](docs/stripe-integration-plan.md) — proposed post-MVP scope, payment diagrams, and implementation checks.
 
 ## Team and proposed responsibilities
 
