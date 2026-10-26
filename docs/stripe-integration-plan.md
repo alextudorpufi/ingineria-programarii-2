@@ -34,13 +34,13 @@ The browser return is for user experience only. Stripe's signed webhook is the p
 ```mermaid
 sequenceDiagram
     actor Professional
-    participant UI as Next.js UI
-    participant API as Spring Boot payment module
-    participant DB as PostgreSQL
+    participant UI
+    participant API
+    participant DB
     participant Stripe
 
     Professional->>UI: Choose a published credit bundle
-    UI->>API: Request checkout (bundle ID, idempotency key)
+    UI->>API: Request checkout using bundle ID and idempotency key
     API->>API: Authenticate and authorize professional
     API->>DB: Create pending purchase from server-side bundle price
     DB-->>API: Purchase ID
@@ -53,7 +53,7 @@ sequenceDiagram
     Stripe-->>Professional: Redirect to success or cancel page
     Stripe->>API: Signed payment event
     API->>API: Verify signature and event type
-    API->>DB: Deduplicate event; validate purchase, amount, currency, and status
+    API->>DB: Deduplicate event and validate purchase against amount currency and status
     API->>DB: Mark paid and append one credit grant in one transaction
     DB-->>API: Commit
     UI->>API: Refresh purchase status and balance
