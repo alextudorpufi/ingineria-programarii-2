@@ -74,7 +74,3 @@ The server acknowledges a message only after its database transaction commits. I
 - Reconnecting and loading history recovers committed messages without relying on in-memory server state.
 - WebSocket routing works in local and deployment configurations, and unauthorized origins or subscriptions are rejected.
 - Tests cover access denial, validation, persistence, ordering/cursors, retry behavior, and the end-to-end client/professional conversation.
-
-## Ownership and dependencies
-
-The project proposal assigns backend chat, persistence, and authorization to Tudor Alexandru and the professional chat interface to Baltag Bianca. The client-side integration should be coordinated with Teodora Iacob. Chat depends on authentication, request ownership, and lead-purchase records; define the contract with those modules before implementing conversation creation.
