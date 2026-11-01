@@ -57,7 +57,13 @@ Compose reads `.env` automatically. The database uses a named volume to preserve
 
 ## 5. Configure and run Spring Boot
 
-The existing `backend/src/main/resources/application.yaml` reads the database settings from environment variables and connects to PostgreSQL on `localhost`. Keep Flyway enabled and Hibernate's `ddl-auto` set to `validate`.
+The backend uses a multi-module Clean Architecture:
+- `marketplace-domain`: Pure POJOs, domain exceptions, and repository port interfaces (zero framework dependencies).
+- `marketplace-application`: Pure service interfaces and use-case implementations.
+- `marketplace-infrastructure`: JPA entities, Spring Data repositories, adapters, and configuration beans.
+- `marketplace-app`: Spring Boot main class, REST controllers, DTOs, mappers, exception handler, Flyway migrations, and runnable fat JAR.
+
+The configuration in `backend/marketplace-app/src/main/resources/application.yaml` reads the database settings from environment variables and connects to PostgreSQL on `localhost`. Keep Flyway enabled and Hibernate's `ddl-auto` set to `validate`.
 
 Spring Boot does not automatically read the root `.env`. In a macOS/Linux terminal, load it from the repository root before starting the backend:
 
@@ -67,7 +73,7 @@ source .env
 set +a
 
 cd backend
-./mvnw spring-boot:run
+./mvnw spring-boot:run -pl marketplace-app
 ```
 
 Repeat the environment-loading step in each new terminal used to run the backend. If running from an IDE, set the same database variables in its run configuration. On Windows, configure those variables in the IDE or shell and use `mvnw.cmd`.
@@ -86,7 +92,7 @@ If startup reports that the database user does not exist, verify that the Docker
 
 ## 7. Manage schema changes and shutdown
 
-Add database changes as versioned SQL migrations under `backend/src/main/resources/db/migration/`, using names such as `V1__create_users.sql`. Flyway applies migrations at startup; Hibernate validates entity mappings. Add a new migration for changes to a schema already shared with the team.
+Add database changes as versioned SQL migrations under `backend/marketplace-app/src/main/resources/db/migration/`, using names such as `V1__create_users.sql`. Flyway applies migrations at startup; Hibernate validates entity mappings. Add a new migration for changes to a schema already shared with the team.
 
 Stop Spring Boot with `Ctrl+C`. Stop PostgreSQL from the repository root with:
 

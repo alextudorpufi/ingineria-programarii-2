@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: marketplace
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:marketplace}
+    username: ${DB_USER:marketplace}
+    password: ${DB_PASSWORD:local_dev_password}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  flyway:
+    enabled: true
+
+app:
+  security:
+    jwt:
+      # Override in every real environment. HMAC-SHA256 requires at least 32 bytes.
+      secret: ${JWT_SECRET:dev-only-marketplace-jwt-secret-change-me-32b}
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info

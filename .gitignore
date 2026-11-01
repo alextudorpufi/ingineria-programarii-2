@@ -7,5 +7,6 @@ frontend/.next
 frontend/out
 
 backend/target
+backend/*/target
 
 .DS_Store

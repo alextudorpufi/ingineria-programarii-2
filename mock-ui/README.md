@@ -4,11 +4,21 @@
 
 ## Run Locally
 
-**Prerequisites:**  Node.js
+**Prerequisites:** Node.js 20+ and npm
 
 
-1. Install dependencies:
+1. Install Node.js and npm if they are not already installed. On macOS with Homebrew:
+   `brew install node`
+
+   You can also install Node.js from [nodejs.org](https://nodejs.org/).
+2. Verify that Node.js and npm are available:
+   `node --version`
+   `npm --version`
+3. Install the project dependencies from this directory:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+4. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key.
+5. Run the app:
    `npm run dev`
+
+If you see `vite: command not found`, run `npm install` in `mock-ui` and then retry
+`npm run dev`.
