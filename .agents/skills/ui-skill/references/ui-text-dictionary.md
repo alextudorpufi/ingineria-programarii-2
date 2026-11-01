@@ -1,6 +1,6 @@
 # Romanian UI Domain Dictionary & Localization Guidelines
 
-To maintain linguistic consistency throughout the client, professional, and admin flows, always use the following Romanian vocabulary and phrasing established in `mock-ui`.
+To maintain linguistic consistency throughout the client, professional, and admin flows, always use the following Romanian vocabulary and phrasing established in the `frontend/app` design system.
 
 ---
 

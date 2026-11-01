@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Skillink — frontend
+
+Single browser-responsive [Next.js](https://nextjs.org) application for the Intelligent Services Marketplace (Skillink). One layout adapts to the viewport; there is no separate desktop or mobile build.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies, then run the development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) and resize the browser to see the layout adapt between the wide multi-pane view and the narrow stacked view.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Project structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```text
+app/            Route entry (page.tsx), root layout and global styles
+components/
+  views/        App shell and screen views (Header, App, LeadFeed, LeadDetail, AIArchitect,
+                ChatView, DisputesView, AnalyticsView, WalletModal)
+  common/       Shared domain pieces (Lead Passport, Explainable Match, Profile, Lead detail sheet)
+  ui/           Design-system primitives (Button, Badge, Input, Skeleton)
+context/        Global application state (AppContext, useApp)
+models/         Domain models (Lead, Profile, Rating protocol)
+services/       Caching and mock data services
+data/           Seed fixtures
+types/          Shared TypeScript contracts
+theme/          Design tokens
+```
 
-## Learn More
+The UI runs on local mock data services today; swap the service implementations for the Spring Boot API through the `/api/:path*` rewrite in `next.config.ts`.
 
-To learn more about Next.js, take a look at the following resources:
+## Quality checks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run lint
+npm run build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+See [docs/frontend-setup-steps.md](../docs/frontend-setup-steps.md) for the full setup and backend connection guide.

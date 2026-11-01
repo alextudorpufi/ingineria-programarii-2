@@ -1,6 +1,6 @@
 # UI Component Catalog
 
-This document specifies the exact component contracts, props, and implementations used across the Marketplace, based on `mock-ui`.
+This document specifies the exact component contracts, props, and implementations used across the Marketplace, based on `frontend/components`.
 
 ---
 

@@ -1,6 +1,6 @@
 # Frontend setup steps
 
-The frontend uses Next.js, React, TypeScript, Tailwind CSS, and ESLint. Run it locally with npm and connect it to the Spring Boot backend through the configured API rewrite.
+The frontend is a single browser-responsive Next.js application (React, TypeScript, Tailwind CSS, ESLint). It renders one layout that adapts to the viewport, so there is no separate desktop or mobile build. Run it locally with npm and connect it to the Spring Boot backend through the configured API rewrite.
 
 ## 1. Install prerequisites
 
@@ -17,10 +17,10 @@ Use the existing `frontend/` project. From the repository root:
 
 ```bash
 cd frontend
-npm ci
+npm install
 ```
 
-This installs the versions recorded in `package-lock.json`. Use npm consistently and commit the lockfile when intentionally updating dependencies.
+`npm install` installs the versions recorded in `package-lock.json` and adds any packages listed in `package.json` (for example `lucide-react` for icons). Use `npm ci` in CI or Docker builds that start from a clean checkout. Use npm consistently and commit the lockfile when intentionally updating dependencies.
 
 ## 3. Start the development server
 
@@ -30,13 +30,20 @@ From `frontend/`:
 npm run dev
 ```
 
-Open `http://localhost:3000`. Changes to `app/page.tsx` are reflected in the browser during development. Shared layout and global styling live in `app/layout.tsx` and `app/globals.css`.
+Open `http://localhost:3000`. Changes to `app/page.tsx` are reflected in the browser during development. Shared layout, fonts, and global styling live in `app/layout.tsx` and `app/globals.css`.
+
+Application code is organized by responsibility:
+
+- `app/` — route entry (`page.tsx`) and root layout.
+- `components/` — UI primitives (`ui/`), shared domain cards and the lead detail sheet (`common/`), and the screen views plus app shell (`views/`).
+- `context/` — global application state (`AppContext`).
+- `models/`, `services/`, `data/`, `types/`, `theme/` — domain models, mock data services, fixtures, shared types, and design tokens.
 
 The current frontend setup does not require an environment file. Database credentials belong to the backend environment and should not be added to frontend code.
 
 ## 4. Connect to the backend
 
-For features that call the backend, start PostgreSQL and Spring Boot in a separate terminal using the [backend setup steps](backend-setup-steps.md). The frontend can display its starter page without them.
+For features that call the backend, start PostgreSQL and Spring Boot in a separate terminal using the [backend setup steps](backend-setup-steps.md). The UI currently runs on local mock data services, so it renders without the backend.
 
 The existing `next.config.ts` forwards requests matching `/api/:path*` to `http://localhost:8080/api/:path*`:
 
@@ -50,7 +57,7 @@ Restart the development server after changing the rewrite configuration. WebSock
 
 ## 5. Verify the setup
 
-Check that the starter page loads at `http://localhost:3000`. To verify the backend independently, open `http://localhost:8080/actuator/health` and confirm the response contains `"status":"UP"`.
+Check that the Skillink workspace loads at `http://localhost:3000`. Resize the browser to confirm the layout adapts between the wide multi-pane view and the narrow stacked view. To verify the backend independently, open `http://localhost:8080/actuator/health` and confirm the response contains `"status":"UP"`.
 
 The Actuator health URL is outside `/api/`, so the current rewrite does not forward it. A full frontend-to-backend check requires an implemented `/api/...` endpoint and a frontend request to it.
 

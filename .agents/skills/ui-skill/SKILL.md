@@ -4,12 +4,12 @@ description: >-
   Use this skill whenever creating, modifying, or reviewing frontend user interfaces,
   pages, components, layouts, and styles for the Marketplace application.
   Enforces the exact design tokens, typography, color palettes, and component patterns
-  established in the mock-ui design system.
+  established in the Marketplace design system.
 ---
 
 # Marketplace UI Design System Skill
 
-This skill defines the complete visual design system, token rules, component contracts, and styling conventions for the Intelligent Services Marketplace. All frontend development in `frontend/` must adhere strictly to these patterns to maintain exact parity with `mock-ui`.
+This skill defines the complete visual design system, token rules, component contracts, and styling conventions for the Intelligent Services Marketplace. All frontend development in `frontend/` must adhere strictly to these patterns, which reflect the shipped implementation in `frontend/components`.
 
 ---
 

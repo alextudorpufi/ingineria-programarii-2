@@ -27,8 +27,8 @@ git grep -i "calculateScore"
 git grep -i "deductCredits"
 git grep -i "formatCurrency"
 
-# Search in mock-ui for reference components and models:
-find mock-ui/src -name "*Model*" -o -name "*Service*"
+# Search frontend for existing components and models:
+find frontend -name "*Model*" -o -name "*Service*" -not -path "*/node_modules/*"
 ```
 
 ### Step 3: Evaluate Existing Components

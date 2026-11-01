@@ -1,6 +1,6 @@
 /**
  * Centralized Design System Tokens & Classes
- * Extracted from mock-ui for reusable AI code generation
+ * Extracted from frontend/components for reusable AI code generation
  */
 
 export const DESIGN_TOKENS = {

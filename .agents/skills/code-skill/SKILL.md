@@ -49,7 +49,7 @@ Before declaring or writing any new file, class, method, function, or component:
 
    # Check for existing React components, models, hooks:
    find frontend/app -name "*card*" -o -name "*lead*"
-   find mock-ui/src -name "*Lead*" -o -name "*Model*"
+   find frontend -name "*Lead*" -o -name "*Model*" -not -path "*/node_modules/*"
    ```
 2. **Reuse & Extend**: If an existing function or class does 80% of what is needed, extend or parameterize it. Never write duplicate classes, parallel validation routines, or redundant formatters.
 3. Consult the detailed [Anti-Duplication Protocol Guide](file:///Users/theo/Documents/ingineria-programarii-2/.agents/skills/code-skill/references/anti-duplication-checklist.md).
