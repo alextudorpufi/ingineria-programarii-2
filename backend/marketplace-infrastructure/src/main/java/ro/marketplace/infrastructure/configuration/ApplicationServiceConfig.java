@@ -2,10 +2,12 @@ package ro.marketplace.infrastructure.configuration;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.annotation.Value;
 import ro.marketplace.application.service.AuditService;
 import ro.marketplace.application.service.AuditServiceImpl;
 import ro.marketplace.application.service.AuthService;
 import ro.marketplace.application.service.AuthServiceImpl;
+import ro.marketplace.application.service.CreditPaymentService;
 import ro.marketplace.application.service.CustomerService;
 import ro.marketplace.application.service.CustomerServiceImpl;
 import ro.marketplace.application.service.DisputeService;
@@ -16,11 +18,13 @@ import ro.marketplace.application.service.WalletService;
 import ro.marketplace.application.service.WalletServiceImpl;
 import ro.marketplace.domain.port.AuditLogRepository;
 import ro.marketplace.domain.port.CurrentActorProvider;
+import ro.marketplace.domain.port.CreditPurchaseRepository;
 import ro.marketplace.domain.port.CustomerRepository;
 import ro.marketplace.domain.port.DisputeRepository;
 import ro.marketplace.domain.port.LeadRepository;
 import ro.marketplace.domain.port.PasswordHasher;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
+import ro.marketplace.domain.port.StripePaymentGateway;
 import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
 import ro.marketplace.domain.port.WalletTransactionRepository;
@@ -63,6 +67,17 @@ public class ApplicationServiceConfig {
                                        UnitOfWork unitOfWork,
                                        Clock clock) {
         return new WalletServiceImpl(userRepository, walletTransactionRepository, auditService, unitOfWork, clock);
+    }
+
+    @Bean
+    public CreditPaymentService creditPaymentService(CreditPurchaseRepository creditPurchaseRepository,
+                                                     StripePaymentGateway stripePaymentGateway,
+                                                     WalletService walletService,
+                                                     UnitOfWork unitOfWork,
+                                                     Clock clock,
+                                                     @Value("${app.frontend-url:http://localhost:3000}") String frontendUrl) {
+        return new CreditPaymentService(creditPurchaseRepository, stripePaymentGateway, walletService,
+                unitOfWork, clock, frontendUrl);
     }
 
     @Bean

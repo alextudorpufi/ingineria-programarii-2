@@ -1,33 +1,146 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Coins, History, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import type { CreditBundle } from '@/types';
+import { marketplaceService } from '@/services/api/marketplaceService';
+
+function formatBundlePrice(bundle: CreditBundle): string {
+  return new Intl.NumberFormat('ro-RO', {
+    style: 'currency',
+    currency: bundle.currency,
+    maximumFractionDigits: 2,
+  }).format(bundle.amountMinor / 100);
+}
 
 export const WalletModal: React.FC = () => {
-  const { showWalletModal, setShowWalletModal, proProfile, transactions, rechargeCredits } = useApp();
+  const {
+    showWalletModal,
+    setShowWalletModal,
+    proProfile,
+    transactions,
+    createCreditCheckout,
+    getCreditPurchaseStatus,
+    refreshWalletData,
+  } = useApp();
+  const [packages, setPackages] = useState<CreditBundle[]>([]);
+  const [isLoadingPackages, setIsLoadingPackages] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [checkoutPurchaseId, setCheckoutPurchaseId] = useState<string | null>(null);
 
-  if (!showWalletModal) return null;
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const checkoutResult = url.searchParams.get('walletCheckout');
+    if (!checkoutResult) return;
 
-  const packages = [
-    { name: 'Pachet Starter', credits: 50, bonus: 0, price: 50, tag: 'Testare Rapidă' },
-    { name: 'Pachet Pro Recomandat', credits: 150, bonus: 20, price: 150, tag: 'Cel Mai Popular', popular: true },
-    { name: 'Pachet Studio / Agenție', credits: 400, bonus: 80, price: 350, tag: 'Economisești 20%' }
-  ];
+    const timer = window.setTimeout(() => {
+      setShowWalletModal(true);
+      if (checkoutResult === 'cancelled') {
+        setFeedback('Plata a fost anulată. Soldul tău nu a fost modificat.');
+        url.searchParams.delete('walletCheckout');
+        url.searchParams.delete('purchaseId');
+        window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+        return;
+      }
 
-  const handleSelectPackage = async (pkg: typeof packages[0]) => {
+      const purchaseId = url.searchParams.get('purchaseId');
+      if (checkoutResult === 'success' && purchaseId) {
+        setCheckoutPurchaseId(purchaseId);
+        setFeedback('Verificăm plata. Creditele apar după confirmarea Stripe.');
+      } else {
+        setFeedback('Nu am putut identifica achiziția pentru verificare.');
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [setShowWalletModal]);
+
+  useEffect(() => {
+    if (!showWalletModal) return;
+
+    let active = true;
+    marketplaceService.getCreditBundles().then(bundles => {
+      if (active) setPackages(bundles);
+    }).catch(error => {
+      if (active) {
+        setFeedback(error instanceof Error ? error.message : 'Pachetele nu au putut fi încărcate.');
+      }
+    }).finally(() => {
+      if (active) setIsLoadingPackages(false);
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [showWalletModal]);
+
+  useEffect(() => {
+    if (!checkoutPurchaseId) return;
+
+    let active = true;
+    let attempts = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const checkPurchase = async () => {
+      try {
+        const purchase = await getCreditPurchaseStatus(checkoutPurchaseId);
+        if (!active) return;
+        if (purchase.status === 'paid') {
+          setFeedback(`Plata confirmată. Au fost adăugate ${purchase.credits} credite.`);
+          const url = new URL(window.location.href);
+          url.searchParams.delete('walletCheckout');
+          url.searchParams.delete('purchaseId');
+          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          setCheckoutPurchaseId(null);
+          await refreshWalletData();
+          return;
+        }
+        if (purchase.status === 'failed' || purchase.status === 'expired') {
+          setFeedback('Plata nu a fost finalizată. Soldul tău nu a fost modificat.');
+          const url = new URL(window.location.href);
+          url.searchParams.delete('walletCheckout');
+          url.searchParams.delete('purchaseId');
+          window.history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+          setCheckoutPurchaseId(null);
+          return;
+        }
+        attempts += 1;
+        if (attempts < 30) {
+          timer = setTimeout(() => void checkPurchase(), 2_000);
+        } else {
+          setFeedback('Plata este încă în curs de confirmare. Soldul se va actualiza după notificarea Stripe.');
+          setCheckoutPurchaseId(null);
+        }
+      } catch (error) {
+        if (active) {
+          setFeedback(error instanceof Error ? error.message : 'Statusul plății nu a putut fi verificat.');
+          setCheckoutPurchaseId(null);
+        }
+      }
+    };
+
+    void checkPurchase();
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [checkoutPurchaseId, getCreditPurchaseStatus, refreshWalletData]);
+
+  const handleSelectPackage = async (bundle: CreditBundle) => {
     setIsProcessing(true);
     setFeedback(null);
-    const success = await rechargeCredits(pkg.credits + pkg.bonus, pkg.name);
-    setFeedback(success
-      ? `Reîncărcare aplicată: +${pkg.credits + pkg.bonus} credite.`
-      : 'Reîncărcarea creditelor este permisă doar pentru conturile de administrator.');
-    setIsProcessing(false);
+    try {
+      const checkoutUrl = await createCreditCheckout(bundle.id, crypto.randomUUID());
+      window.location.assign(checkoutUrl);
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : 'Checkout-ul Stripe nu a putut fi pornit.');
+      setIsProcessing(false);
+    }
   };
+
+  if (!showWalletModal) return null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
@@ -76,45 +189,55 @@ export const WalletModal: React.FC = () => {
               Reîncărcare Credite Virtuale
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {packages.map((pkg, i) => (
+              {packages.map(bundle => (
                 <div
-                  key={i}
+                  key={bundle.id}
                   className={`p-4 rounded-2xl border flex flex-col justify-between transition-all duration-200 ${
-                    pkg.popular
+                    bundle.popular
                       ? 'border-indigo-500 bg-gradient-to-b from-indigo-50/90 to-violet-50/50 dark:from-indigo-950/40 dark:to-violet-950/20 shadow-md ring-2 ring-indigo-500/30'
                       : 'border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300 shadow-2xs'
                   }`}
                 >
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 tracking-wide">
-                      {pkg.tag}
+                      {bundle.tag}
                     </span>
-                    <h5 className="text-sm font-bold text-slate-900 dark:text-white">{pkg.name}</h5>
+                    <h5 className="text-sm font-bold text-slate-900 dark:text-white">{bundle.name}</h5>
                     <div className="pt-2 text-2xl font-extrabold font-mono text-slate-900 dark:text-white tabular-nums">
-                      {pkg.credits + pkg.bonus} <span className="text-xs font-sans font-normal text-slate-400">credite</span>
+                      {bundle.totalCredits} <span className="text-xs font-sans font-normal text-slate-400">credite</span>
                     </div>
-                    {pkg.bonus > 0 && (
+                    {bundle.bonusCredits > 0 && (
                       <span className="text-[11px] text-emerald-600 font-bold block">
-                        +{pkg.bonus} credite bonus cadou
+                        +{bundle.bonusCredits} credite bonus cadou
                       </span>
                     )}
                   </div>
 
                   <div className="mt-4">
                     <Button
-                      variant={pkg.popular ? 'primary' : 'secondary'}
+                      variant={bundle.popular ? 'primary' : 'secondary'}
                       size="sm"
                       className="w-full"
-                      isLoading={isProcessing}
-                      onClick={() => void handleSelectPackage(pkg)}
+                      isLoading={isProcessing || isLoadingPackages}
+                      onClick={() => void handleSelectPackage(bundle)}
                     >
-                      Cumpără · {pkg.price} RON
+                      Cumpără · {formatBundlePrice(bundle)}
                     </Button>
                   </div>
                 </div>
               ))}
             </div>
 
+            {isLoadingPackages && (
+              <p role="status" className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+                Se încarcă pachetele de credite...
+              </p>
+            )}
+            {!isLoadingPackages && packages.length === 0 && (
+              <p role="status" className="mt-3 text-[11px] text-slate-500 dark:text-slate-400">
+                Pachetele de credite nu sunt disponibile momentan.
+              </p>
+            )}
             {feedback && (
               <p role="status" className="mt-3 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
                 {feedback}

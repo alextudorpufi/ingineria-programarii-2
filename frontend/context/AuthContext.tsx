@@ -74,11 +74,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     if (!getStoredToken()) return;
     const profile = await authService.getMe();
     setUser(profile);
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, token, isLoading, login, register, logout, refreshUser }}>

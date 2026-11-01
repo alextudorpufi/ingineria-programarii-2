@@ -1,7 +1,7 @@
 import { apiFetch } from './apiClient';
 import type { RawLeadApiPayload } from '@/models/LeadModel';
 import type { AuthRole } from './authService';
-import type { DisputeRecord, WalletTransaction } from '@/types';
+import type { CreditBundle, CreditPurchaseStatus, DisputeRecord, WalletTransaction } from '@/types';
 
 interface RawWalletTransaction {
   id: string;
@@ -38,6 +38,11 @@ export interface ClaimedProPayload {
 export interface WalletBalance {
   userId: string;
   creditsBalance: number;
+}
+
+interface CreditCheckoutResponse {
+  purchaseId: string;
+  checkoutUrl: string;
 }
 
 export interface RaiseDisputePayload {
@@ -144,6 +149,22 @@ export const marketplaceService = {
       body: JSON.stringify({ credits, description }),
     });
     return toWalletTransaction(created);
+  },
+
+  getCreditBundles: async (): Promise<CreditBundle[]> => {
+    return apiFetch<CreditBundle[]>('/api/wallet/bundles');
+  },
+
+  createCreditCheckout: async (bundleId: string, idempotencyKey: string): Promise<CreditCheckoutResponse> => {
+    return apiFetch<CreditCheckoutResponse>('/api/wallet/purchases', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({ bundleId }),
+    });
+  },
+
+  getCreditPurchaseStatus: async (purchaseId: string): Promise<CreditPurchaseStatus> => {
+    return apiFetch<CreditPurchaseStatus>(`/api/wallet/purchases/${encodeURIComponent(purchaseId)}`);
   },
 
   getDisputes: async (userId: string, role: AuthRole): Promise<DisputeRecord[]> => {

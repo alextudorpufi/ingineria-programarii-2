@@ -13,6 +13,10 @@ spring:
     enabled: true
 
 app:
+  frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  stripe:
+    secret-key: ${STRIPE_SECRET_KEY:}
+    webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
   security:
     jwt:
       # Override in every real environment. HMAC-SHA256 requires at least 32 bytes.

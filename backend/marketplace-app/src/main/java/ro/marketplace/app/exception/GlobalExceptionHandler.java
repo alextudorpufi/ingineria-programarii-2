@@ -5,6 +5,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import ro.marketplace.application.exception.StripeConfigurationException;
+import ro.marketplace.application.exception.StripeProviderException;
+import ro.marketplace.application.exception.StripeWebhookVerificationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -26,6 +29,27 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
     private static final String ERROR_BASE = "https://api.marketplace.ro/errors/";
+
+    @ExceptionHandler(StripeConfigurationException.class)
+    public ProblemDetail handleStripeConfiguration(StripeConfigurationException ex) {
+        log.error("Stripe payment configuration is incomplete: {}", ex.getMessage());
+        return problem(HttpStatus.SERVICE_UNAVAILABLE, "Payment Service Unavailable",
+                "Stripe test-mode payments are not configured on the server.", "payment-unavailable");
+    }
+
+    @ExceptionHandler(StripeProviderException.class)
+    public ProblemDetail handleStripeProvider(StripeProviderException ex) {
+        log.error("Stripe Checkout request failed", ex);
+        return problem(HttpStatus.BAD_GATEWAY, "Payment Provider Error",
+                "Stripe could not start the checkout session. Please try again.", "payment-provider");
+    }
+
+    @ExceptionHandler(StripeWebhookVerificationException.class)
+    public ProblemDetail handleStripeWebhookVerification(StripeWebhookVerificationException ex) {
+        log.warn("Rejected Stripe webhook: {}", ex.getMessage());
+        return problem(HttpStatus.BAD_REQUEST, "Invalid Stripe Webhook",
+                "The Stripe webhook signature or payload could not be verified.", "invalid-webhook");
+    }
 
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleResourceNotFoundException(ResourceNotFoundException ex) {

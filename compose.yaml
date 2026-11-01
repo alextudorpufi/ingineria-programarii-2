@@ -33,6 +33,9 @@ services:
       DB_NAME: ${DB_NAME:-marketplace}
       DB_USER: ${DB_USER:-marketplace}
       DB_PASSWORD: ${DB_PASSWORD:-local_dev_password}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     ports:
       - "8080:8080"
     depends_on:

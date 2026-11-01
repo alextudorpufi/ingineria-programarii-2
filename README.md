@@ -12,6 +12,17 @@ Feature architecture and delivery plans:
 - [Real-time chat](docs/chat-implementation-plan.md) — architecture diagrams, access rules, and implementation checks.
 - [Stripe credit purchases](docs/stripe-integration-plan.md) — proposed post-MVP scope, payment diagrams, and implementation checks.
 
+### Stripe test-mode setup
+
+Credit bundles are priced by the backend (50 credits for 50 RON, 170 for 150 RON, or 480 for 350 RON). To enable hosted checkout:
+
+1. Copy `.env.example` to `.env`.
+2. From the Stripe Dashboard with **Test mode** enabled, copy the secret key (`sk_test_...`) into `STRIPE_SECRET_KEY`.
+3. Install and authenticate the Stripe CLI, then run `stripe listen --forward-to localhost:8080/api/payments/stripe/webhook`. Copy its `whsec_...` signing secret into `STRIPE_WEBHOOK_SECRET`.
+4. Start the stack with `docker compose up --build`. Checkout creates a pending purchase; only a verified Stripe webhook grants credits.
+
+The backend rejects live secret keys. The frontend return URL only displays purchase status and does not issue credits. For a local backend started outside Docker Compose, export the same variables in that process's environment; Spring does not load the root `.env` file automatically.
+
 ## Team and proposed responsibilities
 
 The proposal defines the project scope but does not assign individual roles. The following allocation is a proposed working plan. Each member will implement, test, document, and integrate their assigned features, collaborating wherever frontend and backend work meet.

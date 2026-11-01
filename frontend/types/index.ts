@@ -130,6 +130,24 @@ export interface WalletTransaction {
   balanceAfter: number;
 }
 
+export interface CreditBundle {
+  id: string;
+  name: string;
+  tag: string;
+  credits: number;
+  bonusCredits: number;
+  totalCredits: number;
+  amountMinor: number;
+  currency: string;
+  popular: boolean;
+}
+
+export interface CreditPurchaseStatus {
+  purchaseId: string;
+  status: 'pending' | 'paid' | 'failed' | 'expired';
+  credits: number;
+}
+
 export interface AIChatMessage {
   id: string;
   sender: 'ai' | 'user';

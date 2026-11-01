@@ -1,10 +1,11 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import {
   UserRole,
   DisputeRecord,
   WalletTransaction,
+  CreditPurchaseStatus,
   ChatMessage,
   AIChatMessage
 } from '@/types';
@@ -42,7 +43,9 @@ interface AppContextType {
   createLead: (newLead: Partial<LeadModel>) => Promise<LeadModel>;
   fileDispute: (data: { leadId: string; reason: DisputeRecord['reason']; details: string }) => Promise<boolean>;
   resolveDispute: (disputeId: string, decision: 'aprobat' | 'respins', note: string) => Promise<void>;
-  rechargeCredits: (amount: number, packageName: string) => Promise<boolean>;
+  createCreditCheckout: (bundleId: string, idempotencyKey: string) => Promise<string>;
+  getCreditPurchaseStatus: (purchaseId: string) => Promise<CreditPurchaseStatus>;
+  refreshWalletData: () => Promise<void>;
   sendChatMessage: (leadId: string, content: string) => void;
   aiMessages: AIChatMessage[];
   sendAIMessage: (text: string) => void;
@@ -250,6 +253,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const refreshWalletData = useCallback(async () => {
+    if (!authUser) return;
+    const [userResult, transactionsResult] = await Promise.allSettled([
+      refreshUser(),
+      marketplaceService.getWalletTransactions(authUser.id),
+    ]);
+    if (transactionsResult.status === 'fulfilled') {
+      setTransactions(transactionsResult.value);
+    } else {
+      console.error('Failed to refresh wallet ledger:', transactionsResult.reason);
+    }
+    if (userResult.status === 'rejected') {
+      console.error('Failed to refresh authenticated user after wallet update:', userResult.reason);
+    }
+  }, [authUser, refreshUser]);
+
   const unlockLead = async (leadId: string): Promise<{ success: boolean; message: string }> => {
     if (!authUser) {
       return { success: false, message: 'Autentifică-te pentru a debloca lead-uri.' };
@@ -398,18 +417,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const rechargeCredits = async (amount: number, packageName: string): Promise<boolean> => {
-    if (!authUser || authUser.role !== 'admin') return false;
-
-    try {
-      await marketplaceService.topUpCredits(authUser.id, amount, `Reîncărcare: ${packageName}`);
-      await Promise.allSettled([refreshUser(), refreshWallet(authUser.id)]);
-      return true;
-    } catch (error) {
-      console.error('Failed to top up credits:', error);
-      return false;
+  const createCreditCheckout = useCallback(async (bundleId: string, idempotencyKey: string): Promise<string> => {
+    if (!authUser || authUser.role !== 'pro') {
+      throw new Error('Reîncărcarea creditelor este disponibilă doar profesioniștilor autentificați.');
     }
-  };
+    const checkout = await marketplaceService.createCreditCheckout(bundleId, idempotencyKey);
+    return checkout.checkoutUrl;
+  }, [authUser]);
+
+  const getCreditPurchaseStatus = useCallback(async (purchaseId: string): Promise<CreditPurchaseStatus> => {
+    return marketplaceService.getCreditPurchaseStatus(purchaseId);
+  }, []);
 
   // Chat transport is not part of the REST surface yet: keep the local thread and auto-reply.
   const sendChatMessage = (leadId: string, content: string) => {
@@ -611,7 +629,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createLead,
         fileDispute,
         resolveDispute,
-        rechargeCredits,
+        createCreditCheckout,
+        getCreditPurchaseStatus,
+        refreshWalletData,
         sendChatMessage,
         aiMessages,
         sendAIMessage,

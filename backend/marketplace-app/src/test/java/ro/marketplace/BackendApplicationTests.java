@@ -14,6 +14,8 @@ import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
 import ro.marketplace.domain.port.WalletTransactionRepository;
+import ro.marketplace.infrastructure.persistence.repository.SpringDataCreditPurchaseRepository;
+import ro.marketplace.infrastructure.persistence.repository.SpringDataStripeWebhookEventRepository;
 
 @SpringBootTest
 @TestPropertySource(properties = {
@@ -54,6 +56,12 @@ class BackendApplicationTests {
 
     @MockitoBean
     private JpaMetamodelMappingContext jpaMappingContext;
+
+    @MockitoBean
+    private SpringDataCreditPurchaseRepository creditPurchaseRepository;
+
+    @MockitoBean
+    private SpringDataStripeWebhookEventRepository stripeWebhookEventRepository;
 
     @Test
     void contextLoads() {
