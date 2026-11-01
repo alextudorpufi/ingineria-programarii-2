@@ -39,6 +39,7 @@ CREATE INDEX IF NOT EXISTS idx_subcategories_category_id ON service_subcategorie
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255),
     role VARCHAR(50) NOT NULL DEFAULT 'pro', -- 'client', 'pro', 'admin'
     name VARCHAR(255) NOT NULL,
     company_name VARCHAR(255),
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users (LOWER(email));
 
 -- 4. Professional Coverage Areas, Offered Services & Categories
 CREATE TABLE IF NOT EXISTS user_coverage_areas (

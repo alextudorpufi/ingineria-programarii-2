@@ -23,23 +23,25 @@ export const DisputesView: React.FC = () => {
   const claimedLeads = leads.filter(l => isLeadClaimedByMe(l.id));
   const selectedDispute = disputes.find(d => d.id === selectedDisputeId) || disputes[0] || null;
 
-  const handleCreateDispute = (e: React.FormEvent) => {
+  const handleCreateDispute = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newDisputeLeadId || !newDisputeDetails.trim()) return;
 
-    fileDispute({
+    const created = await fileDispute({
       leadId: newDisputeLeadId,
       reason: newDisputeReason,
       details: newDisputeDetails
     });
 
-    setShowFileModal(false);
-    setNewDisputeDetails('');
+    if (created) {
+      setShowFileModal(false);
+      setNewDisputeDetails('');
+    }
   };
 
-  const handleAdminApprove = () => {
+  const handleAdminApprove = async () => {
     if (!selectedDispute) return;
-    resolveDispute(
+    await resolveDispute(
       selectedDispute.id,
       'aprobat',
       adminNote || 'Rambursare aprobată conform politicii de transparență și calificare a lead-urilor.'
@@ -47,9 +49,9 @@ export const DisputesView: React.FC = () => {
     setAdminNote('');
   };
 
-  const handleAdminReject = () => {
+  const handleAdminReject = async () => {
     if (!selectedDispute) return;
-    resolveDispute(
+    await resolveDispute(
       selectedDispute.id,
       'respins',
       adminNote || 'Sesizare respinsă. Datele de contact și specificațiile au fost verificate ca fiind valide.'
@@ -78,23 +80,21 @@ export const DisputesView: React.FC = () => {
           </div>
         </div>
 
-        {(userRole === 'pro' || userRole === 'client') && (
+        {userRole === 'pro' && (
           <Button
             variant="primary"
             size="sm"
             icon={<Plus className="w-4 h-4" />}
             onClick={() => {
-              const available = userRole === 'client' ? leads : claimedLeads;
-              if (available.length > 0) {
-                setNewDisputeLeadId(available[0].id);
-                setShowFileModal(true);
+              if (claimedLeads.length > 0) {
+                setNewDisputeLeadId(claimedLeads[0].id);
               } else {
                 setNewDisputeLeadId(leads[0]?.id || 'lead-101');
-                setShowFileModal(true);
               }
+              setShowFileModal(true);
             }}
           >
-            {userRole === 'client' ? 'Sesizare Calitate / Execuție' : 'Deschide Sesizare Nouă'}
+            Deschide Sesizare Nouă
           </Button>
         )}
       </div>

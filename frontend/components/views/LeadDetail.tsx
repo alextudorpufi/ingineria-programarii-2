@@ -49,14 +49,15 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
   const isClaimed = isLeadClaimedByMe(activeLead.id);
   const isFull = activeLead.claimedPros.length >= activeLead.maxPros;
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     setIsUnlocking(true);
     setUnlockFeedback(null);
-    setTimeout(() => {
-      const res = unlockLead(activeLead.id);
+    try {
+      const res = await unlockLead(activeLead.id);
       setUnlockFeedback(res);
+    } finally {
       setIsUnlocking(false);
-    }, 450);
+    }
   };
 
   const handleAdminApprove = () => {

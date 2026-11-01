@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
   UserRole,
   DisputeRecord,
@@ -11,14 +11,15 @@ import {
 import { LeadModel } from '@/models/LeadModel';
 import { ProfileModel } from '@/models/ProfileModel';
 import { RatingProtocolModel, RawRatingPayload } from '@/models/RatingProtocolModel';
-import { skillinkDataService } from '@/services/data/MockDataService';
-import { INITIAL_CHAT_MESSAGES, INITIAL_PRO_PROFILE } from '@/data/mockData';
+import { useAuth } from '@/context/AuthContext';
+import type { UserProfile } from '@/services/api/authService';
+import { marketplaceService, CreateLeadPayload } from '@/services/api/marketplaceService';
+import { resolveCategoryId } from '@/services/api/categoryCatalog';
 
 export type WorkspaceTab = 'leads' | 'ai' | 'chat' | 'disputes' | 'analytics' | 'profile';
 
 interface AppContextType {
   userRole: UserRole;
-  setUserRole: (role: UserRole) => void;
   darkMode: boolean;
   toggleDarkMode: () => void;
   leads: LeadModel[];
@@ -36,88 +37,174 @@ interface AppContextType {
   transactions: WalletTransaction[];
   disputes: DisputeRecord[];
   chatMessages: Record<string, ChatMessage[]>;
-  unlockLead: (leadId: string) => { success: boolean; message: string };
+  unlockLead: (leadId: string) => Promise<{ success: boolean; message: string }>;
   isLeadClaimedByMe: (leadId: string) => boolean;
-  createLead: (newLead: Partial<LeadModel>) => LeadModel;
-  fileDispute: (data: { leadId: string; reason: DisputeRecord['reason']; details: string }) => boolean;
-  resolveDispute: (disputeId: string, decision: 'aprobat' | 'respins', note: string) => void;
-  rechargeCredits: (amount: number, packageName: string) => void;
+  createLead: (newLead: Partial<LeadModel>) => Promise<LeadModel>;
+  fileDispute: (data: { leadId: string; reason: DisputeRecord['reason']; details: string }) => Promise<boolean>;
+  resolveDispute: (disputeId: string, decision: 'aprobat' | 'respins', note: string) => Promise<void>;
+  rechargeCredits: (amount: number, packageName: string) => Promise<boolean>;
   sendChatMessage: (leadId: string, content: string) => void;
   aiMessages: AIChatMessage[];
   sendAIMessage: (text: string) => void;
   resetAIMessages: () => void;
   showWalletModal: boolean;
   setShowWalletModal: (show: boolean) => void;
+  isAuthModalOpen: boolean;
+  openAuthModal: () => void;
+  closeAuthModal: () => void;
   activeTab: WorkspaceTab;
   setActiveTab: (tab: WorkspaceTab) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const EMPTY_PROFILE = new ProfileModel({
+  id: 'guest',
+  role: 'pro',
+  name: 'Vizitator Skillink',
+  companyName: 'Skillink Marketplace',
+  title: 'Autentificare necesară',
+  email: '',
+  phone: '',
+  creditsBalance: 0,
+  hourlyRate: 0,
+  clientBudget: 0,
+  completedJobs: 0,
+  trustScore: 100,
+  responseTime: '-',
+  memberSince: '-',
+  categories: [],
+  servicesOffered: [],
+  coverageArea: [],
+  verifiedBadge: false,
+});
+
+function toProfileModel(user: UserProfile): ProfileModel {
+  const numeric = (value: number | null | undefined): number => {
+    const parsed = Number(value ?? 0);
+    return Number.isFinite(parsed) ? parsed : 0;
+  };
+
+  return new ProfileModel({
+    id: user.id,
+    role: user.role,
+    name: user.name,
+    companyName: user.companyName ?? '',
+    title: user.title ?? '',
+    email: user.email,
+    phone: user.phone ?? '',
+    avatarUrl: user.avatarUrl ?? '',
+    categories: user.categories ?? [],
+    servicesOffered: user.servicesOffered ?? [],
+    coverageArea: user.coverageAreas ?? [],
+    creditsBalance: user.creditsBalance,
+    hourlyRate: numeric(user.hourlyRate),
+    clientBudget: numeric(user.clientBudget),
+    bio: user.bio ?? '',
+    verifiedBadge: user.verifiedBadge,
+    responseTime: user.responseTime ?? '-',
+    completedJobs: user.completedJobs,
+    trustScore: numeric(user.trustScore),
+    memberSince: user.memberSince ?? '-',
+  });
+}
+
+const INITIAL_AI_MESSAGE: AIChatMessage = {
+  id: 'ai-init',
+  sender: 'ai',
+  text: 'Salut! Sunt AI Project Architect pe Skillink. Spune-mi cu propriile cuvinte ce proiect dorești să realizezi (de exemplu: "Vreau un magazin online pentru o florărie" sau "Renovare apartament 3 camere"). Voi structura cerințele, bugetul și livrabilele pentru a primi oferte calificate de la cei mai buni profesioniști.',
+  timestamp: 'Acum',
+  suggestedPicks: [
+    'Florărie online cu plăți cu cardul și livrare',
+    'Renovare baie & schimbat gresie/faianță',
+    'Contabilitate lunară SRL firmă IT',
+    'Campanie Google Ads pentru cabinet dentar'
+  ]
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [userRole, setUserRole] = useState<UserRole>('pro');
+  const { user: authUser, isLoading: isAuthLoading, refreshUser } = useAuth();
+
   const [darkMode, setDarkMode] = useState<boolean>(false);
 
-  // Asynchronous model data states
   const [leads, setLeads] = useState<LeadModel[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = useState<boolean>(true);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const [proProfile, setProProfile] = useState<ProfileModel>(new ProfileModel(INITIAL_PRO_PROFILE));
+  const [proProfile, setProProfile] = useState<ProfileModel>(EMPTY_PROFILE);
   const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
 
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [disputes, setDisputes] = useState<DisputeRecord[]>([]);
-  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>(INITIAL_CHAT_MESSAGES);
+  const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
 
   const [showWalletModal, setShowWalletModal] = useState<boolean>(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   const [activeTab, setActiveTab] = useState<WorkspaceTab>('leads');
 
-  // AI Architect Conversational messages
-  const [aiMessages, setAiMessages] = useState<AIChatMessage[]>([
-    {
-      id: 'ai-init',
-      sender: 'ai',
-      text: 'Salut! Sunt AI Project Architect pe Skillink. Spune-mi cu propriile cuvinte ce proiect dorești să realizezi (de exemplu: "Vreau un magazin online pentru o florărie" sau "Renovare apartament 3 camere"). Voi structura cerințele, bugetul și livrabilele pentru a primi oferte calificate de la cei mai buni profesioniști.',
-      timestamp: 'Acum',
-      suggestedPicks: [
-        'Florărie online cu plăți cu cardul și livrare',
-        'Renovare baie & schimbat gresie/faianță',
-        'Contabilitate lunară SRL firmă IT',
-        'Campanie Google Ads pentru cabinet dentar'
-      ]
-    }
-  ]);
+  const [aiMessages, setAiMessages] = useState<AIChatMessage[]>([INITIAL_AI_MESSAGE]);
 
-  // Load the active role's profile plus the lead feed exactly once on mount
+  const currentUserId = authUser?.id ?? null;
+  const currentUserRole = authUser?.role ?? null;
+  const userRole: UserRole = currentUserRole ?? 'pro';
+
+  // Sync the authenticated profile. `authUser` changes after claim/top-up refreshes.
+  useEffect(() => {
+    let isCancelled = false;
+    Promise.resolve().then(() => {
+      if (isCancelled) return;
+      setProProfile(authUser ? toProfileModel(authUser) : EMPTY_PROFILE);
+      setIsLoadingProfile(isAuthLoading);
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [authUser, isAuthLoading]);
+
+  // Load real database-backed workspace data whenever the authenticated user changes.
   useEffect(() => {
     let isCancelled = false;
 
     const loadWorkspace = async () => {
+      if (isAuthLoading) return;
+
+      if (!currentUserId || !currentUserRole) {
+        setLeads([]);
+        setTransactions([]);
+        setDisputes([]);
+        setActiveLeadId(null);
+        setIsLoadingLeads(false);
+        return;
+      }
+
+      setIsLoadingLeads(true);
       try {
-        const [loadedLeads, roleProfile, loadedTx, loadedDisputes] = await Promise.all([
-          skillinkDataService.getLeadsAsync(),
-          skillinkDataService.getProfileByRoleAsync('pro'),
-          skillinkDataService.getTransactionsAsync(),
-          skillinkDataService.getDisputesAsync()
+        const [loadedLeads, loadedTransactions, loadedDisputes] = await Promise.all([
+          marketplaceService.getLeads(100),
+          marketplaceService.getWalletTransactions(currentUserId),
+          marketplaceService.getDisputes(currentUserId, currentUserRole),
         ]);
         if (isCancelled) return;
 
-        setLeads(loadedLeads);
-        setActiveLeadId(prev => prev || (loadedLeads.length > 0 ? loadedLeads[0].id : null));
-        setProProfile(roleProfile);
-        setTransactions(loadedTx);
+        const models = loadedLeads.map(raw => new LeadModel(raw));
+        setLeads(models);
+        setTransactions(loadedTransactions);
         setDisputes(loadedDisputes);
-      } catch (err) {
-        console.error('Failed to load Skillink data:', err);
-      } finally {
+        setActiveLeadId(previous => (previous && models.some(lead => lead.id === previous)
+          ? previous
+          : models[0]?.id ?? null));
+      } catch (error) {
         if (!isCancelled) {
-          setIsLoadingLeads(false);
-          setIsLoadingProfile(false);
+          console.error('Failed to load Skillink workspace data:', error);
+          setLeads([]);
+          setTransactions([]);
+          setDisputes([]);
         }
+      } finally {
+        if (!isCancelled) setIsLoadingLeads(false);
       }
     };
 
@@ -125,7 +212,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       isCancelled = true;
     };
-  }, []);
+  }, [currentUserId, currentUserRole, isAuthLoading]);
 
   // Sync dark mode class on document element and body
   useEffect(() => {
@@ -143,25 +230,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [darkMode]);
 
   const toggleDarkMode = () => {
-    setDarkMode(prev => !prev);
+    setDarkMode(previous => !previous);
   };
 
-  const activeLead = leads.find(l => l.id === activeLeadId) || leads[0] || null;
+  const activeLead = leads.find(lead => lead.id === activeLeadId) || leads[0] || null;
 
   const isLeadClaimedByMe = (leadId: string): boolean => {
-    const lead = leads.find(l => l.id === leadId);
-    if (!lead) return false;
-    return lead.isClaimedBy(proProfile.id);
+    if (!currentUserId) return false;
+    const lead = leads.find(item => item.id === leadId);
+    return lead ? lead.isClaimedBy(currentUserId) : false;
   };
 
-  // Atomic Lead unlock per project proposal rules using SkillinkDataService
-  const unlockLead = (leadId: string): { success: boolean; message: string } => {
-    const lead = leads.find(l => l.id === leadId);
+  const refreshWallet = async (userId: string) => {
+    try {
+      const refreshedTransactions = await marketplaceService.getWalletTransactions(userId);
+      setTransactions(refreshedTransactions);
+    } catch (error) {
+      console.error('Failed to refresh wallet ledger:', error);
+    }
+  };
+
+  const unlockLead = async (leadId: string): Promise<{ success: boolean; message: string }> => {
+    if (!authUser) {
+      return { success: false, message: 'Autentifică-te pentru a debloca lead-uri.' };
+    }
+
+    const lead = leads.find(item => item.id === leadId);
     if (!lead) {
       return { success: false, message: 'Solicitarea nu a fost găsită.' };
     }
 
-    if (isLeadClaimedByMe(leadId)) {
+    if (lead.isClaimedBy(authUser.id)) {
       return { success: true, message: 'Ai deja acces complet la acest lead.' };
     }
 
@@ -177,173 +276,170 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       };
     }
 
-    // Atomic debit via Model & Service
-    lead.addClaim(proProfile.id, proProfile.name);
-    const updatedProfile = new ProfileModel(proProfile.toJSON());
-    updatedProfile.creditsBalance = proProfile.creditsBalance - lead.leadPrice;
-    setProProfile(updatedProfile);
+    try {
+      const claim = await marketplaceService.claimLead(leadId);
 
-    // Record transaction
-    const newTx: WalletTransaction = {
-      id: `tx-${Date.now()}`,
-      type: 'lead_purchase',
-      amount: -lead.leadPrice,
-      description: `Deblocare lead: ${lead.title.slice(0, 38)}...`,
-      timestamp: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
-      leadId: lead.id,
-      balanceAfter: updatedProfile.creditsBalance
-    };
-    setTransactions(prev => [newTx, ...prev]);
-
-    // Initialize chat if not exists
-    if (!chatMessages[leadId]) {
-      setChatMessages(prev => ({
-        ...prev,
-        [leadId]: [
-          {
-            id: `msg-${Date.now()}`,
-            leadId,
-            senderId: 'system',
-            senderName: 'Sistem Skillink',
-            senderRole: 'system',
-            content: `Lead deblocat cu succes. Ai acces la datele directe de contact ale clientului: Tel: ${lead.client.phone}, Email: ${lead.client.email}.`,
-            timestamp: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
-          }
-        ]
+      setLeads(previous => previous.map(item => {
+        if (item.id !== leadId) return item;
+        const updated = new LeadModel(item.toJSON());
+        updated.addClaim(claim.proId, claim.proName);
+        return updated;
       }));
+
+      await Promise.allSettled([refreshUser(), refreshWallet(authUser.id)]);
+
+      setChatMessages(previous => {
+        if (previous[leadId]) return previous;
+        return {
+          ...previous,
+          [leadId]: [
+            {
+              id: `msg-${Date.now()}`,
+              leadId,
+              senderId: 'system',
+              senderName: 'Sistem Skillink',
+              senderRole: 'system',
+              content: 'Lead deblocat cu succes. Datele directe de contact ale clientului sunt acum disponibile în panoul de detalii.',
+              timestamp: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
+            }
+          ]
+        };
+      });
+
+      return { success: true, message: `Lead deblocat cu succes! S-au dedus ${lead.leadPrice} credite.` };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : 'Lead-ul nu a putut fi deblocat.'
+      };
+    }
+  };
+
+  const createLead = async (newLeadData: Partial<LeadModel>): Promise<LeadModel> => {
+    if (!authUser) {
+      throw new Error('Autentifică-te pentru a publica o solicitare.');
+    }
+    if (authUser.role !== 'client' && authUser.role !== 'admin') {
+      throw new Error('Doar conturile de client pot publica solicitări în marketplace.');
     }
 
-    return { success: true, message: `Lead deblocat cu succes! S-au dedus ${lead.leadPrice} credite.` };
+    const budgetMin = newLeadData.budget?.min ?? 1000;
+    const budgetMax = newLeadData.budget?.max ?? Math.max(budgetMin, 5000);
+    const payload: CreateLeadPayload = {
+      title: newLeadData.title || 'Solicitare de servicii',
+      categoryId: resolveCategoryId(newLeadData.categoryId || newLeadData.category || 'it-software'),
+      subcategory: newLeadData.subcategory || 'General',
+      description: newLeadData.description || newLeadData.title || 'Solicitare de servicii publicată prin AI Architect.',
+      location: newLeadData.location || 'București',
+      budgetMin,
+      budgetMax,
+      budgetCurrency: newLeadData.budget?.currency ?? 'RON',
+      budgetIsNegotiable: newLeadData.budget?.isNegotiable ?? true,
+      budgetIsConfirmed: newLeadData.budget?.isConfirmed ?? true,
+      timeline: newLeadData.timeline || 'În următoarele 2 săptămâni',
+      leadPrice: newLeadData.leadPrice || 30,
+      maxPros: newLeadData.maxPros || 4,
+      clientName: authUser.name,
+      clientPhone: authUser.phone || '+40 700 000 000',
+      clientEmail: authUser.email,
+      clientCity: newLeadData.location || 'București',
+    };
+
+    const rawLead = await marketplaceService.createLead(payload);
+    const created = new LeadModel(rawLead);
+
+    setLeads(previous => [created, ...previous]);
+    setActiveLeadId(created.id);
+    return created;
   };
 
-  // Add new lead through Model
-  const createLead = (newLeadData: Partial<LeadModel>): LeadModel => {
-    const lead = new LeadModel({
-      ...newLeadData,
-      id: `lead-${Date.now()}`,
-      createdAt: 'Chiar acum',
-      status: 'validat'
-    });
-
-    setLeads(prev => [lead, ...prev]);
-    setActiveLeadId(lead.id);
-    return lead;
-  };
-
-  // Submit Rating Protocol Review
+  // Local-only rating protocol draft until a dedicated reviews endpoint is exposed.
   const submitRating = async (payload: RawRatingPayload): Promise<RatingProtocolModel> => {
-    const createdRating = await skillinkDataService.submitVerifiedRatingAsync(userRole, payload);
-    // Refresh profile in state
-    const updatedProfile = await skillinkDataService.getProfileByRoleAsync(userRole);
-    setProProfile(updatedProfile);
+    const createdRating = new RatingProtocolModel(payload);
+    setProProfile(previous => {
+      const updated = new ProfileModel(previous.toJSON());
+      updated.addRating(createdRating);
+      return updated;
+    });
     return createdRating;
   };
 
-  // Dispute resolution
-  const fileDispute = (data: { leadId: string; reason: DisputeRecord['reason']; details: string }): boolean => {
-    const lead = leads.find(l => l.id === data.leadId);
+  const fileDispute = async (data: { leadId: string; reason: DisputeRecord['reason']; details: string }): Promise<boolean> => {
+    if (!authUser) return false;
+
+    const lead = leads.find(item => item.id === data.leadId);
     if (!lead) return false;
 
-    const newDispute: DisputeRecord = {
-      id: `disp-${Date.now()}`,
-      leadId: lead.id,
-      leadTitle: lead.title,
-      proId: proProfile.id,
-      proName: proProfile.name,
-      reason: data.reason,
-      details: data.details,
-      creditsRequested: lead.leadPrice,
-      createdAt: new Date().toLocaleString('ro-RO'),
-      status: 'in_analiza'
-    };
+    try {
+      const createdDispute = await marketplaceService.raiseDispute({
+        leadId: lead.id,
+        leadTitle: lead.title,
+        reason: data.reason,
+        details: data.details,
+        creditsRequested: lead.leadPrice,
+      });
 
-    setDisputes(prev => [newDispute, ...prev]);
-    return true;
-  };
-
-  const resolveDispute = (disputeId: string, decision: 'aprobat' | 'respins', note: string) => {
-    const dispute = disputes.find(d => d.id === disputeId);
-    if (!dispute) return;
-
-    if (decision === 'aprobat') {
-      const updatedProfile = new ProfileModel(proProfile.toJSON());
-      updatedProfile.creditsBalance = proProfile.creditsBalance + dispute.creditsRequested;
-      setProProfile(updatedProfile);
-
-      const newTx: WalletTransaction = {
-        id: `tx-ref-${Date.now()}`,
-        type: 'refund',
-        amount: dispute.creditsRequested,
-        description: `Rambursare aprobată (${dispute.leadTitle.slice(0, 30)}...)`,
-        timestamp: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
-        leadId: dispute.leadId,
-        balanceAfter: updatedProfile.creditsBalance
-      };
-      setTransactions(prev => [newTx, ...prev]);
+      setDisputes(previous => [createdDispute, ...previous]);
+      return true;
+    } catch (error) {
+      console.error('Failed to raise dispute:', error);
+      return false;
     }
-
-    setDisputes(prev =>
-      prev.map(d => {
-        if (d.id === disputeId) {
-          return {
-            ...d,
-            status: decision,
-            adminDecisionNote: note,
-            resolvedAt: new Date().toLocaleString('ro-RO')
-          };
-        }
-        return d;
-      })
-    );
   };
 
-  // Top up credits
-  const rechargeCredits = (amount: number, packageName: string) => {
-    const updatedProfile = new ProfileModel(proProfile.toJSON());
-    updatedProfile.creditsBalance = proProfile.creditsBalance + amount;
-    setProProfile(updatedProfile);
+  const resolveDispute = async (disputeId: string, decision: 'aprobat' | 'respins', note: string): Promise<void> => {
+    if (!authUser || authUser.role !== 'admin') return;
 
-    const newTx: WalletTransaction = {
-      id: `tx-top-${Date.now()}`,
-      type: 'top_up',
-      amount,
-      description: `Reîncărcare: ${packageName}`,
-      timestamp: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' }),
-      balanceAfter: updatedProfile.creditsBalance
-    };
-    setTransactions(prev => [newTx, ...prev]);
+    try {
+      const updated = await marketplaceService.resolveDispute(disputeId, decision === 'aprobat', note);
+      setDisputes(previous => previous.map(dispute => (dispute.id === disputeId ? updated : dispute)));
+    } catch (error) {
+      console.error('Failed to resolve dispute:', error);
+    }
   };
 
-  // Direct chat simulation
+  const rechargeCredits = async (amount: number, packageName: string): Promise<boolean> => {
+    if (!authUser || authUser.role !== 'admin') return false;
+
+    try {
+      await marketplaceService.topUpCredits(authUser.id, amount, `Reîncărcare: ${packageName}`);
+      await Promise.allSettled([refreshUser(), refreshWallet(authUser.id)]);
+      return true;
+    } catch (error) {
+      console.error('Failed to top up credits:', error);
+      return false;
+    }
+  };
+
+  // Chat transport is not part of the REST surface yet: keep the local thread and auto-reply.
   const sendChatMessage = (leadId: string, content: string) => {
-    if (!content.trim()) return;
+    if (!content.trim() || !authUser) return;
 
-    const lead = leads.find(l => l.id === leadId);
+    const lead = leads.find(item => item.id === leadId);
     const clientName = lead ? lead.client.name.split(' ')[0] : 'Client';
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       leadId,
-      senderId: userRole === 'pro' ? proProfile.id : 'client-881',
-      senderName: userRole === 'pro' ? proProfile.name : clientName,
-      senderRole: userRole === 'pro' ? 'pro' : 'client',
+      senderId: authUser.id,
+      senderName: authUser.role === 'pro' ? authUser.name : clientName,
+      senderRole: authUser.role === 'client' ? 'client' : 'pro',
       content,
       timestamp: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
     };
 
-    setChatMessages(prev => ({
-      ...prev,
-      [leadId]: [...(prev[leadId] || []), userMsg]
+    setChatMessages(previous => ({
+      ...previous,
+      [leadId]: [...(previous[leadId] || []), userMsg]
     }));
 
-    // Realistic auto-reply simulation
     setTimeout(() => {
-      const isClientReplying = userRole === 'pro';
+      const isClientReplying = authUser.role === 'pro';
       const replyMsg: ChatMessage = {
         id: `msg-reply-${Date.now()}`,
         leadId,
-        senderId: isClientReplying ? 'client-reply' : proProfile.id,
-        senderName: isClientReplying ? clientName : proProfile.name,
+        senderId: isClientReplying ? 'client-reply' : authUser.id,
+        senderName: isClientReplying ? clientName : authUser.name,
         senderRole: isClientReplying ? 'client' : 'pro',
         content: isClientReplying
           ? 'Mulțumesc mult pentru mesaj! Sună foarte bine. Când ați avea disponibilitate pentru o discuție detaliată?'
@@ -351,14 +447,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         timestamp: new Date().toLocaleTimeString('ro-RO', { hour: '2-digit', minute: '2-digit' })
       };
 
-      setChatMessages(prev => ({
-        ...prev,
-        [leadId]: [...(prev[leadId] || []), replyMsg]
+      setChatMessages(previous => ({
+        ...previous,
+        [leadId]: [...(previous[leadId] || []), replyMsg]
       }));
     }, 1200);
   };
 
-  // AI Architect Conversational elicitation
   const sendAIMessage = (text: string) => {
     if (!text.trim()) return;
 
@@ -369,12 +464,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       timestamp: 'Acum'
     };
 
-    setAiMessages(prev => [...prev, userMsg]);
+    setAiMessages(previous => [...previous, userMsg]);
 
     setTimeout(() => {
       let aiReplyText = '';
-      let suggestedPicks: string[] | undefined = undefined;
-      let extractedSpec: Partial<LeadModel> | undefined = undefined;
+      let suggestedPicks: string[] | undefined;
+      let extractedSpec: Partial<LeadModel> | undefined;
 
       const lower = text.toLowerCase();
       if (lower.includes('flori') || lower.includes('florărie') || lower.includes('magazin') || lower.includes('site')) {
@@ -387,6 +482,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         extractedSpec = {
           title: 'Magazin Online E-Commerce cu modul livrări programate',
           category: 'IT & Dezvoltare Software',
+          categoryId: 'it-software',
           subcategory: 'E-commerce & Plăți Online',
           budget: { min: 4500, max: 8000, currency: 'RON', isNegotiable: true, isConfirmed: true },
           timeline: '3-4 săptămâni',
@@ -418,6 +514,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         extractedSpec = {
           title: 'Renovare completă apartament și finisaje interioare',
           category: 'Construcții & Amenajări',
+          categoryId: 'constructii',
           subcategory: 'Renovare Apartament / Casă',
           budget: { min: 18000, max: 32000, currency: 'RON', isNegotiable: true, isConfirmed: true },
           timeline: 'Începere în 2 săptămâni',
@@ -449,6 +546,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         extractedSpec = {
           title: text.length > 50 ? `${text.slice(0, 48)}...` : text,
           category: 'IT & Dezvoltare Software',
+          categoryId: 'it-software',
           subcategory: 'General',
           budget: { min: 2500, max: 5500, currency: 'RON', isNegotiable: true, isConfirmed: true },
           timeline: '1-2 luni',
@@ -476,44 +574,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         extractedSpec
       };
 
-      setAiMessages(prev => [...prev, aiReplyMsg]);
+      setAiMessages(previous => [...previous, aiReplyMsg]);
     }, 800);
   };
 
   const resetAIMessages = () => {
-    setAiMessages([
-      {
-        id: 'ai-init',
-        sender: 'ai',
-        text: 'Salut! Sunt AI Project Architect pe Skillink. Spune-mi cu propriile cuvinte ce proiect dorești să realizezi (de exemplu: "Vreau un magazin online pentru o florărie" sau "Renovare apartament 3 camere"). Voi structura cerințele, bugetul și livrabilele pentru a primi oferte calificate de la cei mai buni profesioniști.',
-        timestamp: 'Acum',
-        suggestedPicks: [
-          'Florărie online cu plăți cu cardul și livrare',
-          'Renovare baie & schimbat gresie/faianță',
-          'Contabilitate lunară SRL firmă IT',
-          'Campanie Google Ads pentru cabinet dentar'
-        ]
-      }
-    ]);
+    setAiMessages([INITIAL_AI_MESSAGE]);
   };
 
-  // Switching roles swaps the assistant back to its opening state and reloads that role's profile
-  const handleSetUserRole = (role: UserRole) => {
-    setUserRole(role);
-    resetAIMessages();
-    setIsLoadingProfile(true);
-    skillinkDataService
-      .getProfileByRoleAsync(role)
-      .then(setProProfile)
-      .catch(err => console.error('Failed to load role profile:', err))
-      .finally(() => setIsLoadingProfile(false));
-  };
+  const openAuthModal = () => setIsAuthModalOpen(true);
+  const closeAuthModal = () => setIsAuthModalOpen(false);
 
   return (
     <AppContext.Provider
       value={{
         userRole,
-        setUserRole: handleSetUserRole,
         darkMode,
         toggleDarkMode,
         leads,
@@ -543,6 +618,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resetAIMessages,
         showWalletModal,
         setShowWalletModal,
+        isAuthModalOpen,
+        openAuthModal,
+        closeAuthModal,
         activeTab,
         setActiveTab
       }}

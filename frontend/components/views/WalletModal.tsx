@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Coins, History, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/Badge';
 
 export const WalletModal: React.FC = () => {
   const { showWalletModal, setShowWalletModal, proProfile, transactions, rechargeCredits } = useApp();
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [feedback, setFeedback] = useState<string | null>(null);
 
   if (!showWalletModal) return null;
 
@@ -17,8 +19,14 @@ export const WalletModal: React.FC = () => {
     { name: 'Pachet Studio / Agenție', credits: 400, bonus: 80, price: 350, tag: 'Economisești 20%' }
   ];
 
-  const handleSelectPackage = (pkg: typeof packages[0]) => {
-    rechargeCredits(pkg.credits + pkg.bonus, pkg.name);
+  const handleSelectPackage = async (pkg: typeof packages[0]) => {
+    setIsProcessing(true);
+    setFeedback(null);
+    const success = await rechargeCredits(pkg.credits + pkg.bonus, pkg.name);
+    setFeedback(success
+      ? `Reîncărcare aplicată: +${pkg.credits + pkg.bonus} credite.`
+      : 'Reîncărcarea creditelor este permisă doar pentru conturile de administrator.');
+    setIsProcessing(false);
   };
 
   return (
@@ -97,7 +105,8 @@ export const WalletModal: React.FC = () => {
                       variant={pkg.popular ? 'primary' : 'secondary'}
                       size="sm"
                       className="w-full"
-                      onClick={() => handleSelectPackage(pkg)}
+                      isLoading={isProcessing}
+                      onClick={() => void handleSelectPackage(pkg)}
                     >
                       Cumpără · {pkg.price} RON
                     </Button>
@@ -105,6 +114,12 @@ export const WalletModal: React.FC = () => {
                 </div>
               ))}
             </div>
+
+            {feedback && (
+              <p role="status" className="mt-3 text-[11px] font-semibold text-slate-600 dark:text-slate-300">
+                {feedback}
+              </p>
+            )}
           </div>
 
           {/* Transaction Ledger */}

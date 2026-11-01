@@ -4,6 +4,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import ro.marketplace.application.service.AuditService;
 import ro.marketplace.application.service.AuditServiceImpl;
+import ro.marketplace.application.service.AuthService;
+import ro.marketplace.application.service.AuthServiceImpl;
 import ro.marketplace.application.service.CustomerService;
 import ro.marketplace.application.service.CustomerServiceImpl;
 import ro.marketplace.application.service.DisputeService;
@@ -17,6 +19,7 @@ import ro.marketplace.domain.port.CurrentActorProvider;
 import ro.marketplace.domain.port.CustomerRepository;
 import ro.marketplace.domain.port.DisputeRepository;
 import ro.marketplace.domain.port.LeadRepository;
+import ro.marketplace.domain.port.PasswordHasher;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
@@ -37,6 +40,13 @@ public class ApplicationServiceConfig {
                                            UnitOfWork unitOfWork,
                                            Clock clock) {
         return new CustomerServiceImpl(customerRepository, unitOfWork, clock);
+    }
+
+    @Bean
+    public AuthService authService(UserRepository userRepository,
+                                   PasswordHasher passwordHasher,
+                                   UnitOfWork unitOfWork) {
+        return new AuthServiceImpl(userRepository, passwordHasher, unitOfWork);
     }
 
     @Bean

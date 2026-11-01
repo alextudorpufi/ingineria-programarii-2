@@ -37,6 +37,7 @@ export interface MatchExplanation {
 export interface Lead {
   id: string;
   title: string;
+  categoryId?: string;
   category: string;
   subcategory: string;
   description: string;

@@ -37,11 +37,16 @@ public class DisputeController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN','PRO','PROFESSIONAL')")
     public ResponseEntity<List<DisputeResponse>> getAllDisputes(
-            @RequestParam(name = "proId", required = false) UUID proId) {
-        List<Dispute> disputes = (proId != null)
-                ? disputeService.getDisputesByProId(proId)
+            @RequestParam(name = "proId", required = false) UUID proId,
+            @AuthenticationPrincipal Jwt jwt) {
+        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        // Administrators may inspect the whole queue or filter by professional;
+        // professionals are always scoped to their own disputes, regardless of the query.
+        UUID effectiveProId = user.isAdmin() ? proId : user.id();
+        List<Dispute> disputes = (effectiveProId != null)
+                ? disputeService.getDisputesByProId(effectiveProId)
                 : disputeService.getAllDisputes();
         List<DisputeResponse> responses = disputes.stream()
                 .map(DisputeDtoMapper::toResponse)

@@ -19,6 +19,7 @@ import java.util.UUID;
 public class User {
     private UUID id;
     private String email;
+    private String passwordHash;
     private String role; // 'client', 'pro', 'admin'
     private String name;
     private String companyName;

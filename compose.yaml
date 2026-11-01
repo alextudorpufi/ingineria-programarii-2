@@ -38,12 +38,22 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q -O - http://localhost:8080/api/health >/dev/null 2>&1 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 45s
     restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        BACKEND_URL: http://backend:8080
     container_name: marketplace-frontend
     environment:
       BACKEND_URL: http://backend:8080
@@ -51,8 +61,50 @@ services:
     ports:
       - "3000:3000"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped
+
+  # ============================================================================
+  # Development & Testing Database Seed Service
+  # Runs only on demand: docker compose --profile seed up db-seed
+  # Never part of a normal `docker compose up`, so production is never seeded.
+  # ============================================================================
+  db-seed:
+    image: postgres:18
+    container_name: marketplace-db-seed
+    profiles:
+      - seed
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+    environment:
+      PGHOST: db
+      PGPORT: 5432
+      PGDATABASE: ${DB_NAME:-marketplace}
+      PGUSER: ${DB_USER:-marketplace}
+      PGPASSWORD: ${DB_PASSWORD:-local_dev_password}
+    volumes:
+      - ./scripts/populate_5000_records.sql:/scripts/populate_5000_records.sql:ro
+    entrypoint:
+      - sh
+      - -c
+      - |
+        set -e
+        echo "Waiting for database readiness..."
+        until pg_isready -h db -U "$$PGUSER" -d "$$PGDATABASE"; do
+          sleep 1
+        done
+        echo "Waiting for Flyway schema (users table)..."
+        until [ "$(psql -tAc "SELECT to_regclass('public.users')")" = "users" ]; do
+          sleep 1
+        done
+        echo "Applying 5,000 records database population script..."
+        psql -v ON_ERROR_STOP=1 -f /scripts/populate_5000_records.sql
+        echo "Database seeding finished successfully!"
+    restart: "no"
 
   # ============================================================================
   # SonarQube Infrastructure

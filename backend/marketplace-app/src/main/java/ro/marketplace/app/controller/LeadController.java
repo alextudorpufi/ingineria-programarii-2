@@ -60,6 +60,7 @@ public class LeadController {
     public ResponseEntity<List<LeadResponse>> getAllLeads(
             @RequestParam(name = "category", required = false) String categoryId,
             @RequestParam(name = "status", required = false) String status,
+            @RequestParam(name = "limit", required = false, defaultValue = "100") int limit,
             @AuthenticationPrincipal Jwt jwt) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         List<Lead> leads;
@@ -71,7 +72,9 @@ public class LeadController {
             leads = leadService.getAllLeads();
         }
 
+        int effectiveLimit = limit > 0 ? limit : 100;
         List<LeadResponse> responses = leads.stream()
+                .limit(effectiveLimit)
                 .map(lead -> LeadDtoMapper.toResponse(lead, canViewContact(lead, user)))
                 .toList();
         return ResponseEntity.ok(responses);

@@ -16,6 +16,7 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
   const { aiMessages, sendAIMessage, resetAIMessages, createLead, setActiveLeadId, userRole } = useApp();
   const [inputText, setInputText] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [publishedSuccess, setPublishedSuccess] = useState<Lead | null>(null);
 
   // Latest extracted spec from AI messages
@@ -29,13 +30,15 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
     setInputText('');
   };
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     if (!currentSpec) return;
     setIsPublishing(true);
-    setTimeout(() => {
-      const created = createLead({
+    setPublishError(null);
+    try {
+      const created = await createLead({
         title: currentSpec.title,
         category: currentSpec.category,
+        categoryId: currentSpec.categoryId,
         subcategory: currentSpec.subcategory,
         description: `Proiect structurat prin AI Project Architect: ${currentSpec.title}. Solicitare verificată pentru profesioniști calificați.`,
         location: currentSpec.location || 'București & Ilfov',
@@ -44,11 +47,14 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
         leadPrice: currentSpec.leadPrice || 30,
         leadPassport: currentSpec.leadPassport
       });
-      setIsPublishing(false);
       setPublishedSuccess(created);
       setActiveLeadId(created.id);
       if (onPublished) onPublished(created);
-    }, 600);
+    } catch (error: unknown) {
+      setPublishError(error instanceof Error ? error.message : 'Solicitarea nu a putut fi publicată.');
+    } finally {
+      setIsPublishing(false);
+    }
   };
 
   return (
@@ -238,6 +244,12 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
                 <div>
                   <strong>Solicitare publicată cu succes!</strong> Profesioniștii compatibili din categoria aleasă au fost notificați prin matching explicabil.
                 </div>
+              </div>
+            )}
+
+            {publishError && (
+              <div role="alert" className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-900 text-xs text-rose-700 dark:text-rose-300">
+                <strong>Publicare blocată.</strong> {publishError}
               </div>
             )}
           </div>

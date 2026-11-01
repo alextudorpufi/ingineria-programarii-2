@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { SERVICE_CATEGORIES } from '@/data/mockData';
+import { SERVICE_CATEGORIES } from '@/services/api/categoryCatalog';
 import { Search, MapPin, Wallet, Check, Sparkles, Plus, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Badge } from '@/components/ui/Badge';
@@ -39,10 +39,7 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet }) => {
     }
 
     // Category filter
-    if (selectedCategory !== 'all') {
-      const catObj = SERVICE_CATEGORIES.find(c => c.id === selectedCategory);
-      if (catObj && lead.category !== catObj.name) return false;
-    }
+    if (selectedCategory !== 'all' && lead.categoryId !== selectedCategory) return false;
 
     // Filter type (available vs claimed) for Pro
     if (userRole === 'pro') {

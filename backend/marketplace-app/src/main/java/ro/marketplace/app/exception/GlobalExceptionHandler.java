@@ -85,8 +85,10 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ProblemDetail handleBadCredentials(BadCredentialsException ex) {
-        return problem(HttpStatus.UNAUTHORIZED, "Authentication Required",
-                "A valid bearer token is required to access this resource.", "unauthorized");
+        String detail = ex.getMessage() != null && !ex.getMessage().isBlank()
+                ? ex.getMessage()
+                : "A valid bearer token is required to access this resource.";
+        return problem(HttpStatus.UNAUTHORIZED, "Authentication Required", detail, "unauthorized");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

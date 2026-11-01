@@ -5,12 +5,15 @@
  */
 
 import { LeadPassport, MatchExplanation } from '@/types';
+import { resolveCategoryLabel } from '@/services/api/categoryCatalog';
 
 export interface RawLeadApiPayload {
   id?: string;
   lead_id?: string;
   title?: string;
   category?: string;
+  categoryId?: string;
+  category_id?: string;
   subcategory?: string;
   description?: string;
   location?: string;
@@ -60,6 +63,7 @@ export interface RawLeadApiPayload {
 export class LeadModel {
   public id: string;
   public title: string;
+  public categoryId: string;
   public category: string;
   public subcategory: string;
   public description: string;
@@ -95,7 +99,8 @@ export class LeadModel {
   constructor(raw: RawLeadApiPayload) {
     this.id = raw.id || raw.lead_id || `lead-${Date.now()}`;
     this.title = raw.title || 'Solicitare de servicii';
-    this.category = raw.category || 'IT & Dezvoltare Software';
+    this.categoryId = raw.categoryId || raw.category_id || raw.category || 'it-software';
+    this.category = resolveCategoryLabel(this.categoryId);
     this.subcategory = raw.subcategory || 'General';
     this.description = raw.description || '';
     this.location = raw.location || raw.city || 'România (Remote)';
@@ -187,6 +192,7 @@ export class LeadModel {
     return {
       id: this.id,
       title: this.title,
+      categoryId: this.categoryId,
       category: this.category,
       subcategory: this.subcategory,
       description: this.description,

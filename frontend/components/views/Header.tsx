@@ -2,28 +2,31 @@
 
 import React from 'react';
 import { useApp, WorkspaceTab } from '@/context/AppContext';
-import { Coins, Sparkles, Plus, Moon, Sun, Shield, Lock, Wallet, UserCheck, Briefcase } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { Coins, Sparkles, Plus, Moon, Sun, Wallet, LogIn, LogOut, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
-import type { UserRole } from '@/types';
 
-const ROLE_SWITCHER: { role: UserRole; label: string; icon: React.ReactNode; activeClass: string }[] = [
-  { role: 'pro', label: 'Profesionist', icon: <Briefcase className="w-3.5 h-3.5" />, activeClass: 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-xs' },
-  { role: 'client', label: 'Client', icon: <UserCheck className="w-3.5 h-3.5" />, activeClass: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-xs' },
-  { role: 'admin', label: 'Administrator', icon: <Shield className="w-3.5 h-3.5" />, activeClass: 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-xs' },
-];
+const ROLE_LABEL: Record<string, string> = {
+  pro: 'Pro',
+  client: 'Client',
+  admin: 'Admin',
+};
+
+const ROLE_BADGE_CLASS: Record<string, string> = {
+  pro: 'bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800',
+  client: 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800',
+  admin: 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800',
+};
 
 interface HeaderProps {
   currentTab: WorkspaceTab;
   setCurrentTab: (tab: WorkspaceTab) => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({
-  currentTab,
-  setCurrentTab
-}) => {
-  const { userRole, setUserRole, proProfile, setShowWalletModal, darkMode, toggleDarkMode } = useApp();
+export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab }) => {
+  const { userRole, proProfile, setShowWalletModal, darkMode, toggleDarkMode, openAuthModal } = useApp();
+  const { user, logout } = useAuth();
 
-  // Dynamic tab labels based on role
   const getTabLabel = (tab: WorkspaceTab) => {
     switch (tab) {
       case 'leads':
@@ -66,6 +69,7 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const navTabs: WorkspaceTab[] = ['leads', 'ai', 'chat', 'disputes', 'analytics', 'profile'];
+  const roleLabel = ROLE_LABEL[user?.role ?? 'pro'] ?? 'Pro';
 
   return (
     <header className="w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-indigo-100 dark:border-slate-800 sticky top-0 z-40 transition-colors shadow-2xs">
@@ -81,8 +85,12 @@ export const Header: React.FC<HeaderProps> = ({
           <span>
             Skill<span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">ink</span>
           </span>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/80 dark:border-indigo-800">
-            {userRole === 'client' ? 'Client' : userRole === 'admin' ? 'Admin' : 'Pro'}
+          <span
+            className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md border ${
+              ROLE_BADGE_CLASS[user?.role ?? 'pro']
+            }`}
+          >
+            {roleLabel}
           </span>
         </button>
 
@@ -103,23 +111,8 @@ export const Header: React.FC<HeaderProps> = ({
           ))}
         </nav>
 
-        {/* Zone 3: Role switcher + Primary Action + Theme Toggle */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="hidden md:inline-flex rounded-xl bg-slate-100 dark:bg-slate-800/80 p-0.5 border border-slate-200 dark:border-slate-700 shadow-2xs">
-            {ROLE_SWITCHER.map(({ role, label, icon, activeClass }) => (
-              <button
-                key={role}
-                onClick={() => setUserRole(role)}
-                aria-pressed={userRole === role}
-                className={`px-2.5 py-1.5 rounded-lg font-semibold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap text-xs ${
-                  userRole === role ? activeClass : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white'
-                }`}
-              >
-                {icon}
-                <span className="hidden lg:inline">{label}</span>
-              </button>
-            ))}
-          </div>
+        {/* Zone 3: Authenticated profile + Primary Action + Theme Toggle */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={toggleDarkMode}
             aria-label="Comută mod noapte/zi"
@@ -129,54 +122,70 @@ export const Header: React.FC<HeaderProps> = ({
             {darkMode ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-600" />}
           </button>
 
-          {userRole === 'pro' && (
-            <button
-              onClick={() => setShowWalletModal(true)}
-              className="px-3.5 py-2 text-xs font-semibold text-slate-800 dark:text-white bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/40 dark:hover:bg-amber-950/60 rounded-xl transition-all flex items-center gap-2 whitespace-nowrap shrink-0 border border-amber-200/90 dark:border-amber-800 shadow-2xs hover:shadow-xs active:scale-[0.98] cursor-pointer"
-            >
-              <Coins className="w-4 h-4 text-amber-500 shrink-0" />
-              <span>Sold:</span>
-              <span className="font-mono font-bold tabular-nums text-amber-700 dark:text-amber-300">
-                {proProfile.creditsBalance} credite
-              </span>
-            </button>
-          )}
+          {user ? (
+            <>
+              {(userRole === 'pro' || userRole === 'admin') && (
+                <button
+                  onClick={() => setShowWalletModal(true)}
+                  className="px-3 py-2 text-xs font-semibold text-slate-800 dark:text-white bg-amber-50 hover:bg-amber-100/80 dark:bg-amber-950/40 dark:hover:bg-amber-950/60 rounded-xl transition-all flex items-center gap-1.5 whitespace-nowrap border border-amber-200/90 dark:border-amber-800 shadow-2xs active:scale-[0.98] cursor-pointer"
+                >
+                  <Coins className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span className="hidden sm:inline">Sold:</span>
+                  <span className="font-mono font-bold tabular-nums text-amber-700 dark:text-amber-300">
+                    {proProfile.creditsBalance} cr.
+                  </span>
+                </button>
+              )}
 
-          {userRole === 'client' && (
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5 font-medium">
-                <Wallet className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Buget Alocat:</span>
-                <span className="font-mono font-bold">28,500 RON</span>
+              {userRole === 'client' && (
+                <Button variant="primary" size="sm" icon={<Plus className="w-4 h-4" />} onClick={() => setCurrentTab('ai')}>
+                  Cerere Nouă
+                </Button>
+              )}
+
+              <div className="flex items-center gap-2 pl-1 sm:pl-2 border-l border-slate-200 dark:border-slate-800">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-violet-600 text-white flex items-center justify-center text-xs font-bold shadow-xs overflow-hidden shrink-0">
+                  {user.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={user.avatarUrl} alt={user.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <UserRound className="w-4 h-4" />
+                  )}
+                </div>
+                <div className="hidden md:block leading-tight max-w-[140px]">
+                  <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{user.name}</p>
+                  <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                    {user.role === 'admin' ? 'Administrator platformă' : user.role === 'client' ? 'Client verificat' : 'Profesionist'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => void logout()}
+                  aria-label="Deconectare"
+                  title="Deconectare"
+                  className="p-2 rounded-xl text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
               </div>
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<Plus className="w-4 h-4" />}
-                onClick={() => setCurrentTab('ai')}
-              >
-                Cerere Nouă
+            </>
+          ) : (
+            <>
+              {userRole === 'client' && (
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-800 dark:text-emerald-300 font-medium">
+                  <Wallet className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Buget Alocat:</span>
+                  <span className="font-mono font-bold tabular-nums">28,500 RON</span>
+                </div>
+              )}
+              <Button variant="primary" size="sm" icon={<LogIn className="w-4 h-4" />} onClick={openAuthModal}>
+                Autentificare
               </Button>
-            </div>
-          )}
-
-          {userRole === 'admin' && (
-            <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 rounded-xl bg-purple-50 dark:bg-purple-950/60 border border-purple-200 dark:border-purple-800 text-xs text-purple-800 dark:text-purple-300 flex items-center gap-1.5 font-medium">
-                <Shield className="w-3.5 h-3.5 text-purple-600" />
-                <span className="hidden sm:inline">Platform Vault:</span>
-                <span className="font-mono font-bold">{proProfile.creditsBalance} credite</span>
-              </div>
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-900 flex items-center gap-1">
-                <Lock className="w-3 h-3" />
-                Audit Live
-              </span>
-            </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* Zone 2 (compact): Horizontally scrollable tab strip for narrow viewports */}
+      {/* Compact tab strip for narrow viewports */}
       <nav className="lg:hidden border-t border-slate-100 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80">
         <div className="max-w-7xl mx-auto px-2 flex items-center gap-1 overflow-x-auto py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
           {navTabs.map(tab => (

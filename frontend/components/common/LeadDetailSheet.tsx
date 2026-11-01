@@ -38,13 +38,14 @@ export const LeadDetailSheet: React.FC<LeadDetailSheetProps> = ({
   const isClaimed = isLeadClaimedByMe(lead.id);
   const isFull = lead.claimedPros.length >= lead.maxPros;
 
-  const handleUnlock = () => {
+  const handleUnlock = async () => {
     setIsProcessing(true);
-    setTimeout(() => {
-      const res = unlockLead(lead.id);
+    try {
+      const res = await unlockLead(lead.id);
       setFeedback(res);
+    } finally {
       setIsProcessing(false);
-    }, 400);
+    }
   };
 
   return (
