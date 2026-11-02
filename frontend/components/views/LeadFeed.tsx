@@ -11,9 +11,10 @@ import { SkeletonFeed } from '@/components/ui/Skeleton';
 
 interface LeadFeedProps {
   onOpenLeadSheet: (leadId: string) => void;
+  onSelectLeadOnMobile?: () => void;
 }
 
-export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet }) => {
+export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLeadOnMobile }) => {
   const {
     leads,
     isLoadingLeads,
@@ -63,9 +64,9 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet }) => {
   });
 
   return (
-    <div className="h-full flex flex-col md:border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950">
+    <div className="h-full min-h-0 flex flex-col md:border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden">
       {/* Top Search & Filter Bar */}
-      <div className="p-4 border-b border-slate-200/90 dark:border-slate-800 space-y-3 bg-gradient-to-b from-indigo-50/40 to-white dark:from-slate-900/60 dark:to-slate-950">
+      <div className="shrink-0 p-4 border-b border-slate-200/90 dark:border-slate-800 space-y-3 bg-gradient-to-b from-indigo-50/40 to-white dark:from-slate-900/60 dark:to-slate-950">
         {/* Role Banner / Subtitle */}
         {userRole === 'client' && (
           <div className="flex items-center justify-between pb-1">
@@ -248,7 +249,7 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet }) => {
       </div>
 
       {/* Feed List */}
-      <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/80">
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800/80">
         {isLoadingLeads ? (
           <SkeletonFeed />
         ) : filteredLeads.length === 0 ? (
@@ -263,7 +264,10 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet }) => {
             return (
               <div
                 key={lead.id}
-                onClick={() => setActiveLeadId(lead.id)}
+                onClick={() => {
+                  setActiveLeadId(lead.id);
+                  onSelectLeadOnMobile?.();
+                }}
                 className={`p-4 cursor-pointer transition-all duration-150 relative ${
                   isSelected
                     ? 'bg-gradient-to-r from-indigo-50/90 via-violet-50/40 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900 border-l-4 border-indigo-600'

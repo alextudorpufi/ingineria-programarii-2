@@ -5,7 +5,7 @@ import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { PasswordInput } from '@/components/auth/PasswordInput';
-import { Briefcase, KeyRound, Mail, ShieldAlert, Sparkles, User, X } from 'lucide-react';
+import { Briefcase, Mail, ShieldAlert, Sparkles, User, X } from 'lucide-react';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -31,10 +31,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     setIsSubmitting(true);
 
     try {
+      const cleanEmail = email.trim().toLowerCase();
       if (mode === 'login') {
-        await login(email, password);
+        await login(cleanEmail, password);
       } else {
-        await register({ email, password, name, role });
+        await register({ email: cleanEmail, password, name: name.trim(), role });
       }
       onClose();
     } catch (error: unknown) {
@@ -42,12 +43,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const fillDemoAdmin = () => {
-    setEmail('skilling@contact.ro');
-    setPassword('admin');
-    setErrorMessage(null);
   };
 
   const switchMode = (nextMode: 'login' | 'register') => {
@@ -168,6 +163,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
           <Input
             label="Adresă Email"
             type="email"
+            inputMode="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             placeholder="nume@exemplu.ro"
             autoComplete="email"
             leftIcon={<Mail className="w-4 h-4" />}
@@ -191,18 +190,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
           </Button>
         </form>
 
-        {mode === 'login' && (
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 text-center">
-            <button
-              type="button"
-              onClick={fillDemoAdmin}
-              className="inline-flex items-center gap-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:underline font-medium cursor-pointer"
-            >
-              <KeyRound className="w-3.5 h-3.5" />
-              Cont demo: skilling@contact.ro / admin
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -21,15 +21,18 @@ import {
   ShieldAlert,
   ShieldCheck,
   Check,
-  UserCheck
+  UserCheck,
+  ArrowLeft
 } from 'lucide-react';
 
 interface LeadDetailProps {
+  onBackToFeed?: () => void;
   onOpenChat: (leadId: string) => void;
   onOpenDispute: (leadId: string) => void;
 }
 
 export const LeadDetail: React.FC<LeadDetailProps> = ({
+  onBackToFeed,
   onOpenChat,
   onOpenDispute
 }) => {
@@ -40,7 +43,19 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
 
   if (!activeLead) {
     return (
-      <div className="h-full flex flex-col items-center justify-center p-8 text-center text-slate-400">
+      <div className="h-full min-h-0 flex flex-col items-center justify-center p-8 text-center text-slate-400">
+        {onBackToFeed && (
+          <div className="md:hidden pb-4 w-full flex">
+            <button
+              type="button"
+              onClick={onBackToFeed}
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 cursor-pointer active:scale-95 transition-transform"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Înapoi la lista de cereri
+            </button>
+          </div>
+        )}
         <p className="text-sm">Selectează o oportunitate din listă pentru a vizualiza detaliile și Lead Passport-ul.</p>
       </div>
     );
@@ -71,7 +86,22 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
   };
 
   return (
-    <div className="h-full overflow-y-auto p-6 space-y-6">
+    <div className="h-full min-h-0 overflow-y-auto overscroll-contain p-4 sm:p-6 space-y-6">
+      {/* Mobile-Only Back Bar (< md) */}
+      {onBackToFeed && (
+        <div className="md:hidden pb-2 border-b border-slate-200/90 dark:border-slate-800 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={onBackToFeed}
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 cursor-pointer active:scale-95 transition-transform"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Înapoi la lista de cereri
+          </button>
+          <span className="text-[11px] font-mono text-slate-400">{activeLead.id}</span>
+        </div>
+      )}
+
       {/* Top Header */}
       <div className="border-b border-slate-200/90 dark:border-slate-800 pb-5">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">

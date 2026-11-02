@@ -6,17 +6,6 @@ import { useAuth } from '@/context/AuthContext';
 import { Coins, Sparkles, Plus, Moon, Sun, Wallet, LogIn, LogOut, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
-const ROLE_LABEL: Record<string, string> = {
-  pro: 'Pro',
-  client: 'Client',
-  admin: 'Admin',
-};
-
-const ROLE_BADGE_CLASS: Record<string, string> = {
-  pro: 'bg-indigo-50 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border-indigo-200/80 dark:border-indigo-800',
-  client: 'bg-emerald-50 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border-emerald-200/80 dark:border-emerald-800',
-  admin: 'bg-amber-50 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border-amber-200/80 dark:border-amber-800',
-};
 
 interface HeaderProps {
   currentTab: WorkspaceTab;
@@ -69,50 +58,45 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab }) => 
   };
 
   const navTabs: WorkspaceTab[] = ['leads', 'ai', 'chat', 'disputes', 'analytics', 'profile'];
-  const roleLabel = ROLE_LABEL[user?.role ?? 'pro'] ?? 'Pro';
 
   return (
     <header className="w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-indigo-100 dark:border-slate-800 sticky top-0 z-40 transition-colors shadow-2xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3 sm:gap-6">
-        {/* Zone 1: Brand Wordmark (Skillink) */}
-        <button
-          onClick={() => setCurrentTab('leads')}
-          className="group text-lg font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0 flex items-center gap-2.5 cursor-pointer"
-        >
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
-            <Sparkles className="w-4 h-4" />
-          </div>
-          <span>
-            Skill<span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">ink</span>
-          </span>
-          <span
-            className={`text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md border ${
-              ROLE_BADGE_CLASS[user?.role ?? 'pro']
-            }`}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-6 xl:gap-8">
+        {/* Left Group: Brand Wordmark + Desktop Nav Tabs Anchored to the LEFT */}
+        <div className="flex items-center gap-6 xl:gap-8 shrink-0">
+          <button
+            onClick={() => setCurrentTab('leads')}
+            className="group text-lg font-extrabold tracking-tight text-slate-900 dark:text-white whitespace-nowrap shrink-0 flex items-center gap-2.5 cursor-pointer"
           >
-            {roleLabel}
-          </span>
-        </button>
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-500 flex items-center justify-center text-white shadow-xs group-hover:scale-105 transition-transform">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <span>
+              Skill<span className="bg-gradient-to-r from-indigo-600 to-violet-600 bg-clip-text text-transparent">ink</span>
+            </span>
+            {/* ROLE BADGE COMPLETELY REMOVED FROM LOGO */}
+          </button>
 
-        {/* Zone 2: Navigation Links adapting to Role */}
-        <nav className="hidden lg:flex items-center gap-6 text-sm font-semibold text-slate-600 dark:text-slate-300">
-          {navTabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setCurrentTab(tab)}
-              className={`whitespace-nowrap shrink-0 transition-all py-1.5 cursor-pointer ${
-                currentTab === tab
-                  ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-bold'
-                  : 'hover:text-indigo-600 dark:hover:text-white'
-              }`}
-            >
-              {getTabLabel(tab)}
-            </button>
-          ))}
-        </nav>
+          {/* Navigation Links moved immediately next to Logo */}
+          <nav className="hidden lg:flex items-center gap-5 xl:gap-6 text-sm font-semibold text-slate-600 dark:text-slate-300">
+            {navTabs.map(tab => (
+              <button
+                key={tab}
+                onClick={() => setCurrentTab(tab)}
+                className={`whitespace-nowrap shrink-0 transition-all py-1.5 cursor-pointer ${
+                  currentTab === tab
+                    ? 'text-indigo-600 dark:text-indigo-400 border-b-2 border-indigo-600 dark:border-indigo-400 font-bold'
+                    : 'hover:text-indigo-600 dark:hover:text-white'
+                }`}
+              >
+                {getTabLabel(tab)}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-        {/* Zone 3: Authenticated profile + Primary Action + Theme Toggle */}
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+        {/* Right Group: Pushed to far right via ml-auto */}
+        <div className="ml-auto flex items-center gap-2 sm:gap-3 shrink-0">
           <button
             onClick={toggleDarkMode}
             aria-label="Comută mod noapte/zi"
@@ -187,7 +171,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab }) => 
 
       {/* Compact tab strip for narrow viewports */}
       <nav className="lg:hidden border-t border-slate-100 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80">
-        <div className="max-w-7xl mx-auto px-2 flex items-center gap-1 overflow-x-auto py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300">
+        <div className="max-w-7xl mx-auto px-2 flex items-center gap-1 overflow-x-auto py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {navTabs.map(tab => (
             <button
               key={tab}
