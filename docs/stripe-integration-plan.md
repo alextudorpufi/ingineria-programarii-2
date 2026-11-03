@@ -8,6 +8,46 @@ Stripe will process payments for a defined credit bundle, using simulated paymen
 
 This plan assumes Stripe Checkout as the initial hosted payment experience, subject to a team decision. Card data stays with Stripe. Internal dispute decisions that refund virtual credits are not automatically Stripe refunds; that behavior requires a separate business and accounting policy.
 
+## Developer setup: obtain Stripe test credentials
+
+The local integration needs two server-side test credentials: a Stripe API secret key (`sk_test_...`) to create Checkout Sessions, and a webhook signing secret (`whsec_...`) to verify events. Do not put either value in frontend environment variables, source control, screenshots, logs, or chat. The application rejects live API keys.
+
+1. **Create or open a Stripe account.** Sign in to the [Stripe Dashboard](https://dashboard.stripe.com/) and use a test/sandbox environment. Stripe may label this environment **Sandbox**; confirm that you are not viewing live data.
+2. **Copy the test API secret key.** In that test environment, open **Developers → API keys** (or **Workbench → API keys**, depending on the Dashboard layout). Reveal and copy the **Secret key** beginning with `sk_test_`. Do not use the publishable key (`pk_test_`); this backend integration does not need it.
+3. **Create the local environment file.** From the repository root, copy `.env.example` to `.env` if `.env` does not already exist. Set the following values in the root `.env` without quotes:
+
+   ```dotenv
+   STRIPE_SECRET_KEY=sk_test_paste_the_test_secret_here
+   STRIPE_WEBHOOK_SECRET=
+   FRONTEND_URL=http://localhost:3000
+   ```
+
+4. **Install and authenticate the Stripe CLI.** Follow Stripe's [official installation instructions](https://docs.stripe.com/stripe-cli#install), then open a terminal and run:
+
+   ```powershell
+   stripe login
+   ```
+
+   Complete the browser authorization for the same Stripe account and test environment.
+5. **Start local webhook forwarding.** Keep this command running in its own terminal:
+
+   ```powershell
+   stripe listen --forward-to localhost:8080/api/payments/stripe/webhook
+   ```
+
+   The CLI prints a webhook signing secret beginning with `whsec_`. Copy that value into `STRIPE_WEBHOOK_SECRET` in the root `.env`. Use the secret printed by this local `stripe listen` command; it is distinct from any endpoint signing secret configured in the Stripe Dashboard. If you stop and restart the listener and it prints a different secret, update `.env` and restart the backend.
+6. **Start or rebuild the Docker services.** From the repository root, run:
+
+   ```powershell
+   docker compose up --build
+   ```
+
+   Compose reads the root `.env` and passes the Stripe credentials to the backend container. Never pass these credentials as frontend build arguments or expose them as `NEXT_PUBLIC_*` variables.
+7. **Make a test purchase.** Select a credit bundle in the app and complete the hosted Stripe **Sandbox** Checkout using a Stripe test card, for example `4242 4242 4242 4242`, a future expiry date, and any CVC. This simulates a payment and does not charge a real card.
+8. **Confirm webhook delivery and the balance.** The Stripe CLI should report `checkout.session.completed` delivered with HTTP `200`; the app should show the purchase as paid and refresh the wallet. A `400` means the event was rejected and no credit grant should be assumed. After fixing the cause, resend the failed event from the Stripe Dashboard and confirm it returns `200`.
+
+The browser success redirect is not proof of payment and never grants credits. Only the verified webhook updates the purchase and wallet. If running the backend outside Docker Compose, export the same variables in the backend process environment; Spring does not load the repository's `.env` file by itself.
+
 ## Logical architecture
 
 ```mermaid

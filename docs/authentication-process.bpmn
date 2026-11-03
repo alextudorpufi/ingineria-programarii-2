@@ -1,0 +1,520 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_Enterprise_Auth"
+                  targetNamespace="http://bpmn.io/schema/bpmn"
+                  exporter="Antigravity Enterprise BPMN Modeler"
+                  exporterVersion="3.0">
+
+  <!-- Collaboration: Multi-Pool Enterprise Architecture -->
+  <bpmn:collaboration id="Collaboration_Enterprise_Auth">
+    <bpmn:participant id="Pool_Client_App" name="Client Device &amp; Next.js 15 Web Application (BFF)" processRef="Process_Client_App" />
+    <bpmn:participant id="Pool_Edge_WAF" name="Perimeter Security: WAF &amp; Rate Limiter (Token Bucket)" processRef="Process_Edge_WAF" />
+    <bpmn:participant id="Pool_Core_Backend" name="Intelligent Marketplace Core: Spring Security 6 &amp; Domain Monolith" processRef="Process_Core_Backend" />
+    <bpmn:participant id="Pool_Async_Workers" name="Asynchronous Event Bus, SIEM Audit &amp; Mail Services" processRef="Process_Async_Workers" />
+
+    <!-- Message Flows between Pools -->
+    <bpmn:messageFlow id="Msg_Client_To_WAF" name="HTTPS POST /api/auth/*" sourceRef="Task_Client_Send_Req" targetRef="Start_WAF_Receive" />
+    <bpmn:messageFlow id="Msg_WAF_To_Backend" name="Sanitized &amp; Rate-Checked Request" sourceRef="Task_WAF_Forward" targetRef="Start_Backend_Receive" />
+    <bpmn:messageFlow id="Msg_Backend_To_Client" name="HTTP 200/201/401/403/423 Response" sourceRef="Task_Backend_Respond" targetRef="Task_Client_Receive_Resp" />
+    <bpmn:messageFlow id="Msg_Backend_To_Async" name="Spring Application Events" sourceRef="Task_Publish_Security_Event" targetRef="Start_Async_Receive" />
+  </bpmn:collaboration>
+
+  <!-- Process 1: Client Application (Next.js) -->
+  <bpmn:process id="Process_Client_App" isExecutable="true">
+    <bpmn:startEvent id="Start_User_Action" name="Utilizatorul inițiază acțiune (Login / Register / API)">
+      <bpmn:outgoing>Flow_C1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_Client_Prepare" name="Completare date / Atașare Bearer Token">
+      <bpmn:incoming>Flow_C1</bpmn:incoming>
+      <bpmn:outgoing>Flow_C2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:serviceTask id="Task_Client_Send_Req" name="Trimitere cerere HTTPS (apiClient.ts)">
+      <bpmn:incoming>Flow_C2</bpmn:incoming>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Client_Receive_Resp" name="Procesare Răspuns Server">
+      <bpmn:outgoing>Flow_C3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_Client_Status" name="Status Răspuns?">
+      <bpmn:incoming>Flow_C3</bpmn:incoming>
+      <bpmn:outgoing>Flow_Status_200</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Status_401</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Status_423</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:scriptTask id="Task_Client_Store_Session" name="Salvare Token &amp; Actualizare AuthContext">
+      <bpmn:incoming>Flow_Status_200</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_End</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:scriptTask id="Task_Client_Trigger_Refresh" name="Tentativă Silent Refresh (RTR) sau Logout">
+      <bpmn:incoming>Flow_Status_401</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Err1</bpmn:outgoing>
+    </bpmn:scriptTask>
+    <bpmn:userTask id="Task_Client_Show_Lockout" name="Afișare Dialog Cont Blocat (15 min)">
+      <bpmn:incoming>Flow_Status_423</bpmn:incoming>
+      <bpmn:outgoing>Flow_C_Err2</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:endEvent id="End_Client_Success" name="Interfață Actualizată cu Succes">
+      <bpmn:incoming>Flow_C_End</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Client_Unauthorized" name="Sesiune Expirată / Deconectat">
+      <bpmn:incoming>Flow_C_Err1</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_Client_Locked" name="Acces Refuzat">
+      <bpmn:incoming>Flow_C_Err2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_C1" sourceRef="Start_User_Action" targetRef="Task_Client_Prepare" />
+    <bpmn:sequenceFlow id="Flow_C2" sourceRef="Task_Client_Prepare" targetRef="Task_Client_Send_Req" />
+    <bpmn:sequenceFlow id="Flow_C3" sourceRef="Task_Client_Receive_Resp" targetRef="Gateway_Client_Status" />
+    <bpmn:sequenceFlow id="Flow_Status_200" name="200 / 201 OK" sourceRef="Gateway_Client_Status" targetRef="Task_Client_Store_Session" />
+    <bpmn:sequenceFlow id="Flow_Status_401" name="401 Unauthorized" sourceRef="Gateway_Client_Status" targetRef="Task_Client_Trigger_Refresh" />
+    <bpmn:sequenceFlow id="Flow_Status_423" name="423 Locked" sourceRef="Gateway_Client_Status" targetRef="Task_Client_Show_Lockout" />
+    <bpmn:sequenceFlow id="Flow_C_End" sourceRef="Task_Client_Store_Session" targetRef="End_Client_Success" />
+    <bpmn:sequenceFlow id="Flow_C_Err1" sourceRef="Task_Client_Trigger_Refresh" targetRef="End_Client_Unauthorized" />
+    <bpmn:sequenceFlow id="Flow_C_Err2" sourceRef="Task_Client_Show_Lockout" targetRef="End_Client_Locked" />
+  </bpmn:process>
+
+  <!-- Process 2: Perimeter Security (Edge WAF & Rate Limiter) -->
+  <bpmn:process id="Process_Edge_WAF" isExecutable="true">
+    <bpmn:startEvent id="Start_WAF_Receive" name="Cerere HTTP Interceptată">
+      <bpmn:outgoing>Flow_W1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_WAF_Rate_Check" name="Evaluare Token Bucket per IP (Redis)">
+      <bpmn:incoming>Flow_W1</bpmn:incoming>
+      <bpmn:outgoing>Flow_W2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_WAF_Throttle" name="Rată Apelare Admisă?">
+      <bpmn:incoming>Flow_W2</bpmn:incoming>
+      <bpmn:outgoing>Flow_WAF_Pass</bpmn:outgoing>
+      <bpmn:outgoing>Flow_WAF_Drop</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_WAF_Forward" name="Înaintare Cerere către Spring Security">
+      <bpmn:incoming>Flow_WAF_Pass</bpmn:incoming>
+      <bpmn:outgoing>Flow_W_End1</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_WAF_Return_429" name="Emitere Răspuns 429 Too Many Requests">
+      <bpmn:incoming>Flow_WAF_Drop</bpmn:incoming>
+      <bpmn:outgoing>Flow_W_End2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_WAF_Forwarded" name="Cerere Înaintată">
+      <bpmn:incoming>Flow_W_End1</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="End_WAF_Dropped" name="Trafic Blocat la Edge">
+      <bpmn:incoming>Flow_W_End2</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_W1" sourceRef="Start_WAF_Receive" targetRef="Task_WAF_Rate_Check" />
+    <bpmn:sequenceFlow id="Flow_W2" sourceRef="Task_WAF_Rate_Check" targetRef="Gateway_WAF_Throttle" />
+    <bpmn:sequenceFlow id="Flow_WAF_Pass" name="Da (Sub limită)" sourceRef="Gateway_WAF_Throttle" targetRef="Task_WAF_Forward" />
+    <bpmn:sequenceFlow id="Flow_WAF_Drop" name="Nu (Spam / DoS)" sourceRef="Gateway_WAF_Throttle" targetRef="Task_WAF_Return_429" />
+    <bpmn:sequenceFlow id="Flow_W_End1" sourceRef="Task_WAF_Forward" targetRef="End_WAF_Forwarded" />
+    <bpmn:sequenceFlow id="Flow_W_End2" sourceRef="Task_WAF_Return_429" targetRef="End_WAF_Dropped" />
+  </bpmn:process>
+
+  <!-- Process 3: Core Backend (Spring Boot Monolith) -->
+  <bpmn:process id="Process_Core_Backend" isExecutable="true">
+    <bpmn:laneSet id="LaneSet_Backend">
+      <bpmn:lane id="Lane_Sec_Filter" name="Spring Security Filter &amp; Token Validator">
+        <bpmn:flowNodeRef>Start_Backend_Receive</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Is_Public</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Validate_JWT_Nimbus</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_JWT_Valid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Sec_Throw_401</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Build_SecurityContext</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_RBAC_Check</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Sec_Throw_403</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Backend_Respond</bpmn:flowNodeRef>
+      </bpmn:lane>
+
+      <bpmn:lane id="Lane_Controllers" name="REST Controllers (/api/auth, /api/leads, etc.)">
+        <bpmn:flowNodeRef>Task_Dispatch_Endpoint</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_Operation_Type</bpmn:flowNodeRef>
+      </bpmn:lane>
+
+      <bpmn:lane id="Lane_App_Services" name="Application Services (AuthService &amp; TokenRotator)">
+        <bpmn:flowNodeRef>Subprocess_Registration</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Subprocess_Authentication</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Subprocess_Token_Rotation</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Subprocess_ABAC_Ownership</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_Publish_Security_Event</bpmn:flowNodeRef>
+      </bpmn:lane>
+
+      <bpmn:lane id="Lane_Persistence" name="Database &amp; Redis Cache">
+        <bpmn:flowNodeRef>DataStore_Postgres</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>DataStore_Redis</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+
+    <bpmn:startEvent id="Start_Backend_Receive" name="Cerere Primită în Filter Chain">
+      <bpmn:outgoing>Flow_B1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_Is_Public" name="Endpoint Public (/api/auth/**)?">
+      <bpmn:incoming>Flow_B1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Public_Yes</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Public_No</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Validate_JWT_Nimbus" name="Decodare NimbusJwtDecoder (HMAC-SHA256)">
+      <bpmn:incoming>Flow_Public_No</bpmn:incoming>
+      <bpmn:outgoing>Flow_B2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_JWT_Valid" name="Semnătură &amp; Timp Valide?">
+      <bpmn:incoming>Flow_B2</bpmn:incoming>
+      <bpmn:outgoing>Flow_JWT_OK</bpmn:outgoing>
+      <bpmn:outgoing>Flow_JWT_Bad</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Sec_Throw_401" name="AuthenticationEntryPoint -> 401 Unauthorized">
+      <bpmn:incoming>Flow_JWT_Bad</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Resp_401</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Build_SecurityContext" name="Construire AuthenticatedUser &amp; SimpleGrantedAuthority">
+      <bpmn:incoming>Flow_JWT_OK</bpmn:incoming>
+      <bpmn:outgoing>Flow_B3</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_RBAC_Check" name="Satisface Politica de Rol a Endpoint-ului?">
+      <bpmn:incoming>Flow_B3</bpmn:incoming>
+      <bpmn:outgoing>Flow_RBAC_OK</bpmn:outgoing>
+      <bpmn:outgoing>Flow_RBAC_Bad</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_Sec_Throw_403" name="AccessDeniedHandler -> 403 Forbidden">
+      <bpmn:incoming>Flow_RBAC_Bad</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Resp_403</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Dispatch_Endpoint" name="Distribuire către Metoda Controller">
+      <bpmn:incoming>Flow_Public_Yes</bpmn:incoming>
+      <bpmn:incoming>Flow_RBAC_OK</bpmn:incoming>
+      <bpmn:outgoing>Flow_B4</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_Operation_Type" name="Tip Operațiune?">
+      <bpmn:incoming>Flow_B4</bpmn:incoming>
+      <bpmn:outgoing>Flow_Op_Register</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Op_Login</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Op_Refresh</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Op_Protected_Action</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- Subprocess 1: Înregistrare și Verificare Constrângeri -->
+    <bpmn:subProcess id="Subprocess_Registration" name="Sub-proces: Înregistrare &amp; Politică Escaladare Roluri">
+      <bpmn:incoming>Flow_Op_Register</bpmn:incoming>
+      <bpmn:outgoing>Flow_Reg_Done</bpmn:outgoing>
+      <bpmn:startEvent id="Start_Sub_Reg" />
+      <bpmn:serviceTask id="Task_Sub_Val_Role" name="Validare Rol Permis ('client' / 'pro')" />
+      <bpmn:serviceTask id="Task_Sub_Check_Uniq" name="Verificare Unicitate Email în DB" />
+      <bpmn:serviceTask id="Task_Sub_BCrypt" name="Encodare BCrypt Parolă" />
+      <bpmn:serviceTask id="Task_Sub_Bonus" name="Alocare 30 Credite dacă rol == 'pro'" />
+      <bpmn:serviceTask id="Task_Sub_Insert_DB" name="INSERT INTO users (Tx ACID)" />
+      <bpmn:endEvent id="End_Sub_Reg" />
+    </bpmn:subProcess>
+
+    <!-- Subprocess 2: Autentificare, Anti-Brute-Force & MFA -->
+    <bpmn:subProcess id="Subprocess_Authentication" name="Sub-proces: Autentificare &amp; Apărare Brute-Force">
+      <bpmn:incoming>Flow_Op_Login</bpmn:incoming>
+      <bpmn:outgoing>Flow_Login_Done</bpmn:outgoing>
+      <bpmn:startEvent id="Start_Sub_Auth" />
+      <bpmn:serviceTask id="Task_Sub_Check_Lock" name="Verificare Cont Blocat (locked_until)" />
+      <bpmn:serviceTask id="Task_Sub_Match_BCrypt" name="Verificare Hash BCrypt" />
+      <bpmn:serviceTask id="Task_Sub_Handle_Failure" name="Incrementare Eșecuri &amp; Posibilă Blocare (15 min)" />
+      <bpmn:serviceTask id="Task_Sub_MFA_Check" name="Evaluare Provocare TOTP (2FA)" />
+      <bpmn:serviceTask id="Task_Sub_Issue_JWT" name="Generare Pereche Jetoane (Access 24h + RTR)" />
+      <bpmn:endEvent id="End_Sub_Auth" />
+    </bpmn:subProcess>
+
+    <!-- Subprocess 3: Rotație Refresh Token (RTR) & Detecție Furt RFC 6819 -->
+    <bpmn:subProcess id="Subprocess_Token_Rotation" name="Sub-proces: Rotație Refresh Token &amp; Detecție Replay Attack">
+      <bpmn:incoming>Flow_Op_Refresh</bpmn:incoming>
+      <bpmn:outgoing>Flow_Refresh_Done</bpmn:outgoing>
+      <bpmn:startEvent id="Start_Sub_RTR" />
+      <bpmn:serviceTask id="Task_Sub_RTR_Lookup" name="Căutare Token Hash în Redis" />
+      <bpmn:serviceTask id="Task_Sub_RTR_Detect_Theft" name="Detecție Token Deja Utilizat (Replay)" />
+      <bpmn:serviceTask id="Task_Sub_RTR_Invalidate_All" name="Invalidare Familie Completă de Jetoane" />
+      <bpmn:serviceTask id="Task_Sub_RTR_Issue_Next" name="Rotire Token &amp; Salvare Stare Nouă" />
+      <bpmn:endEvent id="End_Sub_RTR" />
+    </bpmn:subProcess>
+
+    <!-- Subprocess 4: Evaluare Dinamică ABAC și Politică de Proprietate -->
+    <bpmn:subProcess id="Subprocess_ABAC_Ownership" name="Sub-proces: Decizie de Acces ABAC &amp; Drept Proprietate">
+      <bpmn:incoming>Flow_Op_Protected_Action</bpmn:incoming>
+      <bpmn:outgoing>Flow_ABAC_Done</bpmn:outgoing>
+      <bpmn:startEvent id="Start_Sub_ABAC" />
+      <bpmn:serviceTask id="Task_Sub_ABAC_Load" name="Încărcare Resursă &amp; Context din PostgreSQL" />
+      <bpmn:serviceTask id="Task_Sub_ABAC_Policy" name="Evaluare: Admin OR Owner OR Buyer" />
+      <bpmn:serviceTask id="Task_Sub_ABAC_Audit" name="Înregistrare Încercare Acces Neautorizat" />
+      <bpmn:serviceTask id="Task_Sub_ABAC_Exec" name="Execuție Operațiune Tranzacțională" />
+      <bpmn:endEvent id="End_Sub_ABAC" />
+    </bpmn:subProcess>
+
+    <bpmn:serviceTask id="Task_Publish_Security_Event" name="Emitere Asincronă Eveniment Securitate / Audit">
+      <bpmn:incoming>Flow_Reg_Done</bpmn:incoming>
+      <bpmn:incoming>Flow_Login_Done</bpmn:incoming>
+      <bpmn:incoming>Flow_Refresh_Done</bpmn:incoming>
+      <bpmn:incoming>Flow_ABAC_Done</bpmn:incoming>
+      <bpmn:outgoing>Flow_To_Resp_OK</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Backend_Respond" name="Formatare &amp; Trimitere Răspuns HTTP">
+      <bpmn:incoming>Flow_To_Resp_OK</bpmn:incoming>
+      <bpmn:incoming>Flow_To_Resp_401</bpmn:incoming>
+      <bpmn:incoming>Flow_To_Resp_403</bpmn:incoming>
+      <bpmn:outgoing>Flow_B_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="End_Backend_Process" name="Proces Backend Încheiat">
+      <bpmn:incoming>Flow_B_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- Data Stores -->
+    <bpmn:dataStoreReference id="DataStore_Postgres" name="PostgreSQL (users, roles, audits, leads)" />
+    <bpmn:dataStoreReference id="DataStore_Redis" name="Redis Sentinel (Blacklist, Rate Limits, RTR Families)" />
+
+    <!-- Backend Sequence Flows -->
+    <bpmn:sequenceFlow id="Flow_B1" sourceRef="Start_Backend_Receive" targetRef="Gateway_Is_Public" />
+    <bpmn:sequenceFlow id="Flow_Public_Yes" name="Da (Public)" sourceRef="Gateway_Is_Public" targetRef="Task_Dispatch_Endpoint" />
+    <bpmn:sequenceFlow id="Flow_Public_No" name="Nu (Protejat)" sourceRef="Gateway_Is_Public" targetRef="Task_Validate_JWT_Nimbus" />
+    <bpmn:sequenceFlow id="Flow_B2" sourceRef="Task_Validate_JWT_Nimbus" targetRef="Gateway_JWT_Valid" />
+    <bpmn:sequenceFlow id="Flow_JWT_OK" name="Valid" sourceRef="Gateway_JWT_Valid" targetRef="Task_Build_SecurityContext" />
+    <bpmn:sequenceFlow id="Flow_JWT_Bad" name="Invalid / Expirat" sourceRef="Gateway_JWT_Valid" targetRef="Task_Sec_Throw_401" />
+    <bpmn:sequenceFlow id="Flow_B3" sourceRef="Task_Build_SecurityContext" targetRef="Gateway_RBAC_Check" />
+    <bpmn:sequenceFlow id="Flow_RBAC_OK" name="Autorizat" sourceRef="Gateway_RBAC_Check" targetRef="Task_Dispatch_Endpoint" />
+    <bpmn:sequenceFlow id="Flow_RBAC_Bad" name="Rol Lipsă" sourceRef="Gateway_RBAC_Check" targetRef="Task_Sec_Throw_403" />
+    <bpmn:sequenceFlow id="Flow_B4" sourceRef="Task_Dispatch_Endpoint" targetRef="Gateway_Operation_Type" />
+    <bpmn:sequenceFlow id="Flow_Op_Register" name="Register" sourceRef="Gateway_Operation_Type" targetRef="Subprocess_Registration" />
+    <bpmn:sequenceFlow id="Flow_Op_Login" name="Login" sourceRef="Gateway_Operation_Type" targetRef="Subprocess_Authentication" />
+    <bpmn:sequenceFlow id="Flow_Op_Refresh" name="Token Refresh" sourceRef="Gateway_Operation_Type" targetRef="Subprocess_Token_Rotation" />
+    <bpmn:sequenceFlow id="Flow_Op_Protected_Action" name="Business Action" sourceRef="Gateway_Operation_Type" targetRef="Subprocess_ABAC_Ownership" />
+    <bpmn:sequenceFlow id="Flow_Reg_Done" sourceRef="Subprocess_Registration" targetRef="Task_Publish_Security_Event" />
+    <bpmn:sequenceFlow id="Flow_Login_Done" sourceRef="Subprocess_Authentication" targetRef="Task_Publish_Security_Event" />
+    <bpmn:sequenceFlow id="Flow_Refresh_Done" sourceRef="Subprocess_Token_Rotation" targetRef="Task_Publish_Security_Event" />
+    <bpmn:sequenceFlow id="Flow_ABAC_Done" sourceRef="Subprocess_ABAC_Ownership" targetRef="Task_Publish_Security_Event" />
+    <bpmn:sequenceFlow id="Flow_To_Resp_OK" sourceRef="Task_Publish_Security_Event" targetRef="Task_Backend_Respond" />
+    <bpmn:sequenceFlow id="Flow_To_Resp_401" sourceRef="Task_Sec_Throw_401" targetRef="Task_Backend_Respond" />
+    <bpmn:sequenceFlow id="Flow_To_Resp_403" sourceRef="Task_Sec_Throw_403" targetRef="Task_Backend_Respond" />
+    <bpmn:sequenceFlow id="Flow_B_End" sourceRef="Task_Backend_Respond" targetRef="End_Backend_Process" />
+  </bpmn:process>
+
+  <!-- Process 4: Asynchronous Workers (Audit & SIEM Pipeline) -->
+  <bpmn:process id="Process_Async_Workers" isExecutable="true">
+    <bpmn:startEvent id="Start_Async_Receive" name="Eveniment Primit pe Bus">
+      <bpmn:outgoing>Flow_A1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:parallelGateway id="Gateway_Async_Fork" name="Distribuire Task-uri">
+      <bpmn:incoming>Flow_A1</bpmn:incoming>
+      <bpmn:outgoing>Flow_Fork_Audit</bpmn:outgoing>
+      <bpmn:outgoing>Flow_Fork_Mail</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:serviceTask id="Task_Ingest_SIEM" name="Persistare Imutabilă în audit_logs &amp; Export SIEM">
+      <bpmn:incoming>Flow_Fork_Audit</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_1</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_Send_Alert_Mail" name="Expediere Notificare Email / Alertă Incident">
+      <bpmn:incoming>Flow_Fork_Mail</bpmn:incoming>
+      <bpmn:outgoing>Flow_Join_2</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:parallelGateway id="Gateway_Async_Join">
+      <bpmn:incoming>Flow_Join_1</bpmn:incoming>
+      <bpmn:incoming>Flow_Join_2</bpmn:incoming>
+      <bpmn:outgoing>Flow_A_End</bpmn:outgoing>
+    </bpmn:parallelGateway>
+    <bpmn:endEvent id="End_Async_Workers" name="Procesare Asincronă Încheiată">
+      <bpmn:incoming>Flow_A_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <bpmn:sequenceFlow id="Flow_A1" sourceRef="Start_Async_Receive" targetRef="Gateway_Async_Fork" />
+    <bpmn:sequenceFlow id="Flow_Fork_Audit" sourceRef="Gateway_Async_Fork" targetRef="Task_Ingest_SIEM" />
+    <bpmn:sequenceFlow id="Flow_Fork_Mail" sourceRef="Gateway_Async_Fork" targetRef="Task_Send_Alert_Mail" />
+    <bpmn:sequenceFlow id="Flow_Join_1" sourceRef="Task_Ingest_SIEM" targetRef="Gateway_Async_Join" />
+    <bpmn:sequenceFlow id="Flow_Join_2" sourceRef="Task_Send_Alert_Mail" targetRef="Gateway_Async_Join" />
+    <bpmn:sequenceFlow id="Flow_A_End" sourceRef="Gateway_Async_Join" targetRef="End_Async_Workers" />
+  </bpmn:process>
+
+  <!-- Diagram Visual Coordinates -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_Enterprise">
+    <bpmndi:BPMNPlane id="BPMNPlane_Enterprise" bpmnElement="Collaboration_Enterprise_Auth">
+      <!-- Pool 1: Client App -->
+      <bpmndi:BPMNShape id="Pool_Client_App_di" bpmnElement="Pool_Client_App" isHorizontal="true">
+        <dc:Bounds x="160" y="80" width="1680" height="220" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_User_Action_di" bpmnElement="Start_User_Action">
+        <dc:Bounds x="220" y="172" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Client_Prepare_di" bpmnElement="Task_Client_Prepare">
+        <dc:Bounds x="290" y="150" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Client_Send_Req_di" bpmnElement="Task_Client_Send_Req">
+        <dc:Bounds x="470" y="150" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Client_Receive_Resp_di" bpmnElement="Task_Client_Receive_Resp">
+        <dc:Bounds x="650" y="150" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Client_Status_di" bpmnElement="Gateway_Client_Status" isMarkerVisible="true">
+        <dc:Bounds x="835" y="165" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Client_Store_Session_di" bpmnElement="Task_Client_Store_Session">
+        <dc:Bounds x="930" y="110" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Client_Trigger_Refresh_di" bpmnElement="Task_Client_Trigger_Refresh">
+        <dc:Bounds x="930" y="190" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Client_Success_di" bpmnElement="End_Client_Success">
+        <dc:Bounds x="1122" y="127" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Client_Unauthorized_di" bpmnElement="End_Client_Unauthorized">
+        <dc:Bounds x="1122" y="207" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Pool 2: WAF -->
+      <bpmndi:BPMNShape id="Pool_Edge_WAF_di" bpmnElement="Pool_Edge_WAF" isHorizontal="true">
+        <dc:Bounds x="160" y="340" width="1680" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_WAF_Receive_di" bpmnElement="Start_WAF_Receive">
+        <dc:Bounds x="230" y="412" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WAF_Rate_Check_di" bpmnElement="Task_WAF_Rate_Check">
+        <dc:Bounds x="300" y="390" width="150" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_WAF_Throttle_di" bpmnElement="Gateway_WAF_Throttle" isMarkerVisible="true">
+        <dc:Bounds x="495" y="405" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WAF_Forward_di" bpmnElement="Task_WAF_Forward">
+        <dc:Bounds x="590" y="360" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_WAF_Return_429_di" bpmnElement="Task_WAF_Return_429">
+        <dc:Bounds x="590" y="440" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_WAF_Forwarded_di" bpmnElement="End_WAF_Forwarded">
+        <dc:Bounds x="782" y="377" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_WAF_Dropped_di" bpmnElement="End_WAF_Dropped">
+        <dc:Bounds x="782" y="457" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Pool 3: Core Backend -->
+      <bpmndi:BPMNShape id="Pool_Core_Backend_di" bpmnElement="Pool_Core_Backend" isHorizontal="true">
+        <dc:Bounds x="160" y="560" width="1680" height="680" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Sec_Filter_di" bpmnElement="Lane_Sec_Filter" isHorizontal="true">
+        <dc:Bounds x="190" y="560" width="1650" height="170" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Controllers_di" bpmnElement="Lane_Controllers" isHorizontal="true">
+        <dc:Bounds x="190" y="730" width="1650" height="130" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_App_Services_di" bpmnElement="Lane_App_Services" isHorizontal="true">
+        <dc:Bounds x="190" y="860" width="1650" height="230" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_Persistence_di" bpmnElement="Lane_Persistence" isHorizontal="true">
+        <dc:Bounds x="190" y="1090" width="1650" height="150" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Start_Backend_Receive_di" bpmnElement="Start_Backend_Receive">
+        <dc:Bounds x="232" y="622" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Is_Public_di" bpmnElement="Gateway_Is_Public" isMarkerVisible="true">
+        <dc:Bounds x="305" y="615" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Validate_JWT_Nimbus_di" bpmnElement="Task_Validate_JWT_Nimbus">
+        <dc:Bounds x="390" y="600" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_JWT_Valid_di" bpmnElement="Gateway_JWT_Valid" isMarkerVisible="true">
+        <dc:Bounds x="565" y="615" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Sec_Throw_401_di" bpmnElement="Task_Sec_Throw_401">
+        <dc:Bounds x="530" y="565" width="120" height="45" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Build_SecurityContext_di" bpmnElement="Task_Build_SecurityContext">
+        <dc:Bounds x="650" y="600" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_RBAC_Check_di" bpmnElement="Gateway_RBAC_Check" isMarkerVisible="true">
+        <dc:Bounds x="825" y="615" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Sec_Throw_403_di" bpmnElement="Task_Sec_Throw_403">
+        <dc:Bounds x="800" y="565" width="120" height="45" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Dispatch_Endpoint_di" bpmnElement="Task_Dispatch_Endpoint">
+        <dc:Bounds x="480" y="750" width="140" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Operation_Type_di" bpmnElement="Gateway_Operation_Type" isMarkerVisible="true">
+        <dc:Bounds x="665" y="765" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Subprocesses -->
+      <bpmndi:BPMNShape id="Subprocess_Registration_di" bpmnElement="Subprocess_Registration" isExpanded="false">
+        <dc:Bounds x="770" y="880" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Subprocess_Authentication_di" bpmnElement="Subprocess_Authentication" isExpanded="false">
+        <dc:Bounds x="960" y="880" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Subprocess_Token_Rotation_di" bpmnElement="Subprocess_Token_Rotation" isExpanded="false">
+        <dc:Bounds x="1150" y="880" width="160" height="80" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Subprocess_ABAC_Ownership_di" bpmnElement="Subprocess_ABAC_Ownership" isExpanded="false">
+        <dc:Bounds x="1340" y="880" width="160" height="80" />
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_Publish_Security_Event_di" bpmnElement="Task_Publish_Security_Event">
+        <dc:Bounds x="1050" y="990" width="180" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Backend_Respond_di" bpmnElement="Task_Backend_Respond">
+        <dc:Bounds x="1270" y="605" width="150" height="70" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Backend_Process_di" bpmnElement="End_Backend_Process">
+        <dc:Bounds x="1462" y="622" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Data Stores -->
+      <bpmndi:BPMNShape id="DataStore_Postgres_di" bpmnElement="DataStore_Postgres">
+        <dc:Bounds x="825" y="1135" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataStore_Redis_di" bpmnElement="DataStore_Redis">
+        <dc:Bounds x="1205" y="1135" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Pool 4: Async Workers -->
+      <bpmndi:BPMNShape id="Pool_Async_Workers_di" bpmnElement="Pool_Async_Workers" isHorizontal="true">
+        <dc:Bounds x="160" y="1280" width="1680" height="180" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Start_Async_Receive_di" bpmnElement="Start_Async_Receive">
+        <dc:Bounds x="232" y="1352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Async_Fork_di" bpmnElement="Gateway_Async_Fork">
+        <dc:Bounds x="315" y="1345" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Ingest_SIEM_di" bpmnElement="Task_Ingest_SIEM">
+        <dc:Bounds x="410" y="1300" width="160" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_Send_Alert_Mail_di" bpmnElement="Task_Send_Alert_Mail">
+        <dc:Bounds x="410" y="1380" width="160" height="65" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_Async_Join_di" bpmnElement="Gateway_Async_Join">
+        <dc:Bounds x="615" y="1345" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="End_Async_Workers_di" bpmnElement="End_Async_Workers">
+        <dc:Bounds x="712" y="1352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Message Flows -->
+      <bpmndi:BPMNEdge id="Msg_Client_To_WAF_di" bpmnElement="Msg_Client_To_WAF">
+        <di:waypoint x="540" y="230" />
+        <di:waypoint x="540" y="320" />
+        <di:waypoint x="248" y="320" />
+        <di:waypoint x="248" y="412" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_WAF_To_Backend_di" bpmnElement="Msg_WAF_To_Backend">
+        <di:waypoint x="665" y="430" />
+        <di:waypoint x="665" y="530" />
+        <di:waypoint x="250" y="530" />
+        <di:waypoint x="250" y="622" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_Backend_To_Client_di" bpmnElement="Msg_Backend_To_Client">
+        <di:waypoint x="1345" y="605" />
+        <di:waypoint x="1345" y="40" />
+        <di:waypoint x="720" y="40" />
+        <di:waypoint x="720" y="150" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Msg_Backend_To_Async_di" bpmnElement="Msg_Backend_To_Async">
+        <di:waypoint x="1140" y="1060" />
+        <di:waypoint x="1140" y="1260" />
+        <di:waypoint x="250" y="1260" />
+        <di:waypoint x="250" y="1352" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
