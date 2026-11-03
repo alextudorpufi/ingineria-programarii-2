@@ -41,6 +41,8 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
 
   const filteredLeads = leads.filter(lead => {
     // Role-specific filtering
+    if (userRole === 'client' && !lead.ownedByCurrentUser) return false;
+
     if (userRole === 'admin' && adminStatusFilter !== 'all') {
       if (adminStatusFilter === 'validat' && lead.status !== 'validat') return false;
       if (adminStatusFilter === 'audit' && lead.status === 'validat') return false;
@@ -89,7 +91,7 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
               variant="primary"
               size="sm"
               icon={<Plus className="w-3.5 h-3.5" />}
-              onClick={() => onOpenLeadSheet(activeLeadId ?? leads[0]?.id ?? '')}
+              onClick={() => onOpenLeadSheet(activeLeadId ?? filteredLeads[0]?.id ?? '')}
             >
               Detalii Cerere
             </Button>

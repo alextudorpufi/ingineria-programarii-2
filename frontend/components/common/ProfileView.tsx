@@ -27,11 +27,9 @@ export const ProfileView: React.FC<ProfileViewProps> = () => {
   const [showRatingModal, setShowRatingModal] = useState(false);
 
   // Modal form state
-  const [reviewLeadId, setReviewLeadId] = useState(leads[0]?.id || 'lead-101');
-  const [reviewerName, setReviewerName] = useState(
-    userRole === 'client' ? 'Ing. Radu Teodorescu (Specialist)' : 'Elena Popescu (Beneficiar)'
-  );
-  const [reviewCity, setReviewCity] = useState('București');
+  const [reviewLeadId, setReviewLeadId] = useState(leads[0]?.id || '');
+  const [reviewerName, setReviewerName] = useState('');
+  const [reviewCity, setReviewCity] = useState('');
   const [reviewDim1, setReviewDim1] = useState(5);
   const [reviewDim2, setReviewDim2] = useState(5);
   const [reviewDim3, setReviewDim3] = useState(5);

@@ -55,6 +55,7 @@ export function resolveCategoryLabel(categoryId: string): string {
  * by the API. AI-generated drafts use labels, while API payloads use ids.
  */
 export function resolveCategoryId(value: string): string {
+  if (!value.trim()) return '';
   if (LEGACY_NAMES[value] || /^cat-\d+$/.test(value)) return value;
 
   const normalized = value.toLowerCase();
@@ -63,5 +64,5 @@ export function resolveCategoryId(value: string): string {
   if (normalized.includes('contabilit') || normalized.includes('fiscal')) return 'contabilitate';
   if (normalized.includes('marketing') || normalized.includes('design')) return 'marketing';
   if (normalized.includes('instala') || normalized.includes('climat')) return 'instalatii';
-  return 'it-software';
+  return '';
 }

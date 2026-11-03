@@ -57,6 +57,7 @@ export interface RawLeadApiPayload {
   leadPassport?: LeadPassport;
   lead_passport?: LeadPassport;
   matchExplanation?: MatchExplanation;
+  ownedByCurrentUser?: boolean;
   match_explanation?: MatchExplanation;
 }
 
@@ -95,31 +96,32 @@ export class LeadModel {
   public status: 'validat' | 'in_asteptare' | 'atribuit' | 'finalizat' | 'disputat';
   public leadPassport: LeadPassport;
   public matchExplanation?: MatchExplanation;
+  public ownedByCurrentUser: boolean;
 
   constructor(raw: RawLeadApiPayload) {
-    this.id = raw.id || raw.lead_id || `lead-${Date.now()}`;
-    this.title = raw.title || 'Solicitare de servicii';
-    this.categoryId = raw.categoryId || raw.category_id || raw.category || 'it-software';
+    this.id = raw.id || raw.lead_id || '';
+    this.title = raw.title ?? '';
+    this.categoryId = raw.categoryId || raw.category_id || raw.category || '';
     this.category = resolveCategoryLabel(this.categoryId);
-    this.subcategory = raw.subcategory || 'General';
-    this.description = raw.description || '';
-    this.location = raw.location || raw.city || 'România (Remote)';
+    this.subcategory = raw.subcategory ?? '';
+    this.description = raw.description ?? '';
+    this.location = raw.location || raw.city || '';
 
     // Flexible budget parser
-    const bMin = raw.budget?.min ?? raw.budget_min ?? 2000;
-    const bMax = raw.budget?.max ?? raw.budget_max ?? 5000;
-    const bCurr = raw.budget?.currency ?? raw.budget_currency ?? 'RON';
+    const bMin = raw.budget?.min ?? raw.budget_min ?? 0;
+    const bMax = raw.budget?.max ?? raw.budget_max ?? 0;
+    const bCurr = raw.budget?.currency ?? raw.budget_currency ?? '';
     this.budget = {
       min: bMin,
       max: bMax,
       currency: bCurr,
-      isNegotiable: raw.budget?.isNegotiable ?? true,
-      isConfirmed: raw.budget?.isConfirmed ?? true,
+      isNegotiable: raw.budget?.isNegotiable ?? false,
+      isConfirmed: raw.budget?.isConfirmed ?? false,
     };
 
-    this.timeline = raw.timeline || 'În decurs de 1 lună';
-    this.leadPrice = raw.leadPrice ?? raw.lead_price ?? 30;
-    this.maxPros = raw.maxPros ?? raw.max_pros ?? 4;
+    this.timeline = raw.timeline ?? '';
+    this.leadPrice = raw.leadPrice ?? raw.lead_price ?? 0;
+    this.maxPros = raw.maxPros ?? raw.max_pros ?? 0;
 
     // Normalizing claimed pros
     if (raw.claimedPros) {
@@ -136,30 +138,31 @@ export class LeadModel {
 
     // Client normalization
     this.client = {
-      id: raw.client?.id || `client-${Date.now()}`,
-      name: raw.client?.name || 'Client Skillink',
-      phone: raw.client?.phone || '+40 7** *** ***',
-      email: raw.client?.email || 'contact@client.ro',
-      city: raw.client?.city || this.location,
-      isVerified: raw.client?.isVerified ?? true,
+      id: raw.client?.id ?? '',
+      name: raw.client?.name ?? '',
+      phone: raw.client?.phone ?? '',
+      email: raw.client?.email ?? '',
+      city: raw.client?.city ?? this.location,
+      isVerified: raw.client?.isVerified ?? false,
     };
 
-    this.createdAt = raw.createdAt || raw.created_at || 'Recent';
-    this.status = raw.status || 'validat';
+    this.createdAt = raw.createdAt || raw.created_at || '';
+    this.status = raw.status || 'in_asteptare';
 
     // Lead Passport
     this.leadPassport = raw.leadPassport || raw.lead_passport || {
-      completenessScore: 85,
-      coherenceStatus: 'Excelentă',
-      contactVerified: true,
-      intentVerified: true,
-      requiredDeliverables: ['Analiză cerințe specifice'],
+      completenessScore: 0,
+      coherenceStatus: 'Necesită clarificări',
+      contactVerified: false,
+      intentVerified: false,
+      requiredDeliverables: [],
       clarificationsRemaining: [],
-      extractedByAI: true,
-      duplicateRisk: 'Scăzut (< 2%)'
+      extractedByAI: false,
+      duplicateRisk: 'Moderat'
     };
 
     this.matchExplanation = raw.matchExplanation || raw.match_explanation;
+    this.ownedByCurrentUser = raw.ownedByCurrentUser ?? false;
   }
 
   public get formattedBudget(): string {
@@ -206,7 +209,8 @@ export class LeadModel {
       createdAt: this.createdAt,
       status: this.status,
       leadPassport: this.leadPassport,
-      matchExplanation: this.matchExplanation
+      matchExplanation: this.matchExplanation,
+      ownedByCurrentUser: this.ownedByCurrentUser
     };
   }
 }

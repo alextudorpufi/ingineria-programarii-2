@@ -101,6 +101,8 @@ function toProfileModel(user: UserProfile): ProfileModel {
     email: user.email,
     phone: user.phone ?? '',
     avatarUrl: user.avatarUrl ?? '',
+    rating: user.rating,
+    reviewCount: user.reviewCount,
     categories: user.categories ?? [],
     servicesOffered: user.servicesOffered ?? [],
     coverageArea: user.coverageAreas ?? [],
@@ -109,10 +111,10 @@ function toProfileModel(user: UserProfile): ProfileModel {
     clientBudget: numeric(user.clientBudget),
     bio: user.bio ?? '',
     verifiedBadge: user.verifiedBadge,
-    responseTime: user.responseTime ?? '-',
+    responseTime: user.responseTime ?? '',
     completedJobs: user.completedJobs,
     trustScore: numeric(user.trustScore),
-    memberSince: user.memberSince ?? '-',
+    memberSince: user.memberSince ?? '',
   });
 }
 
@@ -210,9 +212,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setTransactions(isSignedIn ? loadedTransactions : []);
         setDisputes(isSignedIn ? loadedDisputes : []);
 
-        setActiveLeadId(previous => (previous && models.some(lead => lead.id === previous)
+        const visibleModels = currentUserRole === 'client'
+          ? models.filter(lead => lead.ownedByCurrentUser)
+          : models;
+        setActiveLeadId(previous => (previous && visibleModels.some(lead => lead.id === previous)
           ? previous
-          : models[0]?.id ?? null));
+          : visibleModels[0]?.id ?? null));
       } catch (error) {
         if (!isCancelled) {
           console.error('Failed to load Skillink workspace data:', error);
@@ -252,7 +257,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setDarkMode(previous => !previous);
   };
 
-  const activeLead = leads.find(lead => lead.id === activeLeadId) || leads[0] || null;
+  const visibleLeads = userRole === 'client'
+    ? leads.filter(lead => lead.ownedByCurrentUser)
+    : leads;
+  const activeLead = visibleLeads.find(lead => lead.id === activeLeadId) || visibleLeads[0] || null;
 
   const isLeadClaimedByMe = (leadId: string): boolean => {
     if (!currentUserId) return false;
@@ -358,26 +366,26 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       throw new Error('Doar conturile de client pot publica solicitări în marketplace.');
     }
 
-    const budgetMin = newLeadData.budget?.min ?? 1000;
-    const budgetMax = newLeadData.budget?.max ?? Math.max(budgetMin, 5000);
+    const budgetMin = newLeadData.budget?.min ?? 0;
+    const budgetMax = newLeadData.budget?.max ?? 0;
     const payload: CreateLeadPayload = {
-      title: newLeadData.title || 'Solicitare de servicii',
-      categoryId: resolveCategoryId(newLeadData.categoryId || newLeadData.category || 'it-software'),
-      subcategory: newLeadData.subcategory || 'General',
-      description: newLeadData.description || newLeadData.title || 'Solicitare de servicii publicată prin AI Architect.',
-      location: newLeadData.location || 'București',
+      title: newLeadData.title || '',
+      categoryId: resolveCategoryId(newLeadData.categoryId || newLeadData.category || ''),
+      subcategory: newLeadData.subcategory || '',
+      description: newLeadData.description || newLeadData.title || '',
+      location: newLeadData.location || '',
       budgetMin,
       budgetMax,
-      budgetCurrency: newLeadData.budget?.currency ?? 'RON',
-      budgetIsNegotiable: newLeadData.budget?.isNegotiable ?? true,
-      budgetIsConfirmed: newLeadData.budget?.isConfirmed ?? true,
-      timeline: newLeadData.timeline || 'În următoarele 2 săptămâni',
-      leadPrice: newLeadData.leadPrice || 30,
-      maxPros: newLeadData.maxPros || 4,
+      budgetCurrency: newLeadData.budget?.currency ?? '',
+      budgetIsNegotiable: newLeadData.budget?.isNegotiable ?? false,
+      budgetIsConfirmed: newLeadData.budget?.isConfirmed ?? false,
+      timeline: newLeadData.timeline || '',
+      leadPrice: newLeadData.leadPrice || 0,
+      maxPros: newLeadData.maxPros || 0,
       clientName: authUser.name,
-      clientPhone: authUser.phone || '+40 700 000 000',
+      clientPhone: authUser.phone || '',
       clientEmail: authUser.email,
-      clientCity: newLeadData.location || 'București',
+      clientCity: newLeadData.location || '',
     };
 
     const rawLead = await marketplaceService.createLead(payload);

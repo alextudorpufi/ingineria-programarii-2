@@ -47,7 +47,7 @@ public class LeadController {
         toCreate.setClientId(user.id());
         Lead created = leadService.createLead(toCreate);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(LeadDtoMapper.toResponse(created, canViewContact(created, user)));
+                .body(LeadDtoMapper.toResponse(created, canViewContact(created, user), true));
     }
 
     @GetMapping("/{id}")
@@ -75,7 +75,7 @@ public class LeadController {
                 size
         );
         List<LeadResponse> responses = result.leads().stream()
-                .map(lead -> LeadDtoMapper.toResponse(lead, canViewContact(lead, user)))
+                .map(lead -> LeadDtoMapper.toResponse(lead, canViewContact(lead, user), isOwner(lead, user)))
                 .toList();
         return ResponseEntity.ok(new LeadPageResponse(
                 responses,
@@ -105,5 +105,9 @@ public class LeadController {
         }
         return lead.getClaimedPros() != null && lead.getClaimedPros().stream()
                 .anyMatch(claim -> user.id().equals(claim.getProId()));
+    }
+
+    private boolean isOwner(Lead lead, AuthenticatedUser user) {
+        return user != null && user.id().equals(lead.getClientId());
     }
 }
