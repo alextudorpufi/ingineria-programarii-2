@@ -89,7 +89,7 @@ export const DisputesView: React.FC = () => {
               if (claimedLeads.length > 0) {
                 setNewDisputeLeadId(claimedLeads[0].id);
               } else {
-                setNewDisputeLeadId(leads[0]?.id || 'lead-101');
+                setNewDisputeLeadId(leads[0]?.id || '');
               }
               setShowFileModal(true);
             }}

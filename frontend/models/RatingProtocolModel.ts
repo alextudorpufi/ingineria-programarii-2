@@ -40,18 +40,18 @@ export class RatingProtocolModel {
     this.id = payload.id || `rate-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     this.proId = payload.proId;
     this.leadId = payload.leadId;
-    this.leadTitle = payload.leadTitle || 'Proiect Servicii';
-    this.clientName = payload.clientName || 'Client Verificat';
-    this.clientCity = payload.clientCity || 'România';
+    this.leadTitle = payload.leadTitle ?? '';
+    this.clientName = payload.clientName ?? '';
+    this.clientCity = payload.clientCity ?? '';
     this.scores = {
-      timeliness: Math.min(5, Math.max(1, payload.scores?.timeliness ?? 5)),
-      quality: Math.min(5, Math.max(1, payload.scores?.quality ?? 5)),
-      communication: Math.min(5, Math.max(1, payload.scores?.communication ?? 5)),
-      budgetRespect: Math.min(5, Math.max(1, payload.scores?.budgetRespect ?? 5)),
+      timeliness: Math.min(5, Math.max(0, payload.scores?.timeliness ?? 0)),
+      quality: Math.min(5, Math.max(0, payload.scores?.quality ?? 0)),
+      communication: Math.min(5, Math.max(0, payload.scores?.communication ?? 0)),
+      budgetRespect: Math.min(5, Math.max(0, payload.scores?.budgetRespect ?? 0)),
     };
     this.comment = payload.comment || '';
     this.createdAt = payload.createdAt || new Date().toLocaleDateString('ro-RO', { year: 'numeric', month: 'short', day: 'numeric' });
-    this.verifiedStatus = payload.verifiedStatus !== undefined ? payload.verifiedStatus : true;
+    this.verifiedStatus = payload.verifiedStatus ?? false;
   }
 
   /**

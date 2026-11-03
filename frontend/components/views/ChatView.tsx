@@ -26,10 +26,10 @@ export const ChatView: React.FC<ChatViewProps> = ({ onOpenDispute }) => {
 
   const activeChatLeads = leads.filter(l => {
     if (userRole === 'admin') return true;
-    if (userRole === 'client') return l.claimedPros.length > 0 || (chatMessages[l.id] && chatMessages[l.id].length > 0);
+    if (userRole === 'client') return l.ownedByCurrentUser && (l.claimedPros.length > 0 || (chatMessages[l.id] && chatMessages[l.id].length > 0));
     return isLeadClaimedByMe(l.id) || (chatMessages[l.id] && chatMessages[l.id].length > 0);
   });
-  const currentLead = leads.find(l => l.id === activeLeadId) || activeChatLeads[0] || null;
+  const currentLead = activeChatLeads.find(l => l.id === activeLeadId) || activeChatLeads[0] || null;
   const currentMessages = currentLead ? chatMessages[currentLead.id] || [] : [];
 
   const handleSend = (e: React.FormEvent) => {

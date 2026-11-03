@@ -21,7 +21,8 @@ public record LeadResponse(
         String status,
         LeadPassportDto leadPassport,
         MatchExplanationDto matchExplanation,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        boolean ownedByCurrentUser
 ) {
     public record BudgetDto(
             BigDecimal min,

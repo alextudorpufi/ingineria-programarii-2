@@ -2,11 +2,17 @@
 
 import React from 'react';
 import { useApp } from '@/context/AppContext';
-import { BarChart3, Sparkles, ArrowUpRight } from 'lucide-react';
+import { BarChart3, ArrowUpRight } from 'lucide-react';
 import { Badge } from '@/components/ui/Badge';
 
 export const AnalyticsView: React.FC = () => {
-  const { proProfile, userRole } = useApp();
+  const { proProfile, userRole, leads, transactions, disputes } = useApp();
+  const ownedLeads = leads.filter(lead => lead.ownedByCurrentUser);
+  const completedProjects = ownedLeads.filter(lead => lead.status === 'finalizat').length;
+  const receivedOffers = ownedLeads.reduce((total, lead) => total + lead.claimedPros.length, 0);
+  const purchasedCredits = transactions
+    .filter(transaction => transaction.type === 'lead_purchase')
+    .reduce((total, transaction) => total + Math.abs(transaction.amount), 0);
 
   return (
     <div className="h-full overflow-y-auto p-6 space-y-6 bg-slate-50/40 dark:bg-slate-950">
@@ -37,11 +43,7 @@ export const AnalyticsView: React.FC = () => {
 
         <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
           <ArrowUpRight className="w-3.5 h-3.5" />
-          {userRole === 'client'
-            ? 'Economie medie de 14.2% per proiect'
-            : userRole === 'admin'
-            ? '+28.4% retenție profesioniști'
-            : 'ROI mediu 18.2x per credit investit'}
+          {ownedLeads.length > 0 ? `${ownedLeads.length} solicitări urmărite` : 'Fără date disponibile'}
         </span>
       </div>
 
@@ -60,7 +62,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-indigo-200/80 dark:border-slate-800 space-y-1 shadow-xs">
               <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">Economie Realizată</span>
               <div className="text-2xl font-extrabold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
-                4.200 RON
+                0 RON
               </div>
               <span className="text-[10px] text-slate-500 block">Comparativ cu devizele clasice de piață</span>
             </div>
@@ -68,7 +70,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-emerald-200/80 dark:border-slate-800 space-y-1 shadow-xs">
               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Oferte per Solicitare</span>
               <div className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
-                3.4 Specialiști
+                {receivedOffers} Specialiști
               </div>
               <span className="text-[10px] text-slate-500 block">Medie de răspuns în sub 15 minute</span>
             </div>
@@ -76,7 +78,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-amber-200/80 dark:border-slate-800 space-y-1 shadow-xs">
               <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-wider">Proiecte Încheiate</span>
               <div className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tabular-nums">
-                {proProfile.completedJobs} Lucrări
+                {completedProjects} Lucrări
               </div>
               <span className="text-[10px] text-slate-500 block">100% cu recepție calitativă confirmată</span>
             </div>
@@ -86,7 +88,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 space-y-1 shadow-xs">
               <span className="text-[11px] text-slate-400 font-semibold uppercase tracking-wider">Venit Brut Contractat</span>
               <div className="text-2xl font-extrabold font-mono text-slate-900 dark:text-white tabular-nums flex items-baseline gap-2">
-                38.400 RON <span className="text-xs font-sans text-emerald-600 font-bold">+24%</span>
+                0 RON
               </div>
               <span className="text-[10px] text-slate-500 block">Din 18 proiecte câștigate în 2026</span>
             </div>
@@ -94,7 +96,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-indigo-200/80 dark:border-slate-800 space-y-1 shadow-xs">
               <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">Credite Consumate</span>
               <div className="text-2xl font-extrabold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
-                210 credite
+                {purchasedCredits} credite
               </div>
               <span className="text-[10px] text-slate-500 block">Cost mediu achiziție client: 35 RON</span>
             </div>
@@ -102,7 +104,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-emerald-200/80 dark:border-slate-800 space-y-1 shadow-xs">
               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Rată Succes Ofertare</span>
               <div className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
-                41.8%
+                0%
               </div>
               <span className="text-[10px] text-slate-500 block">Top 5% profesioniști în categoria ta</span>
             </div>
@@ -112,7 +114,7 @@ export const AnalyticsView: React.FC = () => {
               <div className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tabular-nums">
                 {proProfile.averageRating}★
               </div>
-              <span className="text-[10px] text-slate-500 block">99.4% Trust Index pe baza a 54 recenzii</span>
+              <span className="text-[10px] text-slate-500 block">              {proProfile.reviewCount} recenzii înregistrate</span>
             </div>
           </>
         ) : (
@@ -128,7 +130,7 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-indigo-200/80 dark:border-slate-800 space-y-1 shadow-xs hover:border-indigo-400 transition-colors">
               <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold uppercase tracking-wider">Venit Brut Simulat</span>
               <div className="text-2xl font-extrabold font-mono text-indigo-600 dark:text-indigo-400 tabular-nums">
-                5.850 RON
+                {transactions.reduce((total, transaction) => total + Math.abs(transaction.amount), 0).toLocaleString()} RON
               </div>
               <span className="text-[10px] text-slate-500 block">195 lead-uri vândute (medie 30 RON/lead)</span>
             </div>
@@ -136,81 +138,22 @@ export const AnalyticsView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-emerald-200/80 dark:border-slate-800 space-y-1 shadow-xs hover:border-emerald-400 transition-colors">
               <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">Rată Conversie Chat</span>
               <div className="text-2xl font-extrabold font-mono text-emerald-600 dark:text-emerald-400 tabular-nums">
-                91.3%
+                {transactions.length > 0 ? 'Calcul în curs' : '0%'}
               </div>
-              <span className="text-[10px] text-slate-500 block">178 conversații inițiate în &lt; 30 min</span>
+              <span className="text-[10px] text-slate-500 block">              {transactions.length} tranzacții înregistrate</span>
             </div>
 
             <div className="p-4 rounded-2xl bg-gradient-to-br from-amber-50/70 to-white dark:from-slate-900 dark:to-slate-900 border border-amber-200/80 dark:border-slate-800 space-y-1 shadow-xs hover:border-amber-400 transition-colors">
               <span className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold uppercase tracking-wider">Rată Dispute</span>
               <div className="text-2xl font-extrabold font-mono text-amber-600 dark:text-amber-400 tabular-nums">
-                1.2%
+                {disputes.length > 0 ? 'Calcul în curs' : '0%'}
               </div>
-              <span className="text-[10px] text-slate-500 block">Sub pragul critic de 3.0% (Cap. 4.3)</span>
+              <span className="text-[10px] text-slate-500 block">{disputes.length} sesizări înregistrate</span>
             </div>
           </>
         )}
       </div>
 
-      {/* Experimental Evaluation Matrix */}
-      <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 shadow-2xs space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            <h3 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-              Evaluare Experimentală: AI Qualification Pipeline vs Baseline (Formular Tradițional)
-            </h3>
-          </div>
-          <Badge variant="indigo">Cap. 5.6 Raport</Badge>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400 font-semibold">
-                <th className="py-2.5 px-3">Metrica Evaluată</th>
-                <th className="py-2.5 px-3">Baseline (Formular Necesit.ro)</th>
-                <th className="py-2.5 px-3 text-indigo-600 dark:text-indigo-400">Skillink AI Pipeline</th>
-                <th className="py-2.5 px-3 text-emerald-600 font-bold">Îmbunătățire</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800 font-mono text-[11px]">
-              <tr>
-                <td className="py-3 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
-                  Completitudine Lead Passport (informații critice)
-                </td>
-                <td className="py-3 px-3 text-slate-500">42.5%</td>
-                <td className="py-3 px-3 font-bold text-indigo-600 dark:text-indigo-400">88.4%</td>
-                <td className="py-3 px-3 font-bold text-emerald-600">+108%</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
-                  Rată Răspuns Profesioniști (în primele 2 ore)
-                </td>
-                <td className="py-3 px-3 text-slate-500">31.0%</td>
-                <td className="py-3 px-3 font-bold text-indigo-600 dark:text-indigo-400">74.2%</td>
-                <td className="py-3 px-3 font-bold text-emerald-600">+139%</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
-                  Rată de Dispute pe Contacte Invalide
-                </td>
-                <td className="py-3 px-3 text-slate-500">8.4%</td>
-                <td className="py-3 px-3 font-bold text-indigo-600 dark:text-indigo-400">1.2%</td>
-                <td className="py-3 px-3 font-bold text-emerald-600">-85.7%</td>
-              </tr>
-              <tr>
-                <td className="py-3 px-3 font-sans font-medium text-slate-800 dark:text-slate-200">
-                  Timp Mediu Închidere Tranzacție
-                </td>
-                <td className="py-3 px-3 text-slate-500">4.8 zile</td>
-                <td className="py-3 px-3 font-bold text-indigo-600 dark:text-indigo-400">1.9 zile</td>
-                <td className="py-3 px-3 font-bold text-emerald-600">-60.4%</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
   );
 };

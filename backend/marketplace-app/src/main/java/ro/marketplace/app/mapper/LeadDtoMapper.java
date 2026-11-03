@@ -52,6 +52,10 @@ public final class LeadDtoMapper {
      *                              who has already unlocked (claimed) the lead
      */
     public static LeadResponse toResponse(Lead domain, boolean includeContactDetails) {
+        return toResponse(domain, includeContactDetails, false);
+    }
+
+    public static LeadResponse toResponse(Lead domain, boolean includeContactDetails, boolean ownedByCurrentUser) {
         if (domain == null) return null;
 
         LeadResponse.BudgetDto budgetDto = new LeadResponse.BudgetDto(
@@ -119,7 +123,8 @@ public final class LeadDtoMapper {
                 domain.getStatus() != null ? domain.getStatus().getDbValue() : null,
                 passportDto,
                 matchDto,
-                domain.getCreatedAt()
+                domain.getCreatedAt(),
+                ownedByCurrentUser
         );
     }
 

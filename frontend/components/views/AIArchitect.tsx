@@ -41,7 +41,7 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
         categoryId: currentSpec.categoryId,
         subcategory: currentSpec.subcategory,
         description: `Proiect structurat prin AI Project Architect: ${currentSpec.title}. Solicitare verificată pentru profesioniști calificați.`,
-        location: currentSpec.location || 'București & Ilfov',
+        location: currentSpec.location || '',
         budget: currentSpec.budget,
         timeline: currentSpec.timeline,
         leadPrice: currentSpec.leadPrice || 30,

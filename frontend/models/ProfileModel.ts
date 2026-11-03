@@ -17,6 +17,8 @@ export interface RawProfilePayload {
   email?: string;
   phone?: string;
   avatarUrl?: string;
+  rating?: number;
+  reviewCount?: number;
   category?: string;
   categories?: string[];
   servicesOffered?: string[];
@@ -43,6 +45,8 @@ export class ProfileModel {
   public email: string;
   public phone: string;
   public avatarUrl: string;
+  public rating: number;
+  public reviewCount: number;
   public categories: string[];
   public servicesOffered: string[];
   public coverageArea: string[];
@@ -62,35 +66,28 @@ export class ProfileModel {
   constructor(data: RawProfilePayload) {
     this.id = data.id;
     this.role = data.role || 'pro';
-    this.name = data.name || 'Alexandru Munteanu';
-    this.companyName = data.companyName || 'Skillink Partner SRL';
+    this.name = data.name ?? '';
+    this.companyName = data.companyName ?? '';
     this.title = data.title || (data.role === 'client' ? 'Client Verificat' : data.role === 'admin' ? 'Administrator Platformă' : 'Profesionist Autorizat');
-    this.email = data.email || 'alexandru.munteanu@devcraft.ro';
-    this.phone = data.phone || '+40 722 554 112';
-    this.avatarUrl = data.avatarUrl || '';
-    this.categories = data.categories || (data.category ? [data.category] : ['IT & Dezvoltare Software']);
-    this.servicesOffered = data.servicesOffered || [
-      'Dezvoltare Magazine Online (Shopify / WooCommerce)',
-      'Aplicații Web Next.js & React',
-      'Integrări Plăți Online & API-uri Curierat',
-      'Optimizare Viteză și Securitate'
-    ];
-    this.coverageArea = data.coverageArea || ['București & Ilfov', 'Cluj-Napoca', 'Timișoara', 'Național (Remote)'];
-    this.creditsBalance = data.creditsBalance ?? 145;
-    this.hourlyRate = data.hourlyRate ?? 180;
-    this.clientBudget = data.clientBudget ?? 12500;
-    this.bio = data.bio || 'Membru activ pe platforma Skillink.';
-    this.verifiedBadge = data.verifiedBadge !== undefined ? data.verifiedBadge : true;
-    this.responseTime = data.responseTime || '< 15 minute';
-    this.completedJobs = data.completedJobs ?? 46;
-    this.trustScore = data.trustScore ?? 98.8;
-    this.memberSince = data.memberSince || 'Martie 2024';
+    this.email = data.email ?? '';
+    this.phone = data.phone ?? '';
+    this.avatarUrl = data.avatarUrl ?? '';
+    this.rating = data.rating ?? 0;
+    this.reviewCount = data.reviewCount ?? 0;
+    this.categories = data.categories ?? (data.category ? [data.category] : []);
+    this.servicesOffered = data.servicesOffered ?? [];
+    this.coverageArea = data.coverageArea ?? [];
+    this.creditsBalance = data.creditsBalance ?? 0;
+    this.hourlyRate = data.hourlyRate ?? 0;
+    this.clientBudget = data.clientBudget ?? 0;
+    this.bio = data.bio ?? '';
+    this.verifiedBadge = data.verifiedBadge ?? false;
+    this.responseTime = data.responseTime ?? '';
+    this.completedJobs = data.completedJobs ?? 0;
+    this.trustScore = data.trustScore ?? 0;
+    this.memberSince = data.memberSince ?? '';
     this.stats = data.stats || {};
-    this.certifications = data.certifications || [
-      'Identitate Verificată (CI & CUI ONRC)',
-      'Certificare CECCAR / IT Architecture',
-      'Procesator Plăți Securizat Stripe Verified'
-    ];
+    this.certifications = data.certifications ?? [];
   }
 
   public setRatings(ratings: RatingProtocolModel[]): void {
@@ -103,7 +100,7 @@ export class ProfileModel {
   }
 
   public get averageRating(): number {
-    if (this.ratings.length === 0) return 4.9;
+    if (this.ratings.length === 0) return this.reviewCount > 0 ? this.rating : 0;
     const total = this.ratings.reduce((acc, r) => acc + r.overallScore, 0);
     return parseFloat((total / this.ratings.length).toFixed(1));
   }
@@ -115,7 +112,8 @@ export class ProfileModel {
     budgetRespect: number;
   } {
     if (this.ratings.length === 0) {
-      return { timeliness: 4.9, quality: 5.0, communication: 4.8, budgetRespect: 4.9 };
+      const score = this.reviewCount > 0 ? this.rating : 0;
+      return { timeliness: score, quality: score, communication: score, budgetRespect: score };
     }
 
     const n = this.ratings.length;
@@ -147,6 +145,8 @@ export class ProfileModel {
       email: this.email,
       phone: this.phone,
       avatarUrl: this.avatarUrl,
+      rating: this.rating,
+      reviewCount: this.reviewCount,
       categories: this.categories,
       servicesOffered: this.servicesOffered,
       coverageArea: this.coverageArea,

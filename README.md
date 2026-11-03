@@ -109,7 +109,7 @@ Semantic matching with embeddings/pgvector, mobile apps, audio/video calls, and 
   ```bash
   docker compose --profile seed up db-seed
   ```
-  The seed service runs `scripts/populate_5000_records.sql`, is idempotent, and is never started by a normal `docker compose up`. It waits for the backend healthcheck, so Flyway applies the baseline schema before any rows are inserted. Demo administrator: `skilling@contact.ro` / `admin`.
+  The seed service runs `scripts/populate_5000_records.sql`, is idempotent, and is never started by a normal `docker compose up`. It waits for the backend healthcheck, so Flyway applies the baseline schema before any rows are inserted. The seed creates 5,000 users with populated demo accounts: administrator `skillingadmin@contact.ro`, client `skillingclient@contact.ro`, and professional `skillingprof@contact.ro` (all use password `admin`).
 - **Large Development Database Seeding**: Populate 100,000 rows for each marketplace entity with the separate opt-in seed service:
   ```bash
   docker compose --profile seed up db-seed-large

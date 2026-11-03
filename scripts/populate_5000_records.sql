@@ -10,7 +10,7 @@
 -- conflicts are ignored, so repeated executions keep the same 5,000 rows.
 --
 -- Root administrator credentials:
---   email:    skilling@contact.ro
+--   email:    skillingadmin@contact.ro
 --   password: admin
 -- ==============================================================================
 
@@ -69,7 +69,7 @@ ON CONFLICT DO NOTHING;
 
 -- ------------------------------------------------------------------------------
 -- 4. Users (5,000 users)
---    - 1 ADMIN:   skilling@contact.ro            / pass: admin
+--    - 1 ADMIN:   skillingadmin@contact.ro       / pass: admin
 --    - 2,499 CLIENTS: client_1..2499@skillink.ro / pass: admin
 --    - 2,500 PROS:    pro_1..2500@skillink.ro    / pass: admin
 -- ------------------------------------------------------------------------------
@@ -81,7 +81,7 @@ INSERT INTO users (
     response_time, completed_jobs, trust_score, member_since, version, created_at, created_by
 ) VALUES (
     '00000000-0000-0000-0000-000000000001',
-    'skilling@contact.ro',
+    'skillingadmin@contact.ro',
     '$2a$10$yWQrlMUG3w.qLjSErNpEYOF0tLY7IHRKRQ0r/qqhumBbbn7i9YYMq',
     'admin',
     'Skillink Admin Master',
@@ -92,9 +92,15 @@ INSERT INTO users (
     'Contul administrativ principal pentru audit, mediere litigii și management sistem.',
     TRUE, 5.00, 100, 10000, 0.00, 0.00, '< 5 minute', 250, 100.00, 'Ianuarie 2024',
     0, NOW(), 'system'
-) ON CONFLICT (email) DO UPDATE SET
+) ON CONFLICT (id) DO UPDATE SET
     password_hash = EXCLUDED.password_hash,
-    role = EXCLUDED.role;
+    email = EXCLUDED.email,
+    role = EXCLUDED.role,
+    name = EXCLUDED.name,
+    company_name = EXCLUDED.company_name,
+    title = EXCLUDED.title,
+    phone = EXCLUDED.phone,
+    bio = EXCLUDED.bio;
 
 -- 2,499 Clients
 INSERT INTO users (
@@ -104,15 +110,16 @@ INSERT INTO users (
 )
 SELECT
     ('00000000-0000-0000-0001-' || LPAD(i::text, 12, '0'))::uuid,
-    'client_' || i || '@skillink.ro',
+    CASE WHEN i = 1 THEN 'skillingclient@contact.ro' ELSE 'client_' || i || '@skillink.ro' END,
     '$2a$10$yWQrlMUG3w.qLjSErNpEYOF0tLY7IHRKRQ0r/qqhumBbbn7i9YYMq',
     'client',
-    'Client Rezidențial ' || i,
+    CASE WHEN i = 1 THEN 'Andrei Popescu' ELSE 'Client Rezidențial ' || i END,
     CASE WHEN i % 3 = 0 THEN 'Compania Client ' || i || ' SRL' ELSE NULL END,
     'Beneficiar Proiect',
-    '+40 7' || LPAD((30000000 + i)::text, 8, '0'),
+    CASE WHEN i = 1 THEN '+40 721 234 567' ELSE '+40 7' || LPAD((30000000 + i)::text, 8, '0') END,
     '',
-    'Client activ pe platforma Skillink.',
+    CASE WHEN i = 1 THEN 'Client activ cu proiecte rezidențiale și buget verificat.'
+         ELSE 'Client activ pe platforma Skillink.' END,
     (i % 2 = 0),
     4.50 + ((i % 50)::numeric / 100),
     (i % 20),
@@ -127,7 +134,16 @@ SELECT
     NOW() - (i || ' minutes')::interval,
     'system'
 FROM generate_series(1, 2499) AS i
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    password_hash = EXCLUDED.password_hash,
+    role = EXCLUDED.role,
+    name = EXCLUDED.name,
+    company_name = EXCLUDED.company_name,
+    title = EXCLUDED.title,
+    phone = EXCLUDED.phone,
+    bio = EXCLUDED.bio,
+    client_budget = EXCLUDED.client_budget;
 
 -- 2,500 Professionals
 INSERT INTO users (
@@ -137,15 +153,16 @@ INSERT INTO users (
 )
 SELECT
     ('00000000-0000-0000-0002-' || LPAD(i::text, 12, '0'))::uuid,
-    'pro_' || i || '@skillink.ro',
+    CASE WHEN i = 1 THEN 'skillingprof@contact.ro' ELSE 'pro_' || i || '@skillink.ro' END,
     '$2a$10$yWQrlMUG3w.qLjSErNpEYOF0tLY7IHRKRQ0r/qqhumBbbn7i9YYMq',
     'pro',
-    'Meseriaș / Specialist ' || i,
-    'Expert Services ' || i || ' SRL',
+    CASE WHEN i = 1 THEN 'Mihai Ionescu' ELSE 'Meseriaș / Specialist ' || i END,
+    CASE WHEN i = 1 THEN 'Ionescu Smart Systems SRL' ELSE 'Expert Services ' || i || ' SRL' END,
     'Specialist Autorizat ' || (CASE (i % 4) WHEN 0 THEN 'Electrician' WHEN 1 THEN 'Instalator' WHEN 2 THEN 'Constructor' ELSE 'Programator' END),
     '+40 7' || LPAD((40000000 + i)::text, 8, '0'),
     '',
-    'Profesionist verificat cu experiență dovedită pe platformă.',
+    CASE WHEN i = 1 THEN 'Profesionist verificat cu experiență în automatizări, aplicații web și integrări.'
+         ELSE 'Profesionist verificat cu experiență dovedită pe platformă.' END,
     TRUE,
     4.20 + ((i % 80)::numeric / 100),
     10 + (i % 150),
@@ -160,7 +177,17 @@ SELECT
     NOW() - (i || ' minutes')::interval,
     'system'
 FROM generate_series(1, 2500) AS i
-ON CONFLICT DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+    email = EXCLUDED.email,
+    password_hash = EXCLUDED.password_hash,
+    role = EXCLUDED.role,
+    name = EXCLUDED.name,
+    company_name = EXCLUDED.company_name,
+    title = EXCLUDED.title,
+    phone = EXCLUDED.phone,
+    bio = EXCLUDED.bio,
+    credits_balance = EXCLUDED.credits_balance,
+    hourly_rate = EXCLUDED.hourly_rate;
 
 -- Professional child collections (coverage areas, services, categories)
 INSERT INTO user_coverage_areas (user_id, area)
@@ -212,9 +239,12 @@ SELECT
     4 AS max_pros,
     1 AS current_pros,
     ('00000000-0000-0000-0001-' || LPAD(((i % 2499) + 1)::text, 12, '0'))::uuid AS client_id,
-    'Client Rezidențial ' || ((i % 2499) + 1),
-    '+40 7' || LPAD((30000000 + ((i % 2499) + 1))::text, 8, '0'),
-    'client_' || ((i % 2499) + 1) || '@skillink.ro',
+    CASE WHEN ((i % 2499) + 1) = 1 THEN 'Andrei Popescu'
+         ELSE 'Client Rezidențial ' || ((i % 2499) + 1) END,
+    CASE WHEN ((i % 2499) + 1) = 1 THEN '+40 721 234 567'
+         ELSE '+40 7' || LPAD((30000000 + ((i % 2499) + 1))::text, 8, '0') END,
+    CASE WHEN ((i % 2499) + 1) = 1 THEN 'skillingclient@contact.ro'
+         ELSE 'client_' || ((i % 2499) + 1) || '@skillink.ro' END,
     'București',
     TRUE,
     CASE (i % 4)
@@ -243,7 +273,8 @@ SELECT
     ('00000000-0000-0000-0006-' || LPAD(i::text, 12, '0'))::uuid,
     ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
     ('00000000-0000-0000-0002-' || LPAD(((i % 2500) + 1)::text, 12, '0'))::uuid AS pro_id,
-    'Meseriaș / Specialist ' || ((i % 2500) + 1),
+    CASE WHEN ((i % 2500) + 1) = 1 THEN 'Mihai Ionescu'
+         ELSE 'Meseriaș / Specialist ' || ((i % 2500) + 1) END,
     NOW() - (i || ' minutes')::interval
 FROM generate_series(1, 5000) AS i
 ON CONFLICT DO NOTHING;
@@ -286,7 +317,8 @@ SELECT
     ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
     'Proiect Execuție Lucrare #' || i AS lead_title,
     ('00000000-0000-0000-0002-' || LPAD(((i % 2500) + 1)::text, 12, '0'))::uuid AS pro_id,
-    'Meseriaș / Specialist ' || ((i % 2500) + 1),
+    CASE WHEN ((i % 2500) + 1) = 1 THEN 'Mihai Ionescu'
+         ELSE 'Meseriaș / Specialist ' || ((i % 2500) + 1) END,
     CASE (i % 4)
         WHEN 0 THEN 'unreachable_contact'
         WHEN 1 THEN 'incompatible_budget'
@@ -316,7 +348,8 @@ SELECT
     ('00000000-0000-0000-0009-' || LPAD(i::text, 12, '0'))::uuid,
     ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
     ('00000000-0000-0000-0002-' || LPAD(((i % 2500) + 1)::text, 12, '0'))::uuid AS sender_id,
-    'Meseriaș / Specialist ' || ((i % 2500) + 1),
+    CASE WHEN ((i % 2500) + 1) = 1 THEN 'Mihai Ionescu'
+         ELSE 'Meseriaș / Specialist ' || ((i % 2500) + 1) END,
     'pro',
     'Bună ziua! Am analizat cererea dvs. #' || i || ' și sunt disponibil să încep lucrarea săptămâna viitoare.',
     (i % 5 = 0),
@@ -338,7 +371,8 @@ SELECT
     ('00000000-0000-0000-0002-' || LPAD(((i % 2500) + 1)::text, 12, '0'))::uuid AS pro_id,
     ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
     'Proiect Execuție Lucrare #' || i,
-    'Client Rezidențial ' || ((i % 2499) + 1),
+    CASE WHEN ((i % 2499) + 1) = 1 THEN 'Andrei Popescu'
+         ELSE 'Client Rezidențial ' || ((i % 2499) + 1) END,
     4 + (i % 2),
     4 + (i % 2),
     5,
@@ -364,7 +398,7 @@ SELECT
         WHEN 2 THEN 'CLAIM_LEAD'
         ELSE 'CREDIT_DEDUCTION'
     END,
-    'skilling@contact.ro',
+    'skillingadmin@contact.ro',
     'Audit operațiune automatizată în sistem pentru înregistrarea #' || i,
     NOW() - (i || ' minutes')::interval
 FROM generate_series(1, 5000) AS i
