@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { LeadPassportCard } from '@/components/common/LeadPassportCard';
 import { ExplainableMatchCard } from '@/components/common/ExplainableMatchCard';
 import { Button } from '@/components/ui/Button';
@@ -36,7 +37,8 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
   onOpenChat,
   onOpenDispute
 }) => {
-  const { activeLead, unlockLead, isLeadClaimedByMe, proProfile, userRole } = useApp();
+  const { activeLead, unlockLead, isLeadClaimedByMe, proProfile, userRole, openAuthModal } = useApp();
+  const { user } = useAuth();
   const [unlockFeedback, setUnlockFeedback] = useState<{ success: boolean; message: string } | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [adminStatusMessage, setAdminStatusMessage] = useState<string | null>(null);
@@ -65,6 +67,11 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
   const isFull = activeLead.claimedPros.length >= activeLead.maxPros;
 
   const handleUnlock = async () => {
+    // Redeeming a lead is a mutating action: require a session first.
+    if (!user) {
+      openAuthModal();
+      return;
+    }
     setIsUnlocking(true);
     setUnlockFeedback(null);
     try {

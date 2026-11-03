@@ -125,6 +125,28 @@ public class LeadServiceImpl implements LeadService {
     }
 
     @Override
+    public LeadPage getLeadsPage(String categoryId, LeadStatus status, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.min(Math.max(size, 1), 100);
+        List<Lead> leads;
+        long totalElements;
+
+        if (categoryId != null && !categoryId.isBlank()) {
+            leads = leadRepository.findPageByCategoryId(categoryId, safePage, safeSize);
+            totalElements = leadRepository.countByCategoryId(categoryId);
+        } else if (status != null) {
+            leads = leadRepository.findPageByStatus(status, safePage, safeSize);
+            totalElements = leadRepository.countByStatus(status);
+        } else {
+            leads = leadRepository.findPage(safePage, safeSize);
+            totalElements = leadRepository.countAll();
+        }
+
+        attachClaims(leads);
+        return new LeadPage(leads, totalElements, safePage, safeSize);
+    }
+
+    @Override
     public LeadClaim claimLead(UUID leadId, UUID proId, String proName) {
         Objects.requireNonNull(leadId, "leadId must not be null");
         Objects.requireNonNull(proId, "proId must not be null");

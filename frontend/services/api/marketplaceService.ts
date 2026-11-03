@@ -35,6 +35,14 @@ export interface ClaimedProPayload {
   claimedAt: string;
 }
 
+export interface LeadPagePayload {
+  content: RawLeadApiPayload[];
+  totalElements: number;
+  page: number;
+  size: number;
+  totalPages: number;
+}
+
 export interface WalletBalance {
   userId: string;
   creditsBalance: number;
@@ -115,8 +123,10 @@ function toDispute(raw: RawDispute): DisputeRecord {
 }
 
 export const marketplaceService = {
-  getLeads: async (limit = 100): Promise<RawLeadApiPayload[]> => {
-    return apiFetch<RawLeadApiPayload[]>(`/api/leads?limit=${limit}`);
+  getLeads: async (page = 0, size = 40, category?: string): Promise<LeadPagePayload> => {
+    const params = new URLSearchParams({ page: String(page), size: String(size) });
+    if (category && category !== 'all') params.set('category', category);
+    return apiFetch<LeadPagePayload>(`/api/leads?${params.toString()}`);
   },
 
   getLeadById: async (id: string): Promise<RawLeadApiPayload> => {

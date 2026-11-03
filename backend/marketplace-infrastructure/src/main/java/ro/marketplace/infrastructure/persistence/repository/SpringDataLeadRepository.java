@@ -18,6 +18,10 @@ public interface SpringDataLeadRepository extends JpaRepository<LeadEntity, UUID
 
     List<LeadEntity> findByStatus(String status, Pageable pageable);
 
+    long countByCategoryId(String categoryId);
+
+    long countByStatus(String status);
+
     /**
      * Atomic slot reservation. Exactly one concurrent transaction can increment each slot.
      */

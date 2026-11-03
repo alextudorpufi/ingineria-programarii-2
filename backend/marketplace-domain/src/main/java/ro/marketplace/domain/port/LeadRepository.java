@@ -21,6 +21,18 @@ public interface LeadRepository {
 
     List<Lead> findByCategoryId(String categoryId);
 
+    List<Lead> findPage(int page, int size);
+
+    List<Lead> findPageByCategoryId(String categoryId, int page, int size);
+
+    List<Lead> findPageByStatus(LeadStatus status, int page, int size);
+
+    long countAll();
+
+    long countByCategoryId(String categoryId);
+
+    long countByStatus(LeadStatus status);
+
     void deleteById(UUID id);
 
     LeadClaim saveClaim(LeadClaim claim);

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { SERVICE_CATEGORIES } from '@/services/api/categoryCatalog';
 import { Search, MapPin, Wallet, Check, Sparkles, Plus, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
@@ -18,6 +19,10 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
   const {
     leads,
     isLoadingLeads,
+    leadsPage,
+    leadsTotalPages,
+    leadsTotalElements,
+    goToLeadsPage,
     activeLeadId,
     setActiveLeadId,
     selectedCategory,
@@ -26,8 +31,10 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
     setSearchQuery,
     isLeadClaimedByMe,
     userRole,
-    setActiveTab
+    setActiveTab,
+    openAuthModal
   } = useApp();
+  const { user } = useAuth();
 
   const [filterType, setFilterType] = useState<'all' | 'available' | 'claimed'>('all');
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'validat' | 'audit'>('all');
@@ -119,7 +126,14 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
               variant="primary"
               size="sm"
               icon={<Plus className="w-3.5 h-3.5" />}
-              onClick={() => setActiveTab('ai')}
+              onClick={() => {
+                // Creating a lead is a mutating action: require a session first.
+                if (!user) {
+                  openAuthModal();
+                  return;
+                }
+                setActiveTab('ai');
+              }}
             >
               Cerere Nouă
             </Button>
@@ -243,7 +257,7 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
           )}
 
           <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-mono font-bold tabular-nums">
-            {filteredLeads.length} rezultate
+            {leadsTotalElements} rezultate
           </span>
         </div>
       </div>
@@ -343,6 +357,7 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
                         </span>
                       )}
                     </div>
+
                   </div>
                 </div>
               </div>
@@ -350,6 +365,30 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
           })
         )}
       </div>
+
+      {leadsTotalPages > 1 && (
+        <div className="shrink-0 flex items-center justify-between gap-3 p-3 border-t border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-950">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={leadsPage === 0 || isLoadingLeads}
+            onClick={() => goToLeadsPage(leadsPage - 1)}
+          >
+            Înapoi
+          </Button>
+          <span className="text-[11px] font-mono font-bold text-slate-500 dark:text-slate-400 tabular-nums">
+            Pagina {leadsPage + 1} / {leadsTotalPages}
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={leadsPage >= leadsTotalPages - 1 || isLoadingLeads}
+            onClick={() => goToLeadsPage(leadsPage + 1)}
+          >
+            Înainte
+          </Button>
+        </div>
+      )}
     </div>
   );
 };

@@ -110,6 +110,11 @@ Semantic matching with embeddings/pgvector, mobile apps, audio/video calls, and 
   docker compose --profile seed up db-seed
   ```
   The seed service runs `scripts/populate_5000_records.sql`, is idempotent, and is never started by a normal `docker compose up`. It waits for the backend healthcheck, so Flyway applies the baseline schema before any rows are inserted. Demo administrator: `skilling@contact.ro` / `admin`.
+- **Large Development Database Seeding**: Populate 100,000 rows for each marketplace entity with the separate opt-in seed service:
+  ```bash
+  docker compose --profile seed up db-seed-large
+  ```
+  This service runs `scripts/populate_100000_records.sql`, is idempotent, and is intended for performance and load testing. It can coexist with the standard seed service and is never started by a normal `docker compose up`.
 - **SonarQube Static Analysis**: Start SonarQube and analyze both frontend and backend by running `./run-sonar-analysis.sh` or `docker compose run --rm sonar-analyzer`. See [SonarQube Setup Guide](docs/sonarqube-setup.md) for detailed instructions.
 - **Backend Setup**: Refer to [Backend Setup Steps](docs/backend-setup-steps.md).
 - **Frontend Setup**: Refer to [Frontend Setup Steps](docs/frontend-setup-steps.md).

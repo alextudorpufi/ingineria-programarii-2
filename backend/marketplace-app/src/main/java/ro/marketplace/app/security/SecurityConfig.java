@@ -67,6 +67,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/payments/stripe/webhook").permitAll()
                         .requestMatchers("/api/health", "/actuator/health/**", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Public marketplace: anyone can browse the lead feed (contact details stay masked
+                        // server-side via LeadDtoMapper). All write actions remain authenticated.
+                        .requestMatchers(HttpMethod.GET, "/api/leads").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/leads/{id}").permitAll()
                         .requestMatchers("/api/audit/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/disputes/*/resolve").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/wallet/*/top-up").hasRole("ADMIN")

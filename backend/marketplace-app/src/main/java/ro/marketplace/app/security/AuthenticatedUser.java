@@ -20,6 +20,15 @@ public record AuthenticatedUser(UUID id, String email, String displayName, Set<S
         roles = roles == null ? Set.of() : Set.copyOf(roles);
     }
 
+    /**
+     * Builds a {@link AuthenticatedUser} for endpoints that may be reached anonymously.
+     * Returns {@code null} when no valid JWT is present so callers can apply
+     * "no contact visibility" masking to public reads.
+     */
+    public static AuthenticatedUser optional(Jwt jwt) {
+        return jwt == null ? null : from(jwt);
+    }
+
     public static AuthenticatedUser from(Jwt jwt) {
         if (jwt == null) {
             throw new BadCredentialsException("Authentication is required");

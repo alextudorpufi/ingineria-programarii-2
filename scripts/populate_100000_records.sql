@@ -1,0 +1,383 @@
+-- ==============================================================================
+-- Skillink Marketplace Population Script: 100,000 records per entity
+-- ------------------------------------------------------------------------------
+-- This script is NOT a Flyway migration on purpose: it must never execute in
+-- production. Run it only through the Docker Compose seed profile:
+--
+--   docker compose --profile seed up db-seed
+--
+-- The script is idempotent: every generated row uses a deterministic UUID and
+-- conflicts are ignored, so repeated executions keep the same 100,000 rows.
+--
+-- Root administrator credentials:
+--   email:    skilling@contact.ro
+--   password: admin
+-- ==============================================================================
+
+BEGIN;
+
+-- ------------------------------------------------------------------------------
+-- 1. Service Categories (5 existing baseline categories + 99,995 generated)
+-- ------------------------------------------------------------------------------
+INSERT INTO service_categories (id, name, icon_name, description, avg_lead_price, version, created_at, created_by)
+SELECT
+    'cat-' || LPAD(i::text, 5, '0') AS id,
+    'Serviciu Specializat #' || i AS name,
+    CASE (i % 5)
+        WHEN 0 THEN 'Code'
+        WHEN 1 THEN 'Hammer'
+        WHEN 2 THEN 'Calculator'
+        WHEN 3 THEN 'TrendingUp'
+        ELSE 'Wrench'
+    END AS icon_name,
+    'Descriere pentru serviciul specializat numărul ' || i AS description,
+    20 + (i % 40) AS avg_lead_price,
+    0,
+    NOW() - (i || ' minutes')::interval,
+    'system'
+FROM generate_series(6, 100000) AS i
+ON CONFLICT (id) DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 2. Service Subcategories (100,000 subcategories)
+-- ------------------------------------------------------------------------------
+INSERT INTO service_subcategories (id, category_id, name, created_at)
+SELECT
+    ('00000000-0000-0000-0004-' || LPAD(i::text, 12, '0'))::uuid,
+    CASE
+        WHEN (i % 100000) < 5
+            THEN (ARRAY['it-software', 'constructii', 'contabilitate', 'marketing', 'instalatii'])[(i % 100000) + 1]
+        ELSE 'cat-' || LPAD(((i % 100000) + 1)::text, 5, '0')
+    END,
+    'Subcategorie Specializată #' || i,
+    NOW() - (i || ' minutes')::interval
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 3. Customers (100,000 customers)
+-- ------------------------------------------------------------------------------
+INSERT INTO customers (id, name, email, phone, created_at)
+SELECT
+    ('00000000-0000-0000-0005-' || LPAD(i::text, 12, '0'))::uuid,
+    'Client Persoană Fizică ' || i,
+    'customer_' || i || '@marketplace.ro',
+    '+40 7' || LPAD((20000000 + i)::text, 8, '0'),
+    NOW() - (i || ' minutes')::interval
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 4. Users (100,000 users)
+--    - 1 ADMIN:   skilling@contact.ro            / pass: admin
+--    - 49,999 CLIENTS: client_1..49999@skillink.ro / pass: admin
+--    - 50,000 PROS:    pro_1..50000@skillink.ro    / pass: admin
+-- ------------------------------------------------------------------------------
+
+-- Root administrator (upsert so the credentials always match this plan)
+INSERT INTO users (
+    id, email, password_hash, role, name, company_name, title, phone, avatar_url, bio,
+    verified_badge, rating, review_count, credits_balance, hourly_rate, client_budget,
+    response_time, completed_jobs, trust_score, member_since, version, created_at, created_by
+) VALUES (
+    '00000000-0000-0000-0000-000000000001',
+    'skilling@contact.ro',
+    '$2a$10$yWQrlMUG3w.qLjSErNpEYOF0tLY7IHRKRQ0r/qqhumBbbn7i9YYMq',
+    'admin',
+    'Skillink Admin Master',
+    'Skillink Platform Core HQ',
+    'Super Administrator & Trust Officer',
+    '+40 700 000 001',
+    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+    'Contul administrativ principal pentru audit, mediere litigii și management sistem.',
+    TRUE, 5.00, 100, 10000, 0.00, 0.00, '< 5 minute', 250, 100.00, 'Ianuarie 2024',
+    0, NOW(), 'system'
+) ON CONFLICT (email) DO UPDATE SET
+    password_hash = EXCLUDED.password_hash,
+    role = EXCLUDED.role;
+
+-- 49,999 Clients
+INSERT INTO users (
+    id, email, password_hash, role, name, company_name, title, phone, avatar_url, bio,
+    verified_badge, rating, review_count, credits_balance, hourly_rate, client_budget,
+    response_time, completed_jobs, trust_score, member_since, version, created_at, created_by
+)
+SELECT
+    ('00000000-0000-0000-0001-' || LPAD(i::text, 12, '0'))::uuid,
+    'client_' || i || '@skillink.ro',
+    '$2a$10$yWQrlMUG3w.qLjSErNpEYOF0tLY7IHRKRQ0r/qqhumBbbn7i9YYMq',
+    'client',
+    'Client Rezidențial ' || i,
+    CASE WHEN i % 3 = 0 THEN 'Compania Client ' || i || ' SRL' ELSE NULL END,
+    'Beneficiar Proiect',
+    '+40 7' || LPAD((30000000 + i)::text, 8, '0'),
+    '',
+    'Client activ pe platforma Skillink.',
+    (i % 2 = 0),
+    4.50 + ((i % 50)::numeric / 100),
+    (i % 20),
+    0,
+    0.00,
+    5000.00 + ((i * 37) % 50000),
+    '< 30 minute',
+    (i % 15),
+    95.00 + ((i % 50)::numeric / 10),
+    'Martie 2024',
+    0,
+    NOW() - (i || ' minutes')::interval,
+    'system'
+FROM generate_series(1, 49999) AS i
+ON CONFLICT DO NOTHING;
+
+-- 50,000 Professionals
+INSERT INTO users (
+    id, email, password_hash, role, name, company_name, title, phone, avatar_url, bio,
+    verified_badge, rating, review_count, credits_balance, hourly_rate, client_budget,
+    response_time, completed_jobs, trust_score, member_since, version, created_at, created_by
+)
+SELECT
+    ('00000000-0000-0000-0002-' || LPAD(i::text, 12, '0'))::uuid,
+    'pro_' || i || '@skillink.ro',
+    '$2a$10$yWQrlMUG3w.qLjSErNpEYOF0tLY7IHRKRQ0r/qqhumBbbn7i9YYMq',
+    'pro',
+    'Meseriaș / Specialist ' || i,
+    'Expert Services ' || i || ' SRL',
+    'Specialist Autorizat ' || (CASE (i % 4) WHEN 0 THEN 'Electrician' WHEN 1 THEN 'Instalator' WHEN 2 THEN 'Constructor' ELSE 'Programator' END),
+    '+40 7' || LPAD((40000000 + i)::text, 8, '0'),
+    '',
+    'Profesionist verificat cu experiență dovedită pe platformă.',
+    TRUE,
+    4.20 + ((i % 80)::numeric / 100),
+    10 + (i % 150),
+    50 + (i % 500),
+    100.00 + ((i * 13) % 250),
+    0.00,
+    '< 15 minute',
+    15 + (i % 200),
+    90.00 + ((i % 100)::numeric / 10),
+    'Februarie 2024',
+    0,
+    NOW() - (i || ' minutes')::interval,
+    'system'
+FROM generate_series(1, 50000) AS i
+ON CONFLICT DO NOTHING;
+
+-- Professional child collections (coverage areas, services, categories)
+INSERT INTO user_coverage_areas (user_id, area)
+SELECT id, 'București & Ilfov' FROM users WHERE role = 'pro'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO user_services_offered (user_id, service_name)
+SELECT id, 'Consultanță & Execuție Lucrări' FROM users WHERE role = 'pro'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO user_categories (user_id, category_name)
+SELECT id, 'Instalații & Construcții' FROM users WHERE role = 'pro'
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 5. Leads (100,000 qualified service requests)
+-- ------------------------------------------------------------------------------
+INSERT INTO leads (
+    id, title, category_id, subcategory, description, location,
+    budget_min, budget_max, budget_currency, budget_is_negotiable, budget_is_confirmed,
+    timeline, lead_price, max_pros, current_pros,
+    client_id, client_name, client_phone, client_email, client_city, client_is_verified,
+    status, passport_completeness_score, passport_coherence_status, passport_contact_verified,
+    passport_intent_verified, passport_extracted_by_ai, passport_duplicate_risk,
+    version, created_at, created_by
+)
+SELECT
+    ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS id,
+    'Proiect Execuție Lucrare #' || i AS title,
+    -- Keep the five human-facing root categories evenly populated so the
+    -- marketplace feed stays filterable while still storing 100,000 categories.
+    (ARRAY['it-software', 'constructii', 'contabilitate', 'marketing', 'instalatii'])[((i - 1) % 5) + 1] AS category_id,
+    'Subcategorie #' || ((i % 100) + 1) AS subcategory,
+    'Solicit ofertă detaliată pentru lucrarea cu numărul ' || i || '. Cerințele includ materiale de calitate superioară și garanție standard.',
+    CASE (i % 5)
+        WHEN 0 THEN 'București, Sector 1'
+        WHEN 1 THEN 'Cluj-Napoca, Centru'
+        WHEN 2 THEN 'Timișoara'
+        WHEN 3 THEN 'Iași'
+        ELSE 'Brașov'
+    END AS location,
+    1000.00 + ((i * 17) % 5000) AS budget_min,
+    6500.00 + ((i * 23) % 15000) AS budget_max,
+    'RON',
+    TRUE,
+    TRUE,
+    'În următoarele 2 săptămâni',
+    20 + (i % 30) AS lead_price,
+    4 AS max_pros,
+    1 AS current_pros,
+    ('00000000-0000-0000-0001-' || LPAD(((i % 49999) + 1)::text, 12, '0'))::uuid AS client_id,
+    'Client Rezidențial ' || ((i % 49999) + 1),
+    '+40 7' || LPAD((30000000 + ((i % 49999) + 1))::text, 8, '0'),
+    'client_' || ((i % 49999) + 1) || '@skillink.ro',
+    'București',
+    TRUE,
+    CASE (i % 4)
+        WHEN 0 THEN 'validat'
+        WHEN 1 THEN 'in_asteptare'
+        WHEN 2 THEN 'atribuit'
+        ELSE 'finalizat'
+    END AS status,
+    80 + (i % 20),
+    'Excelentă',
+    TRUE,
+    TRUE,
+    TRUE,
+    'Scăzut (< 2%)',
+    0,
+    NOW() - (i || ' minutes')::interval,
+    'system'
+FROM generate_series(1, 100000) AS i
+ON CONFLICT (id) DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 6. Lead Claims (100,000 unique Lead-Pro pairings)
+-- ------------------------------------------------------------------------------
+INSERT INTO lead_claims (id, lead_id, pro_id, pro_name, claimed_at)
+SELECT
+    ('00000000-0000-0000-0006-' || LPAD(i::text, 12, '0'))::uuid,
+    ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
+    ('00000000-0000-0000-0002-' || LPAD(((i % 50000) + 1)::text, 12, '0'))::uuid AS pro_id,
+    'Meseriaș / Specialist ' || ((i % 50000) + 1),
+    NOW() - (i || ' minutes')::interval
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 7. Wallet Transactions (100,000 transactions)
+-- ------------------------------------------------------------------------------
+INSERT INTO wallet_transactions (id, user_id, lead_id, type, amount, description, balance_after, created_at, created_by)
+SELECT
+    ('00000000-0000-0000-0007-' || LPAD(i::text, 12, '0'))::uuid,
+    ('00000000-0000-0000-0002-' || LPAD(((i % 50000) + 1)::text, 12, '0'))::uuid AS user_id,
+    ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
+    CASE (i % 3)
+        WHEN 0 THEN 'lead_purchase'
+        WHEN 1 THEN 'top_up'
+        ELSE 'bonus'
+    END AS type,
+    CASE (i % 3)
+        WHEN 0 THEN -30
+        WHEN 1 THEN 100
+        ELSE 25
+    END AS amount,
+    'Tranzacție sistem pentru lead/alimentare sold #' || i,
+    150 + (i % 200),
+    NOW() - (i || ' minutes')::interval,
+    'system'
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 8. Disputes (100,000 disputes)
+-- ------------------------------------------------------------------------------
+INSERT INTO disputes (
+    id, lead_id, lead_title, pro_id, pro_name, reason, details,
+    credits_requested, status, admin_decision_note, resolved_at,
+    version, created_at, created_by
+)
+SELECT
+    ('00000000-0000-0000-0008-' || LPAD(i::text, 12, '0'))::uuid,
+    ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
+    'Proiect Execuție Lucrare #' || i AS lead_title,
+    ('00000000-0000-0000-0002-' || LPAD(((i % 50000) + 1)::text, 12, '0'))::uuid AS pro_id,
+    'Meseriaș / Specialist ' || ((i % 50000) + 1),
+    CASE (i % 4)
+        WHEN 0 THEN 'unreachable_contact'
+        WHEN 1 THEN 'incompatible_budget'
+        WHEN 2 THEN 'wrong_category'
+        ELSE 'duplicate_or_fake'
+    END AS reason,
+    'Detalii sesizare înregistrată automat pentru investigație #' || i,
+    30 AS credits_requested,
+    CASE (i % 3)
+        WHEN 0 THEN 'in_analiza'
+        WHEN 1 THEN 'aprobat'
+        ELSE 'respins'
+    END AS status,
+    CASE WHEN (i % 3) <> 0 THEN 'Decizie validată conform protocolului de arbitraj.' ELSE NULL END,
+    CASE WHEN (i % 3) <> 0 THEN NOW() - (i || ' minutes')::interval ELSE NULL END,
+    0,
+    NOW() - (i || ' minutes')::interval,
+    'system'
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 9. Chat Messages (100,000 messages)
+-- ------------------------------------------------------------------------------
+INSERT INTO chat_messages (id, lead_id, sender_id, sender_name, sender_role, content, is_offer, offer_amount, sent_at)
+SELECT
+    ('00000000-0000-0000-0009-' || LPAD(i::text, 12, '0'))::uuid,
+    ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
+    ('00000000-0000-0000-0002-' || LPAD(((i % 50000) + 1)::text, 12, '0'))::uuid AS sender_id,
+    'Meseriaș / Specialist ' || ((i % 50000) + 1),
+    'pro',
+    'Bună ziua! Am analizat cererea dvs. #' || i || ' și sunt disponibil să încep lucrarea săptămâna viitoare.',
+    (i % 5 = 0),
+    CASE WHEN (i % 5 = 0) THEN 3500.00 ELSE NULL END,
+    NOW() - (i || ' minutes')::interval
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 10. Ratings (100,000 verified ratings)
+-- ------------------------------------------------------------------------------
+INSERT INTO ratings (
+    id, pro_id, lead_id, lead_title, client_name,
+    score_timeliness, score_quality, score_communication, score_budget_respect,
+    overall_score, comment, verified_status, created_at
+)
+SELECT
+    ('00000000-0000-0000-000a-' || LPAD(i::text, 12, '0'))::uuid,
+    ('00000000-0000-0000-0002-' || LPAD(((i % 50000) + 1)::text, 12, '0'))::uuid AS pro_id,
+    ('00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'))::uuid AS lead_id,
+    'Proiect Execuție Lucrare #' || i,
+    'Client Rezidențial ' || ((i % 49999) + 1),
+    4 + (i % 2),
+    4 + (i % 2),
+    5,
+    4 + (i % 2),
+    4.80,
+    'Serviciu de excepție, comunicare promptă și respectarea termenelor pentru lucrarea #' || i,
+    TRUE,
+    NOW() - (i || ' minutes')::interval
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- ------------------------------------------------------------------------------
+-- 11. Audit Logs (100,000 audit records)
+-- ------------------------------------------------------------------------------
+INSERT INTO audit_logs (id, entity_name, entity_id, action, changed_by, details, created_at)
+SELECT
+    ('00000000-0000-0000-000b-' || LPAD(i::text, 12, '0'))::uuid,
+    'Lead',
+    '00000000-0000-0000-0003-' || LPAD(i::text, 12, '0'),
+    CASE (i % 4)
+        WHEN 0 THEN 'CREATE'
+        WHEN 1 THEN 'STATUS_CHANGE'
+        WHEN 2 THEN 'CLAIM_LEAD'
+        ELSE 'CREDIT_DEDUCTION'
+    END,
+    'skilling@contact.ro',
+    'Audit operațiune automatizată în sistem pentru înregistrarea #' || i,
+    NOW() - (i || ' minutes')::interval
+FROM generate_series(1, 100000) AS i
+ON CONFLICT DO NOTHING;
+
+-- Refresh planner statistics for the newly inserted data
+ANALYZE users;
+ANALYZE leads;
+ANALYZE lead_claims;
+ANALYZE wallet_transactions;
+ANALYZE disputes;
+ANALYZE chat_messages;
+ANALYZE ratings;
+ANALYZE audit_logs;
+
+COMMIT;

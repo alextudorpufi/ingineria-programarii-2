@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 
 @Repository
 public class LeadRepositoryAdapter implements LeadRepository {
@@ -71,6 +72,48 @@ public class LeadRepositoryAdapter implements LeadRepository {
         return springDataLeadRepository.findByCategoryId(categoryId, PersistenceLimits.firstPage()).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Lead> findPage(int page, int size) {
+        return springDataLeadRepository.findAll(PageRequest.of(page, size)).stream()
+                .map(EntityMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Lead> findPageByCategoryId(String categoryId, int page, int size) {
+        return springDataLeadRepository.findByCategoryId(categoryId, PageRequest.of(page, size)).stream()
+                .map(EntityMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Lead> findPageByStatus(LeadStatus status, int page, int size) {
+        return springDataLeadRepository.findByStatus(status.getDbValue(), PageRequest.of(page, size)).stream()
+                .map(EntityMapper::toDomain)
+                .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countAll() {
+        return springDataLeadRepository.count();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countByCategoryId(String categoryId) {
+        return springDataLeadRepository.countByCategoryId(categoryId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public long countByStatus(LeadStatus status) {
+        return springDataLeadRepository.countByStatus(status.getDbValue());
     }
 
     @Override

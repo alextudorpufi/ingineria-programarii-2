@@ -1,9 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp, WorkspaceTab } from '@/context/AppContext';
 import { useAuth } from '@/context/AuthContext';
-import { Coins, Sparkles, Plus, Moon, Sun, Wallet, LogIn, LogOut, UserRound } from 'lucide-react';
+import { Coins, Sparkles, Plus, Moon, Sun, Wallet, LogIn, LogOut, UserRound, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 
@@ -15,10 +15,12 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab }) => {
   const { userRole, proProfile, setShowWalletModal, darkMode, toggleDarkMode, openAuthModal } = useApp();
   const { user, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const getTabLabel = (tab: WorkspaceTab) => {
     switch (tab) {
       case 'leads':
+        if (!user) return 'Pagina Principală';
         return userRole === 'client'
           ? 'Cererile Mele'
           : userRole === 'admin'
@@ -58,6 +60,8 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab }) => 
   };
 
   const navTabs: WorkspaceTab[] = ['leads', 'ai', 'chat', 'disputes', 'analytics', 'profile'];
+  // For unauthenticated users, only 'leads' (Pagina Principală / Oportunități) is shown in the menu
+  const visibleNavTabs: WorkspaceTab[] = user ? navTabs : ['leads'];
 
   return (
     <header className="w-full bg-white/95 dark:bg-slate-950/95 backdrop-blur-md border-b border-indigo-100 dark:border-slate-800 sticky top-0 z-40 transition-colors shadow-2xs">
@@ -79,7 +83,7 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab }) => 
 
           {/* Navigation Links moved immediately next to Logo */}
           <nav className="hidden lg:flex items-center gap-5 xl:gap-6 text-sm font-semibold text-slate-600 dark:text-slate-300">
-            {navTabs.map(tab => (
+            {visibleNavTabs.map(tab => (
               <button
                 key={tab}
                 onClick={() => setCurrentTab(tab)}
@@ -166,27 +170,46 @@ export const Header: React.FC<HeaderProps> = ({ currentTab, setCurrentTab }) => 
               </Button>
             </>
           )}
+
+          {/* Mobile Hamburger Button */}
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            aria-label={isMobileMenuOpen ? "Închide meniul" : "Deschide meniul"}
+            className="lg:hidden p-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-indigo-50 dark:hover:bg-slate-800 transition-colors cursor-pointer shadow-2xs"
+          >
+            {isMobileMenuOpen ? <X className="w-4 h-4 text-slate-700 dark:text-slate-300" /> : <Menu className="w-4 h-4 text-slate-700 dark:text-slate-300" />}
+          </button>
         </div>
       </div>
 
-      {/* Compact tab strip for narrow viewports */}
-      <nav className="lg:hidden border-t border-slate-100 dark:border-slate-800/80 bg-white/80 dark:bg-slate-950/80">
-        <div className="max-w-7xl mx-auto px-2 flex items-center gap-1 overflow-x-auto py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-300 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {navTabs.map(tab => (
-            <button
-              key={tab}
-              onClick={() => setCurrentTab(tab)}
-              className={`whitespace-nowrap shrink-0 px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
-                currentTab === tab
-                  ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xs'
-                  : 'hover:bg-indigo-50 dark:hover:bg-slate-800'
-              }`}
-            >
-              {getTabLabel(tab)}
-            </button>
-          ))}
-        </div>
-      </nav>
+      {/* Mobile Drawer / Dropdown Menu */}
+      {isMobileMenuOpen && (
+        <nav
+          aria-label="Meniu mobil"
+          className="lg:hidden border-t border-slate-200/90 dark:border-slate-800 bg-white/95 dark:bg-slate-950/95 backdrop-blur-md px-4 py-3 shadow-lg animate-in fade-in slide-in-from-top-2 duration-150"
+        >
+          <div className="flex flex-col gap-1">
+            {visibleNavTabs.map(tab => (
+              <button
+                key={tab}
+                onClick={() => {
+                  setCurrentTab(tab);
+                  setIsMobileMenuOpen(false);
+                }}
+                className={`w-full text-left px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all cursor-pointer flex items-center justify-between ${
+                  currentTab === tab
+                    ? 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-xs'
+                    : 'text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                }`}
+              >
+                <span>{getTabLabel(tab)}</span>
+                {currentTab === tab && <span className="w-1.5 h-1.5 rounded-full bg-white" />}
+              </button>
+            ))}
+          </div>
+        </nav>
+      )}
     </header>
   );
 };

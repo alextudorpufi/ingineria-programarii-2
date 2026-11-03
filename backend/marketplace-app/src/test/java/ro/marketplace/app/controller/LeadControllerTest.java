@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.LeadService;
+import ro.marketplace.application.service.LeadPage;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
@@ -49,17 +50,19 @@ class LeadControllerTest {
 
         Lead lead = lead(leadId, clientId);
 
-        when(leadService.getAllLeads()).thenReturn(List.of(lead));
+        when(leadService.getLeadsPage(null, null, 0, 40)).thenReturn(new LeadPage(List.of(lead), 1, 0, 40));
 
         mockMvc.perform(get("/api/leads").with(token(clientId, "CLIENT")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value(leadId.toString()))
-                .andExpect(jsonPath("$[0].title").value("Magazin online pentru florărie"))
-                .andExpect(jsonPath("$[0].budget.min").value(5000))
-                .andExpect(jsonPath("$[0].budget.max").value(8500))
-                .andExpect(jsonPath("$[0].budget.currency").value("RON"))
-                .andExpect(jsonPath("$[0].leadPassport.completenessScore").value(88))
-                .andExpect(jsonPath("$[0].claimedPros[0].proName").value("WebImpact Solutions"));
+                .andExpect(jsonPath("$.content[0].id").value(leadId.toString()))
+                .andExpect(jsonPath("$.content[0].title").value("Magazin online pentru florărie"))
+                .andExpect(jsonPath("$.content[0].budget.min").value(5000))
+                .andExpect(jsonPath("$.content[0].budget.max").value(8500))
+                .andExpect(jsonPath("$.content[0].budget.currency").value("RON"))
+                .andExpect(jsonPath("$.content[0].leadPassport.completenessScore").value(88))
+                .andExpect(jsonPath("$.content[0].claimedPros[0].proName").value("WebImpact Solutions"))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1));
     }
 
     @Test
@@ -69,12 +72,12 @@ class LeadControllerTest {
         UUID clientId = UUID.randomUUID();
         Lead lead = lead(leadId, clientId);
 
-        when(leadService.getAllLeads()).thenReturn(List.of(lead));
+        when(leadService.getLeadsPage(null, null, 0, 40)).thenReturn(new LeadPage(List.of(lead), 1, 0, 40));
 
         mockMvc.perform(get("/api/leads").with(token(UUID.randomUUID(), "PRO")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].client.phone").value("+407 ••• ••• 05"))
-                .andExpect(jsonPath("$[0].client.email").value("e•••••@florariapetale.ro"));
+                .andExpect(jsonPath("$.content[0].client.phone").value("+407 ••• ••• 05"))
+                .andExpect(jsonPath("$.content[0].client.email").value("e•••••@florariapetale.ro"));
     }
 
     @Test

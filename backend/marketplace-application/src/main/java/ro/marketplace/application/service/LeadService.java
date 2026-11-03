@@ -19,5 +19,7 @@ public interface LeadService {
 
     List<Lead> getLeadsByStatus(LeadStatus status);
 
+    LeadPage getLeadsPage(String categoryId, LeadStatus status, int page, int size);
+
     LeadClaim claimLead(UUID leadId, UUID proId, String proName);
 }

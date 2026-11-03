@@ -25,6 +25,10 @@ interface AppContextType {
   toggleDarkMode: () => void;
   leads: LeadModel[];
   isLoadingLeads: boolean;
+  leadsPage: number;
+  leadsTotalPages: number;
+  leadsTotalElements: number;
+  goToLeadsPage: (page: number) => void;
   activeLeadId: string | null;
   setActiveLeadId: (id: string | null) => void;
   activeLead: LeadModel | null;
@@ -132,6 +136,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [leads, setLeads] = useState<LeadModel[]>([]);
   const [isLoadingLeads, setIsLoadingLeads] = useState<boolean>(true);
+  const [leadsPage, setLeadsPage] = useState(0);
+  const [leadsTotalPages, setLeadsTotalPages] = useState(0);
+  const [leadsTotalElements, setLeadsTotalElements] = useState(0);
   const [activeLeadId, setActiveLeadId] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -150,6 +157,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [aiMessages, setAiMessages] = useState<AIChatMessage[]>([INITIAL_AI_MESSAGE]);
 
+  const selectCategory = useCallback((category: string) => {
+    setSelectedCategory(category);
+    setLeadsPage(0);
+  }, []);
+
   const currentUserId = authUser?.id ?? null;
   const currentUserRole = authUser?.role ?? null;
   const userRole: UserRole = currentUserRole ?? 'pro';
@@ -167,35 +179,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
   }, [authUser, isAuthLoading]);
 
-  // Load real database-backed workspace data whenever the authenticated user changes.
+  // Load workspace data. The lead feed is public (browsable without a session), so we
+  // always fetch it. Wallet + disputes are user-scoped and only loaded when logged in.
   useEffect(() => {
     let isCancelled = false;
 
     const loadWorkspace = async () => {
       if (isAuthLoading) return;
 
-      if (!currentUserId || !currentUserRole) {
-        setLeads([]);
-        setTransactions([]);
-        setDisputes([]);
-        setActiveLeadId(null);
-        setIsLoadingLeads(false);
-        return;
-      }
-
       setIsLoadingLeads(true);
       try {
-        const [loadedLeads, loadedTransactions, loadedDisputes] = await Promise.all([
-          marketplaceService.getLeads(100),
-          marketplaceService.getWalletTransactions(currentUserId),
-          marketplaceService.getDisputes(currentUserId, currentUserRole),
-        ]);
+        const isSignedIn = Boolean(currentUserId && currentUserRole);
+
+        const leadPromise = marketplaceService.getLeads(leadsPage, 40, selectedCategory);
+        const workspacePromise: Promise<[WalletTransaction[], DisputeRecord[]]> =
+          isSignedIn && currentUserId && currentUserRole
+            ? Promise.all([
+                marketplaceService.getWalletTransactions(currentUserId),
+                marketplaceService.getDisputes(currentUserId, currentUserRole),
+              ])
+            : Promise.resolve([[], []] as [WalletTransaction[], DisputeRecord[]]);
+
+        const [loadedLeads, [loadedTransactions, loadedDisputes]] = await Promise.all([leadPromise, workspacePromise]);
         if (isCancelled) return;
 
-        const models = loadedLeads.map(raw => new LeadModel(raw));
+        const models = loadedLeads.content.map(raw => new LeadModel(raw));
         setLeads(models);
-        setTransactions(loadedTransactions);
-        setDisputes(loadedDisputes);
+        setLeadsTotalPages(loadedLeads.totalPages);
+        setLeadsTotalElements(loadedLeads.totalElements);
+        setTransactions(isSignedIn ? loadedTransactions : []);
+        setDisputes(isSignedIn ? loadedDisputes : []);
+
         setActiveLeadId(previous => (previous && models.some(lead => lead.id === previous)
           ? previous
           : models[0]?.id ?? null));
@@ -203,8 +217,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (!isCancelled) {
           console.error('Failed to load Skillink workspace data:', error);
           setLeads([]);
-          setTransactions([]);
-          setDisputes([]);
         }
       } finally {
         if (!isCancelled) setIsLoadingLeads(false);
@@ -215,7 +227,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return () => {
       isCancelled = true;
     };
-  }, [currentUserId, currentUserRole, isAuthLoading]);
+  }, [currentUserId, currentUserRole, isAuthLoading, leadsPage, selectedCategory]);
+
+  const goToLeadsPage = useCallback((page: number) => {
+    setLeadsPage(Math.max(0, Math.min(page, Math.max(leadsTotalPages - 1, 0))));
+  }, [leadsTotalPages]);
 
   // Sync dark mode class on document element and body
   useEffect(() => {
@@ -611,11 +627,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         toggleDarkMode,
         leads,
         isLoadingLeads,
+        leadsPage,
+        leadsTotalPages,
+        leadsTotalElements,
+        goToLeadsPage,
         activeLeadId,
         setActiveLeadId,
         activeLead,
         selectedCategory,
-        setSelectedCategory,
+        setSelectedCategory: selectCategory,
         searchQuery,
         setSearchQuery,
         proProfile,

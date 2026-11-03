@@ -15,16 +15,18 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ro.marketplace.app.dto.CreateLeadRequest;
 import ro.marketplace.app.dto.LeadResponse;
+import ro.marketplace.app.dto.LeadPageResponse;
 import ro.marketplace.app.mapper.LeadDtoMapper;
 import ro.marketplace.app.security.AuthenticatedUser;
 import ro.marketplace.application.service.LeadService;
+import ro.marketplace.application.service.LeadPage;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/leads")
@@ -51,33 +53,37 @@ public class LeadController {
     @GetMapping("/{id}")
     public ResponseEntity<LeadResponse> getLeadById(@PathVariable UUID id,
                                                     @AuthenticationPrincipal Jwt jwt) {
-        AuthenticatedUser user = AuthenticatedUser.from(jwt);
+        // Public read: anonymous visitors get masked contact details; authenticated users
+        // may see full details when they own the lead, are an admin, or have claimed it.
+        AuthenticatedUser user = AuthenticatedUser.optional(jwt);
         Lead lead = leadService.getLeadById(id);
         return ResponseEntity.ok(LeadDtoMapper.toResponse(lead, canViewContact(lead, user)));
     }
 
     @GetMapping
-    public ResponseEntity<List<LeadResponse>> getAllLeads(
+    public ResponseEntity<LeadPageResponse> getAllLeads(
             @RequestParam(name = "category", required = false) String categoryId,
             @RequestParam(name = "status", required = false) String status,
-            @RequestParam(name = "limit", required = false, defaultValue = "100") int limit,
+            @RequestParam(name = "page", required = false, defaultValue = "0") int page,
+            @RequestParam(name = "size", required = false, defaultValue = "40") int size,
             @AuthenticationPrincipal Jwt jwt) {
-        AuthenticatedUser user = AuthenticatedUser.from(jwt);
-        List<Lead> leads;
-        if (categoryId != null && !categoryId.isBlank()) {
-            leads = leadService.getLeadsByCategory(categoryId);
-        } else if (status != null && !status.isBlank()) {
-            leads = leadService.getLeadsByStatus(LeadStatus.fromDbValue(status));
-        } else {
-            leads = leadService.getAllLeads();
-        }
-
-        int effectiveLimit = limit > 0 ? limit : 100;
-        List<LeadResponse> responses = leads.stream()
-                .limit(effectiveLimit)
+        AuthenticatedUser user = AuthenticatedUser.optional(jwt);
+        LeadPage result = leadService.getLeadsPage(
+                categoryId,
+                status != null && !status.isBlank() ? LeadStatus.fromDbValue(status) : null,
+                page,
+                size
+        );
+        List<LeadResponse> responses = result.leads().stream()
                 .map(lead -> LeadDtoMapper.toResponse(lead, canViewContact(lead, user)))
                 .toList();
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok(new LeadPageResponse(
+                responses,
+                result.totalElements(),
+                result.page(),
+                result.size(),
+                result.totalPages()
+        ));
     }
 
     @PostMapping("/{id}/claim")
@@ -91,6 +97,9 @@ public class LeadController {
     }
 
     private boolean canViewContact(Lead lead, AuthenticatedUser user) {
+        if (user == null) {
+            return false;
+        }
         if (user.isAdmin() || user.id().equals(lead.getClientId())) {
             return true;
         }
