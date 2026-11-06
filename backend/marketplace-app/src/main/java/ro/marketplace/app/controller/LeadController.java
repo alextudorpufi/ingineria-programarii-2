@@ -87,7 +87,7 @@ public class LeadController {
     }
 
     @PostMapping("/{id}/claim")
-    @PreAuthorize("hasAnyRole('PRO','PROFESSIONAL','ADMIN')")
+    @PreAuthorize("hasAnyRole('PRO','ADMIN')")
     public ResponseEntity<LeadResponse.ClaimedProDto> claimLead(@PathVariable UUID id,
                                                                 @AuthenticationPrincipal Jwt jwt) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);

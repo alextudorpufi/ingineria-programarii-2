@@ -11,6 +11,8 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
+import java.util.List;
+import ro.marketplace.domain.model.Lead;
 
 public record CreateLeadRequest(
         @NotBlank(message = "Title is required")
@@ -74,7 +76,13 @@ public record CreateLeadRequest(
 
         @NotBlank(message = "Client city is required")
         @Size(max = 255, message = "Client city must not exceed 255 characters")
-        String clientCity
+        String clientCity,
+
+        @NotNull(message = "Selectează modul de lucru: la locație sau la distanță.")
+        Lead.WorkMode workMode,
+
+        @Size(max = 50) List<@NotBlank @Size(max = 255) String> requiredCapabilities,
+        @Size(max = 50) List<@NotBlank @Size(max = 255) String> preferredCapabilities
 ) {
 
     @AssertTrue(message = "budgetMin must not exceed budgetMax")

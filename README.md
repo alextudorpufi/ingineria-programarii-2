@@ -114,7 +114,9 @@ Semantic matching with embeddings/pgvector, mobile apps, audio/video calls, and 
   ```bash
   docker compose --profile seed up db-seed-large
   ```
-  This service runs `scripts/populate_100000_records.sql`, is idempotent, and is intended for performance and load testing. It can coexist with the standard seed service and is never started by a normal `docker compose up`.
+  This service runs `scripts/populate_100000_records.sql`, is idempotent, and is intended for performance and load testing. It can coexist with the standard seed service and is never started by a normal `docker compose up`. Both sizes use `scripts/populate_records.sql`, preserve existing rows on reruns (including edited credentials, profiles and balances), and share the same demo accounts. Fresh profiles contain normalized county codes and matching fields; existing legacy profiles are not rewritten. Counts describe a fresh database; switching back to the small seed does not delete large-seed rows.
+
+  Verify both sizes, repeatability and the 5k-to-100k upgrade in an automatically cleaned-up PostgreSQL container with `python3 scripts/verify_seeds.py`. This check applies the migration SQL to disposable databases and never connects to the application database. Flyway execution itself is covered by backend integration tests. Seed wallet/history records are synthetic UI/load fixtures, not a reconciled financial ledger.
 - **SonarQube Static Analysis**: Start SonarQube and analyze both frontend and backend by running `./run-sonar-analysis.sh` or `docker compose run --rm sonar-analyzer`. See [SonarQube Setup Guide](docs/sonarqube-setup.md) for detailed instructions.
 - **Backend Setup**: Refer to [Backend Setup Steps](docs/backend-setup-steps.md).
 - **Frontend Setup**: Refer to [Frontend Setup Steps](docs/frontend-setup-steps.md).

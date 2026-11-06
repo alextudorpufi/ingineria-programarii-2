@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import ro.marketplace.domain.model.Lead;
 
 public record LeadResponse(
         UUID id,
@@ -22,7 +23,10 @@ public record LeadResponse(
         LeadPassportDto leadPassport,
         MatchExplanationDto matchExplanation,
         LocalDateTime createdAt,
-        boolean ownedByCurrentUser
+        boolean ownedByCurrentUser,
+        Lead.WorkMode workMode,
+        List<String> requiredCapabilities,
+        List<String> preferredCapabilities
 ) {
     public record BudgetDto(
             BigDecimal min,

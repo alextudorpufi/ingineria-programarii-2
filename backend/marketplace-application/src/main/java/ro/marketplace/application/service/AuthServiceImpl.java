@@ -3,12 +3,12 @@ package ro.marketplace.application.service;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.port.PasswordHasher;
 import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
@@ -74,9 +74,7 @@ public class AuthServiceImpl implements AuthService {
                     .creditsBalance(ROLE_PRO.equals(normalizedRole) ? PRO_WELCOME_CREDITS : 0)
                     .completedJobs(0)
                     .trustScore(BigDecimal.valueOf(100.00))
-                    .coverageAreas(List.of())
-                    .servicesOffered(List.of())
-                    .categories(List.of())
+                    .professionalProfile(ROLE_PRO.equals(normalizedRole) ? ProfessionalProfile.builder().build() : null)
                     .build();
 
             return userRepository.save(newUser);

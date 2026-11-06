@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useApp } from '@/context/AppContext';
 import { Sparkles, Send, RefreshCw, CheckCircle2, ArrowRight, ShieldCheck, FileCheck } from 'lucide-react';
-import { Lead } from '@/types';
+import { Lead, WorkMode } from '@/types';
+import { TextListField } from '@/components/ui/TextListField';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DESIGN_TOKENS } from '@/theme/designSystem';
@@ -12,16 +13,48 @@ interface AIArchitectProps {
   onPublished?: (lead: Lead) => void;
 }
 
+interface MatchingDraft {
+  specId: string;
+  workMode: WorkMode | '';
+  requiredText: string;
+  preferredText: string;
+}
+
+function capabilityLines(value: string): string[] {
+  return value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+}
+
+function resolveMatchingDraft(draft: MatchingDraft | null, specId: string | undefined,
+  spec: Partial<Lead> | undefined): MatchingDraft {
+  if (draft && draft.specId === specId) return draft;
+  return {
+    specId: specId ?? '',
+    workMode: spec?.workMode ?? '',
+    requiredText: spec?.requiredCapabilities?.join('\n') ?? '',
+    preferredText: spec?.preferredCapabilities?.join('\n') ?? '',
+  };
+}
+
 export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
   const { aiMessages, sendAIMessage, resetAIMessages, createLead, setActiveLeadId, userRole } = useApp();
   const [inputText, setInputText] = useState('');
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishedSuccess, setPublishedSuccess] = useState<Lead | null>(null);
+  const [matchingDraft, setMatchingDraft] = useState<MatchingDraft | null>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const messageList = messageListRef.current;
+    if (messageList) {
+      messageList.scrollTop = messageList.scrollHeight;
+    }
+  }, [aiMessages]);
 
   // Latest extracted spec from AI messages
   const latestSpecMessage = [...aiMessages].reverse().find(m => m.extractedSpec);
   const currentSpec = latestSpecMessage?.extractedSpec;
+  const matching = resolveMatchingDraft(matchingDraft, latestSpecMessage?.id, currentSpec);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,12 +68,22 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
     setIsPublishing(true);
     setPublishError(null);
     try {
+      if (!matching.workMode) throw new Error('Selectează modul de lucru: la locație sau la distanță.');
+      const requiredCapabilities = capabilityLines(matching.requiredText);
+      const preferredCapabilities = capabilityLines(matching.preferredText);
+      if ([requiredCapabilities, preferredCapabilities].some(values => values.length > 50
+        || values.some(value => value.length > 255))) {
+        throw new Error('Folosește maximum 50 de competențe în fiecare listă, cu cel mult 255 de caractere fiecare.');
+      }
       const created = await createLead({
+        workMode: matching.workMode,
+        requiredCapabilities,
+        preferredCapabilities,
         title: currentSpec.title,
         category: currentSpec.category,
         categoryId: currentSpec.categoryId,
         subcategory: currentSpec.subcategory,
-        description: `Proiect structurat prin AI Project Architect: ${currentSpec.title}. Solicitare verificată pentru profesioniști calificați.`,
+        description: currentSpec.description || currentSpec.title,
         location: currentSpec.location || '',
         budget: currentSpec.budget,
         timeline: currentSpec.timeline,
@@ -58,9 +101,9 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50/50 dark:bg-slate-950 overflow-hidden">
+    <div className="h-full min-h-0 flex flex-col bg-slate-50/50 dark:bg-slate-950 overflow-hidden">
       {/* Top Banner / Explanation adapting to Role */}
-      <div className="px-6 py-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xs border-b border-indigo-100 dark:border-slate-800 flex items-center justify-between">
+      <div className="shrink-0 px-6 py-4 bg-white/90 dark:bg-slate-900/90 backdrop-blur-xs border-b border-indigo-100 dark:border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-violet-600 text-white flex items-center justify-center shadow-xs">
             <Sparkles className="w-5 h-5" />
@@ -103,11 +146,11 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
       </div>
 
       {/* Main Split Body: Conversation on Left, Live Structured Spec on Right */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+      <div className="flex-1 min-h-0 grid grid-cols-1 grid-rows-2 lg:grid-cols-12 lg:grid-rows-1 overflow-hidden">
         {/* Left: Chat Flow */}
-        <div className="lg:col-span-7 flex flex-col h-full border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900">
+        <div className="lg:col-span-7 min-h-0 min-w-0 flex flex-col overflow-hidden border-r border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900">
           {/* Message List */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div ref={messageListRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-6 space-y-4">
             {aiMessages.map(msg => (
               <div
                 key={msg.id}
@@ -144,7 +187,7 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
           {/* Input Box */}
           <form
             onSubmit={handleSubmit}
-            className="p-4 border-t border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2"
+            className="shrink-0 p-4 border-t border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2"
           >
             <input
               type="text"
@@ -164,7 +207,7 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
         </div>
 
         {/* Right: Live Structured Lead & Passport Preview */}
-        <div className="lg:col-span-5 p-6 overflow-y-auto bg-slate-50/70 dark:bg-slate-950 flex flex-col justify-between">
+        <div className="lg:col-span-5 min-h-0 min-w-0 p-6 overflow-y-auto overscroll-contain bg-slate-50/70 dark:bg-slate-950 flex flex-col justify-between">
           <div className="space-y-5">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -202,6 +245,26 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
                     </div>
                   </div>
                 </div>
+
+                <fieldset disabled={isPublishing} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 space-y-4 shadow-2xs disabled:opacity-60">
+                  <legend className="px-1 text-xs font-bold text-slate-800 dark:text-slate-100">Confirmă cerințele pentru matching</legend>
+                  <div className="space-y-1.5">
+                    <label htmlFor="lead-work-mode" className="block text-xs font-semibold text-slate-700 dark:text-slate-200">Mod de lucru</label>
+                    <select id="lead-work-mode" value={matching.workMode}
+                      onChange={event => setMatchingDraft({ ...matching, workMode: event.target.value as WorkMode | '' })}
+                      className={DESIGN_TOKENS.inputs.select}>
+                      <option value="">Selectează modul de lucru</option>
+                      <option value="ONSITE">La locația clientului</option>
+                      <option value="REMOTE">La distanță</option>
+                    </select>
+                  </div>
+                  <TextListField id="lead-required-capabilities" label="Competențe obligatorii"
+                    hint="O competență pe linie. Adaugă doar cerințe esențiale; poți lăsa lista goală."
+                    value={matching.requiredText} onChange={requiredText => setMatchingDraft({ ...matching, requiredText })} />
+                  <TextListField id="lead-preferred-capabilities" label="Competențe preferate"
+                    hint="O competență pe linie. Sunt avantaje, fără a exclude profesioniștii care nu le declară."
+                    value={matching.preferredText} onChange={preferredText => setMatchingDraft({ ...matching, preferredText })} />
+                </fieldset>
 
                 {/* Lead Passport Quality Preview */}
                 {currentSpec.leadPassport && (
@@ -242,7 +305,7 @@ export const AIArchitect: React.FC<AIArchitectProps> = ({ onPublished }) => {
               <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-200 flex items-center gap-2.5">
                 <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                 <div>
-                  <strong>Solicitare publicată cu succes!</strong> Profesioniștii compatibili din categoria aleasă au fost notificați prin matching explicabil.
+                  <strong>Solicitare publicată cu succes!</strong> Poți urmări cererea în marketplace.
                 </div>
               </div>
             )}

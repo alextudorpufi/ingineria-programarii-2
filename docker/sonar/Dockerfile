@@ -1,5 +1,5 @@
 # SonarQube Analyzer Container for Backend (Java/Maven) and Frontend (TypeScript/Next.js)
-FROM eclipse-temurin:21-jdk-bookworm
+FROM eclipse-temurin:21-jdk-noble
 
 # Install required dependencies: Node.js, npm, curl, unzip, maven, jq
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -24,7 +24,7 @@ RUN curl -fsSL -o /tmp/sonar-scanner.zip \
 WORKDIR /workspace
 
 # Copy analysis runner script
-COPY run-analysis.sh /usr/local/bin/run-analysis.sh
+COPY docker/sonar/run-analysis.sh /usr/local/bin/run-analysis.sh
 RUN chmod +x /usr/local/bin/run-analysis.sh
 
 ENTRYPOINT ["/usr/local/bin/run-analysis.sh"]

@@ -6,6 +6,8 @@ import { RawRatingPayload } from '@/models/RatingProtocolModel';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DESIGN_TOKENS } from '@/theme/designSystem';
+import { ProfessionalProfileEditor } from '@/components/common/ProfessionalProfileEditor';
+import { CountyCoverageSummary } from '@/components/common/CountyCoverageSelector';
 import {
   ShieldCheck,
   Star,
@@ -172,7 +174,7 @@ export const ProfileView: React.FC<ProfileViewProps> = () => {
                     ? 'Client Verificat Skillink'
                     : userRole === 'admin'
                     ? 'Super-Admin & Arbitraj'
-                    : 'Profesionist Autorizat ANRE'}
+                    : proProfile.verifiedBadge ? 'Profil verificat' : 'Profesionist Skillink'}
                 </Badge>
               </div>
 
@@ -187,7 +189,7 @@ export const ProfileView: React.FC<ProfileViewProps> = () => {
               <div className="flex flex-wrap items-center gap-3 pt-2 text-xs text-slate-500 dark:text-slate-400">
                 <span className="flex items-center gap-1 font-medium">
                   <MapPin className="w-3.5 h-3.5 text-indigo-500" />
-                  {proProfile.coverageArea.join(' · ')}
+                  <CountyCoverageSummary areas={proProfile.coverageArea} />
                 </span>
                 <span>·</span>
                 <span className="flex items-center gap-1 font-medium">
@@ -206,10 +208,10 @@ export const ProfileView: React.FC<ProfileViewProps> = () => {
               {userRole === 'pro' && (
                 <>
                   <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">
-                    Tarif Orientativ
+                    Servicii oferite
                   </span>
                   <span className="text-xl font-mono font-extrabold text-slate-900 dark:text-white tabular-nums">
-                    {proProfile.hourlyRate} RON<span className="text-xs font-normal text-slate-400">/oră</span>
+                    {proProfile.servicesOffered.length}<span className="text-xs font-normal text-slate-400"> servicii</span>
                   </span>
                 </>
               )}
@@ -279,6 +281,8 @@ export const ProfileView: React.FC<ProfileViewProps> = () => {
           ))}
         </div>
       </div>
+
+      {userRole === 'pro' && proProfile.id !== 'guest' && <ProfessionalProfileEditor key={proProfile.id} />}
 
       {/* RATING PROTOCOL SECTION (Key Proposal & User Requirement) */}
       <div className="space-y-6">

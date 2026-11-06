@@ -46,6 +46,10 @@ public record AuthenticatedUser(UUID id, String email, String displayName, Set<S
             displayName = email != null && !email.isBlank() ? email : userId.toString();
         }
 
+        return new AuthenticatedUser(userId, email, displayName, rolesFrom(jwt));
+    }
+
+    static Set<String> rolesFrom(Jwt jwt) {
         Set<String> roles = new LinkedHashSet<>();
         List<String> roleList = jwt.getClaimAsStringList("roles");
         if (roleList != null) {
@@ -60,7 +64,7 @@ public record AuthenticatedUser(UUID id, String email, String displayName, Set<S
             roles.add(singleRole.trim().toUpperCase(Locale.ROOT));
         }
 
-        return new AuthenticatedUser(userId, email, displayName, roles);
+        return roles;
     }
 
     public boolean isAdmin() {
@@ -68,6 +72,6 @@ public record AuthenticatedUser(UUID id, String email, String displayName, Set<S
     }
 
     public boolean isProfessional() {
-        return roles.contains("PRO") || roles.contains("PROFESSIONAL");
+        return roles.contains("PRO");
     }
 }

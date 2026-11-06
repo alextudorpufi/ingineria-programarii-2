@@ -2,7 +2,7 @@
 
 **Project:** Intelligent Services Marketplace  
 **Status:** Proposed MVP implementation; not a claim of completed functionality.  
-**Scope:** Responsive dashboards for `CLIENT`, `PROFESSIONAL` and `ADMIN`, with backend-authorized summaries and navigation.  
+**Scope:** Responsive dashboards for `CLIENT`, `PRO` and `ADMIN`, with backend-authorized summaries and navigation.
 
 
 ## 1. Scope and role-based screens
@@ -12,7 +12,7 @@ Dashboard content is derived from existing user, request, matching, lead, credit
 | Role | Main widgets/actions | Access |
 | --- | --- | --- |
 | `CLIENT` | Own requests, counts by status, recent requests, **Create request** | Own requests only |
-| `PROFESSIONAL` | Profile completeness, eligible opportunities, purchased leads, credit summary (as available) | Only own profile and permitted leads |
+| `PRO` | Profile completeness, eligible opportunities, purchased leads, credit summary (as available) | Only own profile and permitted leads |
 | `ADMIN` | Platform KPIs, moderation queue, navigation to user/dispute administration | Admin only |
 
 If an upstream module is not implemented, show an explicit unavailable/empty state instead of invented statistics. The traditional request form is documented and implemented separately; the client dashboard links to it.
@@ -64,7 +64,7 @@ flowchart TD
     Login["Authenticated user opens /dashboard"] --> Me["GET /api/auth/me"]
     Me --> Role{"User role"}
     Role -- CLIENT --> CD["/client/dashboard"]
-    Role -- PROFESSIONAL --> PD["/professional/dashboard"]
+    Role -- PRO --> PD["/professional/dashboard"]
     Role -- ADMIN --> AD["/admin/dashboard"]
     CD --> CR["Own requests / create new request"]
     PD --> PR["Profile / leads / credits"]
@@ -110,10 +110,10 @@ sequenceDiagram
 | Endpoint (proposed) | Role | Output and source |
 | --- | --- | --- |
 | `GET /api/dashboard/client` | `CLIENT` | Counts and recent requests owned by current client from request module |
-| `GET /api/dashboard/professional` | `PROFESSIONAL` | Profile status, eligible/purchased leads and credit balance from owning modules |
+| `GET /api/dashboard/professional` | `PRO` | Profile status, eligible/purchased leads and credit balance from owning modules |
 | `GET /api/dashboard/admin` | `ADMIN` | Platform KPIs, pending moderation and relevant dispute summaries |
 
-Use DTOs that reveal only permitted fields. The backend scopes `CLIENT` and `PROFESSIONAL` queries using authenticated user identity rather than a supplied user ID. Exact endpoint structure is subject to agreement; existing domain APIs may be composed instead.
+Use DTOs that reveal only permitted fields. The backend scopes `CLIENT` and `PRO` queries using authenticated user identity rather than a supplied user ID. Exact endpoint structure is subject to agreement; existing domain APIs may be composed instead.
 
 ## 5. Data and component integration
 

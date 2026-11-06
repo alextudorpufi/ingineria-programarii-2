@@ -37,7 +37,7 @@ public class DisputeController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('ADMIN','PRO','PROFESSIONAL')")
+    @PreAuthorize("hasAnyRole('ADMIN','PRO')")
     public ResponseEntity<List<DisputeResponse>> getAllDisputes(
             @RequestParam(name = "proId", required = false) UUID proId,
             @AuthenticationPrincipal Jwt jwt) {
@@ -66,7 +66,7 @@ public class DisputeController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('PRO','PROFESSIONAL')")
+    @PreAuthorize("hasRole('PRO')")
     public ResponseEntity<DisputeResponse> raiseDispute(@Valid @RequestBody RaiseDisputeRequest request,
                                                         @AuthenticationPrincipal Jwt jwt) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);

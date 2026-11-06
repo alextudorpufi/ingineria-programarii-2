@@ -169,6 +169,21 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
       </div>
 
       {/* Description */}
+      <section className="space-y-3 rounded-2xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900/60 p-4">
+        <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200">Cerințe pentru colaborare</h3>
+        <p className="text-xs text-slate-600 dark:text-slate-300">Mod de lucru: {activeLead.workMode === 'ONSITE'
+          ? 'La locația clientului' : activeLead.workMode === 'REMOTE' ? 'La distanță' : 'Nespecificat'}</p>
+        {([
+          ['Competențe obligatorii', activeLead.requiredCapabilities],
+          ['Competențe preferate', activeLead.preferredCapabilities],
+        ] as const).map(([label, capabilities]) => <div key={label}>
+          <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-200">{label}</h4>
+          {capabilities.length > 0 ? <ul className="mt-1 list-disc pl-5 text-xs text-slate-600 dark:text-slate-300">
+            {capabilities.map(capability => <li key={capability}>{capability}</li>)}
+          </ul> : <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">Nespecificate</p>}
+        </div>)}
+      </section>
+
       <div>
         <h3 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-2">
           Descrierea Proiectului

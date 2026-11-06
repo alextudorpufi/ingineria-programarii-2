@@ -58,6 +58,6 @@ docker compose up -d sonarqube
 
 # 2. Run analysis using the containerized analyzer
 echo -e "${BLUE}Running SonarQube analyzer container in mode: ${BOLD}${MODE}${NC}..."
-SCAN_MODE="$MODE" docker compose run --rm -e SCAN_MODE="$MODE" sonar-analyzer
+SCAN_MODE="$MODE" docker compose run --build --rm -e SCAN_MODE="$MODE" sonar-analyzer
 
 echo -e "\n${GREEN}${BOLD}Done! View your code analysis at: http://localhost:9000${NC}\n"

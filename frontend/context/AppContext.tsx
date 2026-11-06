@@ -368,7 +368,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const budgetMin = newLeadData.budget?.min ?? 0;
     const budgetMax = newLeadData.budget?.max ?? 0;
+    if (!newLeadData.workMode) {
+      throw new Error('Selectează modul de lucru: la locație sau la distanță.');
+    }
     const payload: CreateLeadPayload = {
+      workMode: newLeadData.workMode,
+      requiredCapabilities: newLeadData.requiredCapabilities ?? [],
+      preferredCapabilities: newLeadData.preferredCapabilities ?? [],
       title: newLeadData.title || '',
       categoryId: resolveCategoryId(newLeadData.categoryId || newLeadData.category || ''),
       subcategory: newLeadData.subcategory || '',

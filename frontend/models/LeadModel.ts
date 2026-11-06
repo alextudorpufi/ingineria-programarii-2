@@ -4,7 +4,7 @@
  * Supports flexible mappings (snake_case, nested objects, or flat payloads).
  */
 
-import { LeadPassport, MatchExplanation } from '@/types';
+import { LeadPassport, MatchExplanation, WorkMode } from '@/types';
 import { resolveCategoryLabel } from '@/services/api/categoryCatalog';
 
 export interface RawLeadApiPayload {
@@ -17,6 +17,9 @@ export interface RawLeadApiPayload {
   subcategory?: string;
   description?: string;
   location?: string;
+  workMode?: WorkMode | null;
+  requiredCapabilities?: string[];
+  preferredCapabilities?: string[];
   city?: string;
   budget?: {
     min?: number;
@@ -69,6 +72,9 @@ export class LeadModel {
   public subcategory: string;
   public description: string;
   public location: string;
+  public workMode: WorkMode | null;
+  public requiredCapabilities: string[];
+  public preferredCapabilities: string[];
   public budget: {
     min: number;
     max: number;
@@ -106,6 +112,9 @@ export class LeadModel {
     this.subcategory = raw.subcategory ?? '';
     this.description = raw.description ?? '';
     this.location = raw.location || raw.city || '';
+    this.workMode = raw.workMode ?? null;
+    this.requiredCapabilities = raw.requiredCapabilities ?? [];
+    this.preferredCapabilities = raw.preferredCapabilities ?? [];
 
     // Flexible budget parser
     const bMin = raw.budget?.min ?? raw.budget_min ?? 0;
@@ -200,6 +209,9 @@ export class LeadModel {
       subcategory: this.subcategory,
       description: this.description,
       location: this.location,
+      workMode: this.workMode,
+      requiredCapabilities: this.requiredCapabilities,
+      preferredCapabilities: this.preferredCapabilities,
       budget: this.budget,
       timeline: this.timeline,
       leadPrice: this.leadPrice,
