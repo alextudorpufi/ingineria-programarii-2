@@ -17,6 +17,7 @@ import ro.marketplace.application.service.LeadServiceImpl;
 import ro.marketplace.application.service.WalletService;
 import ro.marketplace.application.service.WalletServiceImpl;
 import ro.marketplace.domain.port.AuditLogRepository;
+import ro.marketplace.domain.port.CreditGrantRepository;
 import ro.marketplace.domain.port.CurrentActorProvider;
 import ro.marketplace.domain.port.CreditPurchaseRepository;
 import ro.marketplace.domain.port.CustomerRepository;
@@ -48,9 +49,11 @@ public class ApplicationServiceConfig {
 
     @Bean
     public AuthService authService(UserRepository userRepository,
+                                   CreditGrantRepository creditGrantRepository,
                                    PasswordHasher passwordHasher,
-                                   UnitOfWork unitOfWork) {
-        return new AuthServiceImpl(userRepository, passwordHasher, unitOfWork);
+                                   UnitOfWork unitOfWork,
+                                   Clock clock) {
+        return new AuthServiceImpl(userRepository, creditGrantRepository, passwordHasher, unitOfWork, clock);
     }
 
     @Bean

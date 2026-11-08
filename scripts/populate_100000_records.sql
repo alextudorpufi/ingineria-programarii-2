@@ -370,6 +370,9 @@ SELECT
 FROM generate_series(1, 100000) AS i
 ON CONFLICT DO NOTHING;
 
+-- Demo professionals are trusted accounts so the seeded marketplace remains usable.
+UPDATE users SET pro_verified = TRUE WHERE role IN ('pro', 'admin');
+
 -- Refresh planner statistics for the newly inserted data
 ANALYZE users;
 ANALYZE leads;

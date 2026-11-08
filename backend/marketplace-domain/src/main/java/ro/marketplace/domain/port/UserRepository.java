@@ -2,6 +2,7 @@ package ro.marketplace.domain.port;
 
 import ro.marketplace.domain.model.User;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -32,4 +33,23 @@ public interface UserRepository {
      * Returns {@code false} when the user does not exist or the balance is too low.
      */
     boolean deductCredits(UUID userId, int amount);
+
+    /**
+     * Increments the consecutive failed-login counter and applies a lockout window
+     * once the counter reaches {@code maxAttempts}. Returns {@code false} when the
+     * user does not exist.
+     */
+    boolean registerFailedLogin(UUID userId, int maxAttempts, LocalDateTime lockoutUntil);
+
+    /**
+     * Clears the failed-login counter and any active lockout after a successful login.
+     */
+    boolean resetLoginState(UUID userId);
+
+    /**
+     * Atomically marks a professional as verified and credits the balance.
+     * Returns {@code false} when the user is missing, is not a professional,
+     * or has already been verified.
+     */
+    boolean verifyProAndAddCredits(UUID userId, int amount);
 }

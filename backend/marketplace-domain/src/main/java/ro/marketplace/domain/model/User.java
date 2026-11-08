@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -37,6 +38,15 @@ public class User {
     private int completedJobs;
     private BigDecimal trustScore;
     private String memberSince;
+
+    /**
+     * Administrators must verify a professional before welcome credits are granted.
+     * Clients and accounts created before the verification workflow are not affected.
+     */
+    private boolean proVerified;
+
+    private int loginAttemptsCount;
+    private LocalDateTime lockoutUntil;
 
     @Builder.Default
     private List<String> coverageAreas = new ArrayList<>();

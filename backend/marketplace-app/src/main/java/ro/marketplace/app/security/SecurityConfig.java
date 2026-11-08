@@ -4,10 +4,13 @@ import tools.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -17,9 +20,14 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -44,6 +52,7 @@ import java.util.Set;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@Import(RateLimitConfig.class)
 public class SecurityConfig {
 
     private final ObjectMapper objectMapper;
@@ -71,6 +80,7 @@ public class SecurityConfig {
                         // server-side via LeadDtoMapper). All write actions remain authenticated.
                         .requestMatchers(HttpMethod.GET, "/api/leads").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/leads/{id}").permitAll()
+                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/audit/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/disputes/*/resolve").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/wallet/*/top-up").hasRole("ADMIN")
@@ -79,7 +89,15 @@ public class SecurityConfig {
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter)))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(authenticationEntryPoint)
-                        .accessDeniedHandler(accessDeniedHandler));
+                        .accessDeniedHandler(accessDeniedHandler))
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .contentTypeOptions(Customizer.withDefaults())
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(
+                                "default-src 'none'; frame-ancestors 'none'; base-uri 'none'"))
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31_536_000L)));
         return http.build();
     }
 
@@ -90,13 +108,19 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.security.cors.allowed-origins:http://localhost:3000,http://127.0.0.1:3000}")
-            String allowedOrigins) {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.stream(allowedOrigins.split(","))
+            @Value("${app.security.cors.allowed-origins}") String allowedOrigins,
+            Environment environment) {
+        List<String> origins = Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isEmpty())
-                .toList());
+                .toList();
+        if (origins.isEmpty()) {
+            throw new IllegalStateException("app.security.cors.allowed-origins must not be empty");
+        }
+        validateOrigins(origins, environment);
+
+        CorsConfiguration configuration = new CorsConfiguration();
+        configuration.setAllowedOrigins(origins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of(
                 "Authorization", "Content-Type", "Accept", "X-Requested-With", "Idempotency-Key"));
@@ -108,14 +132,79 @@ public class SecurityConfig {
         return source;
     }
 
+    private static void validateOrigins(List<String> origins, Environment environment) {
+        boolean production = Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        for (String origin : origins) {
+            URI uri;
+            try {
+                uri = URI.create(origin);
+            } catch (IllegalArgumentException ex) {
+                throw new IllegalStateException("Invalid CORS origin: " + origin, ex);
+            }
+            String scheme = uri.getScheme();
+            if (uri.getHost() == null
+                    || scheme == null
+                    || !("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                throw new IllegalStateException("CORS origin must be an absolute http(s) URL: " + origin);
+            }
+            if (production && isLoopback(uri.getHost())) {
+                throw new IllegalStateException(
+                        "CORS origins must not include localhost in the production profile: " + origin);
+            }
+        }
+    }
+
+    private static boolean isLoopback(String host) {
+        return "localhost".equalsIgnoreCase(host)
+                || "127.0.0.1".equals(host)
+                || "::1".equals(host)
+                || "0.0.0.0".equals(host);
+    }
+
     @Bean
-    public JwtDecoder jwtDecoder(@Value("${app.security.jwt.secret}") String secret) {
+    public RevokedTokenStore revokedTokenStore() {
+        return new RevokedTokenStore();
+    }
+
+    @Bean
+    public JwtDecoder jwtDecoder(@Value("${app.security.jwt.secret}") String secret,
+                                 @Value("${app.security.jwt.issuer:marketplace-backend}") String issuer,
+                                 @Value("${app.security.jwt.audience:marketplace-api}") String audience,
+                                 @Value("${app.security.jwt.token-version:1}") long minimumTokenVersion,
+                                 RevokedTokenStore revokedTokenStore) {
         byte[] keyBytes = secret == null ? new byte[0] : secret.getBytes(StandardCharsets.UTF_8);
         if (keyBytes.length < 32) {
             throw new IllegalStateException("app.security.jwt.secret must be at least 32 bytes (256 bits)");
         }
         SecretKey key = new SecretKeySpec(keyBytes, "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(key).macAlgorithm(MacAlgorithm.HS256).build();
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(key)
+                .macAlgorithm(MacAlgorithm.HS256)
+                .build();
+
+        OAuth2TokenValidator<Jwt> issuerAndTimestamps = JwtValidators.createDefaultWithIssuer(issuer);
+        OAuth2TokenValidator<Jwt> audienceValidator = jwt -> {
+            List<String> tokenAudience = jwt.getAudience();
+            return tokenAudience != null && tokenAudience.contains(audience)
+                    ? OAuth2TokenValidatorResult.success()
+                    : invalidToken("Token audience is not '" + audience + "'");
+        };
+        OAuth2TokenValidator<Jwt> tokenVersionValidator = jwt -> {
+            Number version = jwt.getClaim("token_version");
+            return version != null && version.longValue() >= minimumTokenVersion
+                    ? OAuth2TokenValidatorResult.success()
+                    : invalidToken("Token version is no longer accepted");
+        };
+        OAuth2TokenValidator<Jwt> revocationValidator = jwt -> revokedTokenStore.isRevoked(jwt.getId())
+                ? invalidToken("Token has been revoked")
+                : OAuth2TokenValidatorResult.success();
+
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                issuerAndTimestamps, audienceValidator, tokenVersionValidator, revocationValidator));
+        return decoder;
+    }
+
+    private static OAuth2TokenValidatorResult invalidToken(String description) {
+        return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", description, null));
     }
 
     @Bean

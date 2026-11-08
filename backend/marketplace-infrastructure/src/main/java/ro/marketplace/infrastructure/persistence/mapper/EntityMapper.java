@@ -2,6 +2,7 @@ package ro.marketplace.infrastructure.persistence.mapper;
 
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.AuditLog;
+import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.Customer;
 import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
@@ -12,6 +13,7 @@ import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
 import ro.marketplace.infrastructure.persistence.entity.AuditLogEntity;
+import ro.marketplace.infrastructure.persistence.entity.CreditGrantEntity;
 import ro.marketplace.infrastructure.persistence.entity.CustomerEntity;
 import ro.marketplace.infrastructure.persistence.entity.DisputeEntity;
 import ro.marketplace.infrastructure.persistence.entity.LeadClaimEntity;
@@ -74,6 +76,9 @@ public final class EntityMapper {
                 .completedJobs(entity.getCompletedJobs())
                 .trustScore(entity.getTrustScore())
                 .memberSince(entity.getMemberSince())
+                .proVerified(entity.isProVerified())
+                .loginAttemptsCount(entity.getLoginAttemptsCount())
+                .lockoutUntil(entity.getLockoutUntil())
                 .coverageAreas(entity.getCoverageAreas() != null ? new ArrayList<>(entity.getCoverageAreas()) : new ArrayList<>())
                 .servicesOffered(entity.getServicesOffered() != null ? new ArrayList<>(entity.getServicesOffered()) : new ArrayList<>())
                 .categories(entity.getCategories() != null ? new ArrayList<>(entity.getCategories()) : new ArrayList<>())
@@ -103,6 +108,9 @@ public final class EntityMapper {
                 .completedJobs(domain.getCompletedJobs())
                 .trustScore(domain.getTrustScore())
                 .memberSince(domain.getMemberSince())
+                .proVerified(domain.isProVerified())
+                .loginAttemptsCount(domain.getLoginAttemptsCount())
+                .lockoutUntil(domain.getLockoutUntil())
                 .coverageAreas(domain.getCoverageAreas() != null ? new ArrayList<>(domain.getCoverageAreas()) : new ArrayList<>())
                 .servicesOffered(domain.getServicesOffered() != null ? new ArrayList<>(domain.getServicesOffered()) : new ArrayList<>())
                 .categories(domain.getCategories() != null ? new ArrayList<>(domain.getCategories()) : new ArrayList<>())
@@ -308,6 +316,29 @@ public final class EntityMapper {
                 .changedBy(domain.getChangedBy())
                 .details(domain.getDetails())
                 .createdAt(domain.getCreatedAt())
+                .build();
+    }
+
+    // CreditGrant
+    public static CreditGrant toDomain(CreditGrantEntity entity) {
+        if (entity == null) return null;
+        return new CreditGrant(
+                entity.getId(),
+                entity.getUserId(),
+                entity.getAmount(),
+                entity.getAdminId(),
+                entity.getGrantedAt()
+        );
+    }
+
+    public static CreditGrantEntity toEntity(CreditGrant domain) {
+        if (domain == null) return null;
+        return CreditGrantEntity.builder()
+                .id(domain.id())
+                .userId(domain.userId())
+                .amount(domain.amount())
+                .adminId(domain.adminId())
+                .grantedAt(domain.grantedAt())
                 .build();
     }
 }

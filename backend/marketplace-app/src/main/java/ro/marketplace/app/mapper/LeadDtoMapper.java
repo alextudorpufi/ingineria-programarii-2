@@ -8,6 +8,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+/**
+ * Maps leads to API responses.
+ *
+ * <p>This mapper must NEVER expose client contact fields when
+ * {@code includeContactDetails} is {@code false}. Anonymous reads, unrelated
+ * professionals, and every list endpoint rely on that invariant; the integration
+ * test {@code LeadContactMaskingTest} enforces it in both directions.</p>
+ */
 public final class LeadDtoMapper {
 
     private LeadDtoMapper() {

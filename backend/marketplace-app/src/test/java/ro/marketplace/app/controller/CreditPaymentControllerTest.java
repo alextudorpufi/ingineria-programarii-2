@@ -12,6 +12,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
+import ro.marketplace.application.service.AuthService;
 import ro.marketplace.application.service.CreditPaymentService;
 import ro.marketplace.domain.model.CreditPurchase;
 import ro.marketplace.domain.model.CreditPurchaseStatus;
@@ -42,6 +43,9 @@ class CreditPaymentControllerTest {
     @MockitoBean
     private CreditPaymentService creditPaymentService;
 
+    @MockitoBean
+    private AuthService authService;
+
     @Test
     @DisplayName("credit bundle catalog requires an authenticated professional")
     void bundleCatalogRequiresProfessional() throws Exception {
@@ -59,6 +63,7 @@ class CreditPaymentControllerTest {
                 "https://checkout.stripe.test/session", null,
                 LocalDateTime.now(), LocalDateTime.now());
         when(creditPaymentService.createCheckout(userId, "starter", key)).thenReturn(purchase);
+        when(authService.isVerifiedProfessional(userId)).thenReturn(true);
 
         mockMvc.perform(post("/api/wallet/purchases")
                         .with(token(userId, "PRO"))
@@ -96,6 +101,23 @@ class CreditPaymentControllerTest {
     }
 
     @Test
+    @DisplayName("an unverified professional cannot start a checkout")
+    void unverifiedProfessionalCannotCheckout() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(authService.isVerifiedProfessional(userId)).thenReturn(false);
+
+        mockMvc.perform(post("/api/wallet/purchases")
+                        .with(token(userId, "PRO"))
+                        .header("Idempotency-Key", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bundleId\":\"starter\"}"))
+                .andExpect(status().isForbidden());
+
+        verify(creditPaymentService, org.mockito.Mockito.never())
+                .createCheckout(any(), any(), any());
+    }
+
+    @Test
     @DisplayName("purchase status is scoped to the authenticated professional")
     void purchaseStatusUsesAuthenticatedOwner() throws Exception {
         UUID userId = UUID.randomUUID();
@@ -105,6 +127,7 @@ class CreditPaymentControllerTest {
                 "https://checkout.stripe.test/session", UUID.randomUUID(),
                 LocalDateTime.now(), LocalDateTime.now());
         when(creditPaymentService.getPurchase(purchaseId, userId)).thenReturn(purchase);
+        when(authService.isVerifiedProfessional(userId)).thenReturn(true);
 
         mockMvc.perform(get("/api/wallet/purchases/" + purchaseId).with(token(userId, "PRO")))
                 .andExpect(status().isOk())

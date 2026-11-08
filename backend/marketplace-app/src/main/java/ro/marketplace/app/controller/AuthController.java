@@ -15,12 +15,13 @@ import ro.marketplace.app.dto.AuthDtos.AuthResponse;
 import ro.marketplace.app.dto.AuthDtos.LoginRequest;
 import ro.marketplace.app.dto.AuthDtos.RegisterRequest;
 import ro.marketplace.app.dto.AuthDtos.UserProfileDto;
+import ro.marketplace.app.mapper.UserDtoMapper;
 import ro.marketplace.app.security.AuthenticatedUser;
 import ro.marketplace.app.security.JwtTokenProvider;
+import ro.marketplace.app.security.RevokedTokenStore;
 import ro.marketplace.application.service.AuthService;
 import ro.marketplace.domain.model.User;
 
-import java.util.List;
 import java.util.Objects;
 
 @RestController
@@ -29,10 +30,14 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final RevokedTokenStore revokedTokenStore;
 
-    public AuthController(AuthService authService, JwtTokenProvider jwtTokenProvider) {
+    public AuthController(AuthService authService,
+                          JwtTokenProvider jwtTokenProvider,
+                          RevokedTokenStore revokedTokenStore) {
         this.authService = Objects.requireNonNull(authService, "authService must not be null");
         this.jwtTokenProvider = Objects.requireNonNull(jwtTokenProvider, "jwtTokenProvider must not be null");
+        this.revokedTokenStore = Objects.requireNonNull(revokedTokenStore, "revokedTokenStore must not be null");
     }
 
     @PostMapping("/login")
@@ -59,17 +64,37 @@ public class AuthController {
 
     @GetMapping("/me")
     public ResponseEntity<UserProfileDto> getCurrentUser(@AuthenticationPrincipal Jwt jwt) {
-        AuthenticatedUser authenticatedUser = AuthenticatedUser.from(jwt);
-        User user = authService.findById(authenticatedUser.id())
-                .orElseThrow(() -> new BadCredentialsException("Utilizatorul nu a fost găsit în baza de date."));
+        User user = currentUser(jwt);
+        return ResponseEntity.ok(UserDtoMapper.toProfile(user));
+    }
 
-        return ResponseEntity.ok(toUserProfileDto(user));
+    /**
+     * Rotates the current access token: the presented token is revoked and a new
+     * one is issued for the same user. Replaying the old token immediately fails
+     * at the JWT decoder because its {@code jti} is on the denylist.
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<AuthResponse> refresh(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt == null) {
+            throw new BadCredentialsException("A valid bearer token is required to refresh the session.");
+        }
+        User user = currentUser(jwt);
+        revokedTokenStore.revoke(jwt.getId(), jwt.getExpiresAt());
+        return ResponseEntity.ok(authResponse(user));
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout() {
-        // Stateless JWTs: the client discards the token. Kept for an explicit API contract.
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal Jwt jwt) {
+        if (jwt != null) {
+            revokedTokenStore.revoke(jwt.getId(), jwt.getExpiresAt());
+        }
         return ResponseEntity.noContent().build();
+    }
+
+    private User currentUser(Jwt jwt) {
+        AuthenticatedUser authenticatedUser = AuthenticatedUser.from(jwt);
+        return authService.findById(authenticatedUser.id())
+                .orElseThrow(() -> new BadCredentialsException("Utilizatorul nu a fost găsit în baza de date."));
     }
 
     private AuthResponse authResponse(User user) {
@@ -77,38 +102,7 @@ public class AuthController {
                 jwtTokenProvider.generateToken(user),
                 "Bearer",
                 jwtTokenProvider.getExpiresInSeconds(),
-                toUserProfileDto(user)
+                UserDtoMapper.toProfile(user)
         );
-    }
-
-    private static UserProfileDto toUserProfileDto(User user) {
-        return new UserProfileDto(
-                user.getId(),
-                user.getEmail(),
-                user.getRole(),
-                user.getName(),
-                user.getCompanyName(),
-                user.getTitle(),
-                user.getPhone(),
-                user.getAvatarUrl(),
-                user.getBio(),
-                user.isVerifiedBadge(),
-                user.getRating(),
-                user.getReviewCount(),
-                user.getCreditsBalance(),
-                user.getHourlyRate(),
-                user.getClientBudget(),
-                user.getResponseTime(),
-                user.getCompletedJobs(),
-                user.getTrustScore(),
-                user.getMemberSince(),
-                safeList(user.getCoverageAreas()),
-                safeList(user.getServicesOffered()),
-                safeList(user.getCategories())
-        );
-    }
-
-    private static List<String> safeList(List<String> values) {
-        return values == null ? List.of() : values;
     }
 }
