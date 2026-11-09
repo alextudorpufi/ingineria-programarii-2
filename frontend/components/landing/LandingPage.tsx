@@ -105,6 +105,23 @@ export function LandingPage() {
           </div>
         </section>
 
+        <section id="intrebari-frecvente" aria-labelledby="faq-title" className="mx-auto max-w-7xl scroll-mt-24 px-5 pb-16 sm:px-6 sm:pb-24 lg:px-8">
+          <p className="text-xs font-bold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">Întrebări frecvente</p>
+          <h2 id="faq-title" className="mt-3 text-2xl font-extrabold tracking-tight sm:text-3xl">Câteva lucruri bune de știut.</h2>
+          <div className="mt-8 divide-y divide-slate-200 border-y border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+            {[
+              { question: 'Cât costă publicarea unei cereri?', answer: 'Publicarea cererilor este gratuită pentru clienți. Descrie serviciul de care ai nevoie, locația și bugetul, astfel încât profesioniștii să poată înțelege proiectul.' },
+              { question: 'Cum folosesc profesioniștii creditele?', answer: 'Profesioniștii folosesc credite virtuale pentru a debloca datele de contact ale unei cereri. Costul este afișat înainte de deblocare, iar cumpărarea creditelor necesită verificarea contului de către un administrator.' },
+              { question: 'Deblocarea contactului garantează lucrarea?', answer: 'Nu. Deblocarea contactului permite începerea unei discuții. Clientul și profesionistul stabilesc împreună detaliile și decid dacă vor colabora.' },
+            ].map(({ question, answer }) => (
+              <details key={question} className="group py-5">
+                <summary className="cursor-pointer text-base font-semibold text-slate-800 marker:text-indigo-600 dark:text-slate-100 dark:marker:text-indigo-400">{question}</summary>
+                <p className="mt-3 max-w-3xl text-sm leading-relaxed text-slate-600 dark:text-slate-300">{answer}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
         <section aria-labelledby="start-title" className="border-y border-indigo-100 bg-indigo-50/70 dark:border-indigo-900 dark:bg-indigo-950/30">
           <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-5 py-12 sm:px-6 md:flex-row md:items-center lg:px-8">
             <div><h2 id="start-title" className="text-2xl font-extrabold tracking-tight">Orice proiect începe cu un prim pas.</h2><p className="mt-3 text-sm text-slate-600 dark:text-slate-300">Creează un cont de client sau profesionist și intră în Skillink.</p></div>
