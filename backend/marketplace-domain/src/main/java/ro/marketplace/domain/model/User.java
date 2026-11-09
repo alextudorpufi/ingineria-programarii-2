@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -38,12 +37,18 @@ public class User {
     private BigDecimal trustScore;
     private String memberSince;
 
-    @Builder.Default
-    private List<String> coverageAreas = new ArrayList<>();
+    private ProfessionalProfile professionalProfile;
 
-    @Builder.Default
-    private List<String> servicesOffered = new ArrayList<>();
+    // Compatibility projections for the existing public profile response.
+    public List<String> getCoverageAreas() {
+        return professionalProfile == null ? List.of() : professionalProfile.getCoverageAreas();
+    }
 
-    @Builder.Default
-    private List<String> categories = new ArrayList<>();
+    public List<String> getServicesOffered() {
+        return professionalProfile == null ? List.of() : professionalProfile.getServicesOffered();
+    }
+
+    public List<String> getCategories() {
+        return professionalProfile == null ? List.of() : professionalProfile.getCategories();
+    }
 }

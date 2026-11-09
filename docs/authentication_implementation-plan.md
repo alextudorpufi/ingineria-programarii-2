@@ -6,14 +6,16 @@
 
 ## 1. Scope and role contract
 
-Public users may register as `CLIENT` or `PROFESSIONAL`. The `ADMIN` role is assigned only through a controlled administrative process. Authentication is shared by the client, professional and administrator dashboards, the traditional request form, lead purchases, chat and moderation. No other module may rely on frontend-only authorization.
+Professional roles use `pro` in the database and frontend, `PRO` in JWT claims, and `ROLE_PRO` in Spring Security authorities.
+
+Public users may register as `client` or `pro`. The `ADMIN` role is assigned only through a controlled administrative process. Authentication is shared by the client, professional and administrator dashboards, the traditional request form, lead purchases, chat and moderation. No other module may rely on frontend-only authorization.
 
 | Action | Who may perform it |
 | --- | --- |
 | Register as client/professional, log in | Public |
 | Log out, fetch own identity | Authenticated user |
 | Create request through classic form | `CLIENT` |
-| Access professional leads and credits | `PROFESSIONAL`, according to ownership rules |
+| Access professional leads and credits | `PRO`, according to ownership rules |
 | Moderate requests/users/disputes | `ADMIN` |
 
 **Open decision:** Session-based secure HttpOnly cookies are recommended for the browser MVP; JWT remains an alternative if selected by the team. Agree on this before implementing the API and WebSocket authentication.
@@ -47,7 +49,7 @@ Frontend route guards are a usability layer; **the Spring Boot backend remains t
 ### 3.1 Design
 
 - Store accounts and roles in PostgreSQL; never store plaintext passwords. Use Spring Security's password encoder (for example BCrypt or Argon2, subject to the team's dependency choices).
-- Public registration permits `CLIENT` and `PROFESSIONAL` only. The backend, not a form field, decides which roles can be created. `ADMIN` accounts are provisioned through an explicitly controlled process.
+- Public registration permits `client` and `pro` only. The backend, not a form field, decides which roles can be created. `ADMIN` accounts are provisioned through an explicitly controlled process.
 - Prefer **server-managed sessions with Secure, HttpOnly, SameSite cookies** for the browser MVP. If the team has already standardized on JWT, use that standard instead; document token expiration, safe storage and revocation before implementation.
 - With cookie-based sessions, implement CSRF protection for state-changing requests. Use HTTPS in deployment, restrict CORS/origins and configure cookie attributes appropriately; never put credentials or session secrets in local storage or analytics events.
 - Apply route-level role policies and **object ownership rules**. A professional must not open client-only `/api/requests/{id}` merely by guessing an ID.

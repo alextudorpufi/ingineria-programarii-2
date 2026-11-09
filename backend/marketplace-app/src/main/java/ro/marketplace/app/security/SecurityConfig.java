@@ -35,11 +35,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 
 @Configuration
 @EnableWebSecurity
@@ -70,6 +67,7 @@ public class SecurityConfig {
                         // Public marketplace: anyone can browse the lead feed (contact details stay masked
                         // server-side via LeadDtoMapper). All write actions remain authenticated.
                         .requestMatchers(HttpMethod.GET, "/api/leads").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/locations/counties").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/leads/{id}").permitAll()
                         .requestMatchers("/api/audit/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/disputes/*/resolve").hasRole("ADMIN")
@@ -155,20 +153,7 @@ public class SecurityConfig {
     }
 
     private static List<GrantedAuthority> rolesFromJwt(Jwt jwt) {
-        Set<String> roles = new LinkedHashSet<>();
-        List<String> roleList = jwt.getClaimAsStringList("roles");
-        if (roleList != null) {
-            roleList.stream()
-                    .filter(Objects::nonNull)
-                    .map(role -> role.trim().toUpperCase(Locale.ROOT))
-                    .filter(role -> !role.isEmpty())
-                    .forEach(roles::add);
-        }
-        String singleRole = jwt.getClaimAsString("role");
-        if (singleRole != null && !singleRole.isBlank()) {
-            roles.add(singleRole.trim().toUpperCase(Locale.ROOT));
-        }
-        return roles.stream()
+        return AuthenticatedUser.rolesFrom(jwt).stream()
                 .map(role -> (GrantedAuthority) new SimpleGrantedAuthority("ROLE_" + role))
                 .toList();
     }

@@ -2,6 +2,8 @@ package ro.marketplace.infrastructure.persistence.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -10,9 +12,13 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import ro.marketplace.infrastructure.persistence.audit.AuditableEntity;
+import ro.marketplace.domain.model.Lead;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.util.UUID;
+import java.util.List;
 
 @Entity
 @Table(name = "leads")
@@ -41,6 +47,20 @@ public class LeadEntity extends AuditableEntity {
 
     @Column(name = "location", nullable = false)
     private String location;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "work_mode", length = 20)
+    private Lead.WorkMode workMode;
+
+    @Builder.Default
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "required_capabilities", nullable = false, columnDefinition = "jsonb")
+    private List<String> requiredCapabilities = List.of();
+
+    @Builder.Default
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "preferred_capabilities", nullable = false, columnDefinition = "jsonb")
+    private List<String> preferredCapabilities = List.of();
 
     // Budget
     @Column(name = "budget_min", precision = 12, scale = 2, nullable = false)

@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="2680" viewBox="-30 -30 1440 2680"><defs><marker id="arrow" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto"><path d="M0,0 L9,4 L0,8 Z" fill="#475569"/></marker></defs><style>text{font-family:Arial,sans-serif;fill:#172b45} .label{font-size:13px;paint-order:stroke;stroke:white;stroke-width:5px;stroke-linejoin:round}</style><rect x="-30" y="-30" width="1440" height="2680" fill="white"/>
+<text x="690" y="12" text-anchor="middle" font-size="25">SALABOT · AI-ASSISTED REQUEST WORKFLOW</text>
+<text x="690" y="43" text-anchor="middle" font-size="16">Proposed BPMN 2.0 process • based on salabot-plan.md</text>
+<rect x="0" y="70" width="450" height="2500" fill="#f4f8ff" stroke="#94a3b8"/>
+<text x="225.0" y="97" text-anchor="middle" font-size="16">CLIENT / NEXT.JS</text>
+<rect x="450" y="70" width="590" height="2500" fill="#f5faf7" stroke="#94a3b8"/>
+<text x="745.0" y="97" text-anchor="middle" font-size="16">MARKETPLACE / SPRING BOOT</text>
+<rect x="1100" y="300" width="270" height="160" fill="#fff7e8" stroke="#94a3b8"/>
+<text x="1235" y="335" text-anchor="middle" font-size="16">EXTERNAL LLM PROVIDER</text>
+<polyline points="245,146 245,200" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="360,233 650,233" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="765,266 765,340" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="765,406 765,470" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="740,495 360,495" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="550.0" y="486.0" text-anchor="middle">No / provider failure</text>
+<polyline points="245,536 245,590" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="270,615 545,615 545,373 650,373" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="407.5" y="606.0" text-anchor="middle">Retry</text>
+<polyline points="245,640 245,740" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="305.0" y="681.0" text-anchor="middle">Form</text>
+<polyline points="220,615 83,615 83,680" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="151.5" y="606.0" text-anchor="middle">Save / exit</text>
+<polyline points="765,520 765,740" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="825.0" y="621.0" text-anchor="middle">Yes</text>
+<polyline points="360,773 650,773" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="765,806 765,880" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="740,905 500,905 500,1043 360,1043" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="620.0" y="896.0" text-anchor="middle">No</text>
+<polyline points="130,1043 40,1043 40,233 130,233" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="85.0" y="1034.0" text-anchor="middle">Next turn</text>
+<polyline points="765,930 765,1120 245,1120 245,1160" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="825.0" y="1016.0" text-anchor="middle">Yes</text>
+<polyline points="245,1226 245,1280" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="220,1305 100,1305 100,773 130,773" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="160.0" y="1296.0" text-anchor="middle">Edit</text>
+<polyline points="270,1305 765,1305 765,1400" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="517.5" y="1296.0" text-anchor="middle">Confirm</text>
+<polyline points="765,1466 765,1530" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="765,1596 765,1660" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="740,1685 245,1685 245,1780" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="492.5" y="1676.0" text-anchor="middle">Yes</text>
+<polyline points="765,1710 765,1780" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="825.0" y="1736.0" text-anchor="middle">No</text>
+<polyline points="245,1846 245,1930" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="765,1846 765,1955 270,1955" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="220,1955 20,1955 20,720 245,720 245,740" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="120.0" y="1946.0" text-anchor="middle">Edit constraints</text>
+<polyline points="245,1980 245,2030 83,2030 83,2070" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="305.0" y="1996.0" text-anchor="middle">Save / exit</text>
+<polyline points="270,1955 480,1955 480,2103 650,2103" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="375.0" y="1946.0" text-anchor="middle">Explicitly publish</text>
+<polyline points="765,2136 765,2200" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="740,2225 410,2225 410,1193 360,1193" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="575.0" y="2216.0" text-anchor="middle">No: resolve / reconfirm</text>
+<polyline points="765,2250 765,2340" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<text class="label" x="825.0" y="2286.0" text-anchor="middle">Yes</text>
+<polyline points="765,2406 765,2480" fill="none" stroke="#475569" stroke-width="1.6"  marker-end="url(#arrow)"/>
+<polyline points="880,355 1100,355" fill="none" stroke="#475569" stroke-width="1.6" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<text class="label" x="990.0" y="346.0" text-anchor="middle">Minimized context + schema</text>
+<polyline points="1100,395 880,395" fill="none" stroke="#475569" stroke-width="1.6" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+<text class="label" x="990.0" y="386.0" text-anchor="middle">Candidate fields / failure</text>
+<circle cx="245.0" cy="128.0" r="18" fill="white" stroke="#172b45" stroke-width="2"/>
+<text x="245.0" y="167" text-anchor="middle" font-size="13">Service needed</text>
+<rect x="130" y="200" width="230" height="66" rx="10" fill="white" stroke="#4774ab" stroke-width="2"/>
+<text x="245.0" y="229.0" text-anchor="middle" font-size="14">Describe need or answer</text>
+<text x="245.0" y="247.0" text-anchor="middle" font-size="14">clarification</text>
+<text x="145" y="217" text-anchor="middle" font-size="14">♙</text>
+<rect x="650" y="200" width="230" height="66" rx="10" fill="white" stroke="#438068" stroke-width="2"/>
+<text x="765.0" y="229.0" text-anchor="middle" font-size="14">Check ownership / revision;</text>
+<text x="765.0" y="247.0" text-anchor="middle" font-size="14">save turn</text>
+<text x="665" y="217" text-anchor="middle" font-size="14">⚙</text>
+<rect x="650" y="340" width="230" height="66" rx="10" fill="white" stroke="#438068" stroke-width="2"/>
+<text x="765.0" y="369.0" text-anchor="middle" font-size="14">Extract structured fields;</text>
+<text x="765.0" y="387.0" text-anchor="middle" font-size="14">validate output; repair once</text>
+<text x="665" y="357" text-anchor="middle" font-size="14">⚙</text>
+<path d="M765.0,470 L790,495.0 L765.0,520 L740,495.0 Z" fill="#fff3cc" stroke="#8f7119" stroke-width="2"/>
+<text x="765.0" y="502" text-anchor="middle" font-size="25">×</text>
+<text x="765.0" y="458" text-anchor="middle" font-size="14">Usable output?</text>
+<rect x="130" y="470" width="230" height="66" rx="10" fill="white" stroke="#4774ab" stroke-width="2"/>
+<text x="245.0" y="499.0" text-anchor="middle" font-size="14">Preserve draft; choose retry,</text>
+<text x="245.0" y="517.0" text-anchor="middle" font-size="14">form or save</text>
+<text x="145" y="487" text-anchor="middle" font-size="14">♙</text>
+<path d="M245.0,590 L270,615.0 L245.0,640 L220,615.0 Z" fill="#fff3cc" stroke="#8f7119" stroke-width="2"/>
+<text x="245.0" y="622" text-anchor="middle" font-size="25">×</text>
+<text x="245.0" y="578" text-anchor="middle" font-size="14">Recovery choice</text>
+<circle cx="83.0" cy="698.0" r="18" fill="white" stroke="#172b45" stroke-width="4"/>
+<text x="83.0" y="737" text-anchor="middle" font-size="13">Draft saved</text>
+<rect x="130" y="740" width="230" height="66" rx="10" fill="white" stroke="#4774ab" stroke-width="2"/>
+<text x="245.0" y="769.0" text-anchor="middle" font-size="14">Complete or edit traditional</text>
+<text x="245.0" y="787.0" text-anchor="middle" font-size="14">form</text>
+<text x="145" y="757" text-anchor="middle" font-size="14">♙</text>
+<rect x="650" y="740" width="230" height="66" rx="10" fill="white" stroke="#438068" stroke-width="2"/>
+<text x="765.0" y="760.0" text-anchor="middle" font-size="14">Validate and merge fields;</text>
+<text x="765.0" y="778.0" text-anchor="middle" font-size="14">invalidate old confirmation /</text>
+<text x="765.0" y="796.0" text-anchor="middle" font-size="14">preview</text>
+<text x="665" y="757" text-anchor="middle" font-size="14">⚙</text>
+<path d="M765.0,880 L790,905.0 L765.0,930 L740,905.0 Z" fill="#fff3cc" stroke="#8f7119" stroke-width="2"/>
+<text x="765.0" y="912" text-anchor="middle" font-size="25">×</text>
+<text x="765.0" y="868" text-anchor="middle" font-size="14">Required fields valid and complete?</text>
+<rect x="130" y="1010" width="230" height="66" rx="10" fill="white" stroke="#4774ab" stroke-width="2"/>
+<text x="245.0" y="1039.0" text-anchor="middle" font-size="14">Answer template questions about</text>
+<text x="245.0" y="1057.0" text-anchor="middle" font-size="14">gaps / conflicts</text>
+<text x="145" y="1027" text-anchor="middle" font-size="14">♙</text>
+<rect x="130" y="1160" width="230" height="66" rx="10" fill="white" stroke="#4774ab" stroke-width="2"/>
+<text x="245.0" y="1189.0" text-anchor="middle" font-size="14">Review editable summary and</text>
+<text x="245.0" y="1207.0" text-anchor="middle" font-size="14">unknown values</text>
+<text x="145" y="1177" text-anchor="middle" font-size="14">♙</text>
+<path d="M245.0,1280 L270,1305.0 L245.0,1330 L220,1305.0 Z" fill="#fff3cc" stroke="#8f7119" stroke-width="2"/>
+<text x="245.0" y="1312" text-anchor="middle" font-size="25">×</text>
+<text x="245.0" y="1268" text-anchor="middle" font-size="14">Confirm this revision?</text>
+<rect x="650" y="1400" width="230" height="66" rx="10" fill="white" stroke="#438068" stroke-width="2"/>
+<text x="765.0" y="1438.0" text-anchor="middle" font-size="14">Record confirmed draft revision</text>
+<text x="665" y="1417" text-anchor="middle" font-size="14">⚙</text>
+<rect x="650" y="1530" width="230" height="66" rx="10" fill="white" stroke="#438068" stroke-width="2"/>
+<text x="765.0" y="1550.0" text-anchor="middle" font-size="14">Filter and rank eligible</text>
+<text x="765.0" y="1568.0" text-anchor="middle" font-size="14">profiles; create read-only</text>
+<text x="765.0" y="1586.0" text-anchor="middle" font-size="14">preview</text>
+<text x="665" y="1547" text-anchor="middle" font-size="14">⚙</text>
+<path d="M765.0,1660 L790,1685.0 L765.0,1710 L740,1685.0 Z" fill="#fff3cc" stroke="#8f7119" stroke-width="2"/>
+<text x="765.0" y="1692" text-anchor="middle" font-size="25">×</text>
+<text x="765.0" y="1648" text-anchor="middle" font-size="14">Any matches?</text>
+<rect x="130" y="1780" width="230" height="66" rx="10" fill="white" stroke="#4774ab" stroke-width="2"/>
+<text x="245.0" y="1809.0" text-anchor="middle" font-size="14">View shortlist with factual</text>
+<text x="245.0" y="1827.0" text-anchor="middle" font-size="14">reasons</text>
+<text x="145" y="1797" text-anchor="middle" font-size="14">♙</text>
+<rect x="650" y="1780" width="230" height="66" rx="10" fill="white" stroke="#4774ab" stroke-width="2"/>
+<text x="765.0" y="1809.0" text-anchor="middle" font-size="14">Review why no profiles qualify;</text>
+<text x="765.0" y="1827.0" text-anchor="middle" font-size="14">keep constraints or edit</text>
+<text x="665" y="1797" text-anchor="middle" font-size="14">♙</text>
+<path d="M245.0,1930 L270,1955.0 L245.0,1980 L220,1955.0 Z" fill="#fff3cc" stroke="#8f7119" stroke-width="2"/>
+<text x="245.0" y="1962" text-anchor="middle" font-size="25">×</text>
+<text x="245.0" y="1918" text-anchor="middle" font-size="14">Client action</text>
+<circle cx="83.0" cy="2088.0" r="18" fill="white" stroke="#172b45" stroke-width="4"/>
+<text x="83.0" y="2127" text-anchor="middle" font-size="13">Draft saved; no publication</text>
+<rect x="650" y="2070" width="230" height="66" rx="10" fill="white" stroke="#438068" stroke-width="2"/>
+<text x="765.0" y="2090.0" text-anchor="middle" font-size="14">Check latest confirmation,</text>
+<text x="765.0" y="2108.0" text-anchor="middle" font-size="14">request rules and current</text>
+<text x="765.0" y="2126.0" text-anchor="middle" font-size="14">eligibility</text>
+<text x="665" y="2087" text-anchor="middle" font-size="14">⚙</text>
+<path d="M765.0,2200 L790,2225.0 L765.0,2250 L740,2225.0 Z" fill="#fff3cc" stroke="#8f7119" stroke-width="2"/>
+<text x="765.0" y="2232" text-anchor="middle" font-size="25">×</text>
+<text x="765.0" y="2188" text-anchor="middle" font-size="14">Publication valid?</text>
+<rect x="650" y="2340" width="230" height="66" rx="10" fill="white" stroke="#438068" stroke-width="2"/>
+<text x="765.0" y="2360.0" text-anchor="middle" font-size="14">Publish request through request</text>
+<text x="765.0" y="2378.0" text-anchor="middle" font-size="14">module; distribute to eligible</text>
+<text x="765.0" y="2396.0" text-anchor="middle" font-size="14">leads</text>
+<text x="665" y="2357" text-anchor="middle" font-size="14">⚙</text>
+<circle cx="765.0" cy="2498.0" r="18" fill="white" stroke="#172b45" stroke-width="4"/>
+<text x="765.0" y="2537" text-anchor="middle" font-size="13">Request published</text>
+<text x="1220" y="600" text-anchor="middle" font-size="16">PROCESS RULES</text>
+<text x="1220" y="629" text-anchor="middle" font-size="13">Unknown values remain null.</text>
+<text x="1220" y="658" text-anchor="middle" font-size="13">Clarifications use backend templates.</text>
+<text x="1220" y="687" text-anchor="middle" font-size="13">Edits invalidate confirmation and preview.</text>
+<text x="1220" y="716" text-anchor="middle" font-size="13">Preview never charges or unlocks contacts.</text>
+<text x="1220" y="745" text-anchor="middle" font-size="13">LLM never chooses professionals.</text>
+<text x="1220" y="774" text-anchor="middle" font-size="13">No matches never weakens constraints.</text>
+<text x="1220" y="803" text-anchor="middle" font-size="13">Publication can have zero eligible leads.</text>
+<text x="1220" y="832" text-anchor="middle" font-size="13">Eligibility is rechecked on distribution.</text>
+<text x="690" y="2620" text-anchor="middle" font-size="15">○ Start   ● Thick circle: end   Rounded box: task   ◇ ×: exclusive gateway   Dashed arrow: message flow</text>
+</svg>

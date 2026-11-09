@@ -10,6 +10,7 @@ import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
 
@@ -97,9 +98,12 @@ class EntityMapperTest {
                 .completedJobs(20)
                 .trustScore(BigDecimal.valueOf(99))
                 .memberSince("2025")
-                .coverageAreas(List.of("Bucharest"))
-                .servicesOffered(List.of("Web"))
-                .categories(List.of("IT"))
+                .professionalProfile(ProfessionalProfile.builder()
+                        .coverageAreas(List.of("Bucharest"))
+                        .servicesOffered(List.of("Web"))
+                        .categories(List.of("IT"))
+                        .supportsRemote(true)
+                        .build())
                 .build();
 
         User mapped = EntityMapper.toDomain(EntityMapper.toEntity(user));

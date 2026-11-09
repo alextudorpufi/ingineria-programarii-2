@@ -63,7 +63,7 @@ else
   EXTRACTED_TOKEN=$(echo "$TOKEN_RESPONSE" | grep -o '"token":"[^"]*"' | cut -d'"' -f4 || true)
 
   if [ -n "$EXTRACTED_TOKEN" ]; then
-    echo -e "${GREEN}Successfully generated analysis token: ${EXTRACTED_TOKEN:0:8}...${NC}"
+    echo -e "${GREEN}Successfully generated analysis token.${NC}"
     AUTH_ARGS="-Dsonar.token=${EXTRACTED_TOKEN}"
   else
     echo -e "${YELLOW}Could not generate token automatically (likely default password changed). Falling back to basic auth credentials.${NC}"
@@ -73,6 +73,15 @@ fi
 
 # 3. Execution Logic
 WORKSPACE_DIR="/workspace"
+# SonarQube 9.9's TypeScript parser predates moduleResolution=bundler.
+# Generate an analysis-only config without changing Next.js compilation settings.
+SONAR_TS_CONFIG=$(mktemp /tmp/skillink-sonar-tsconfig.XXXXXX.json)
+trap 'rm -f "$SONAR_TS_CONFIG"' EXIT
+jq '.compilerOptions.moduleResolution = "node" |
+    .compilerOptions.baseUrl = "/workspace/frontend" |
+    .include = ["/workspace/frontend/**/*.ts", "/workspace/frontend/**/*.tsx", "/workspace/frontend/**/*.mts"] |
+    .exclude = ["/workspace/frontend/node_modules", "/workspace/frontend/.next", "/workspace/frontend/.scannerwork"]' \
+    "$WORKSPACE_DIR/frontend/tsconfig.json" > "$SONAR_TS_CONFIG"
 
 scan_backend() {
   echo -e "\n${CYAN}${BOLD}>>> Starting Backend Analysis (Java / Spring Boot)...${NC}"
@@ -80,16 +89,13 @@ scan_backend() {
 
   # Compile Java classes so SonarQube bytecode analyzer has full semantic context
   echo -e "${BLUE}Compiling Java classes with Maven...${NC}"
-  mvn clean test-compile -DskipTests -B
+  mvn install -DskipTests -B
 
   echo -e "${BLUE}Executing Sonar analysis with Maven plugin...${NC}"
   mvn org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
     -Dsonar.host.url="${SONAR_HOST_URL}" \
     -Dsonar.projectKey=marketplace-backend \
     -Dsonar.projectName="Marketplace Backend" \
-    -Dsonar.sources="src/main/java" \
-    -Dsonar.tests="src/test/java" \
-    -Dsonar.java.binaries="target/classes" \
     -Dsonar.sourceEncoding="UTF-8" \
     ${AUTH_ARGS} -B
 
@@ -102,13 +108,14 @@ scan_frontend() {
 
   echo -e "${BLUE}Executing SonarScanner CLI for frontend...${NC}"
   sonar-scanner \
+    -Dsonar.typescript.tsconfigPaths="$SONAR_TS_CONFIG" \
     -Dsonar.host.url="${SONAR_HOST_URL}" \
     -Dsonar.projectKey=marketplace-frontend \
     -Dsonar.projectName="Marketplace Frontend" \
-    -Dsonar.sources="app" \
-    -Dsonar.tests="app" \
+    -Dsonar.sources="." \
+    -Dsonar.tests="." \
     -Dsonar.test.inclusions="**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/*.spec.tsx" \
-    -Dsonar.exclusions="**/node_modules/**,**/.next/**,**/public/**,**/*.d.ts" \
+    -Dsonar.exclusions="**/node_modules/**,**/.next/**,**/public/**,**/*.d.ts,**/.scannerwork/**" \
     -Dsonar.sourceEncoding="UTF-8" \
     -Dsonar.javascript.environments="browser,node" \
     ${AUTH_ARGS}
@@ -121,10 +128,11 @@ scan_monorepo() {
   cd "${WORKSPACE_DIR}"
 
   echo -e "${BLUE}Compiling backend Java classes...${NC}"
-  mvn -f backend/pom.xml clean test-compile -DskipTests -B
+  mvn -f backend/pom.xml install -DskipTests -B
 
   echo -e "${BLUE}Executing unified SonarScanner CLI for whole repository...${NC}"
   sonar-scanner \
+    -Dsonar.typescript.tsconfigPaths="$SONAR_TS_CONFIG" \
     -Dsonar.host.url="${SONAR_HOST_URL}" \
     ${AUTH_ARGS}
 

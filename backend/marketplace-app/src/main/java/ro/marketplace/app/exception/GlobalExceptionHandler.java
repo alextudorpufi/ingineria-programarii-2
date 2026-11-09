@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import ro.marketplace.application.exception.StripeConfigurationException;
 import ro.marketplace.application.exception.StripeProviderException;
 import ro.marketplace.application.exception.StripeWebhookVerificationException;
@@ -28,6 +29,8 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String BAD_REQUEST_TITLE = "Bad Request";
+    private static final String CONFLICT_TYPE = "conflict";
     private static final String ERROR_BASE = "https://api.marketplace.ro/errors/";
 
     @ExceptionHandler(StripeConfigurationException.class)
@@ -58,7 +61,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ConflictException.class)
     public ProblemDetail handleConflictException(ConflictException ex) {
-        return problem(HttpStatus.CONFLICT, "Resource Conflict", ex.getMessage(), "conflict");
+        return problem(HttpStatus.CONFLICT, "Resource Conflict", ex.getMessage(), CONFLICT_TYPE);
     }
 
     @ExceptionHandler(ValidationException.class)
@@ -73,7 +76,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleMethodArgumentNotValidException(MethodArgumentNotValidException ex) {
-        ProblemDetail problemDetail = problem(HttpStatus.BAD_REQUEST, "Bad Request",
+        ProblemDetail problemDetail = problem(HttpStatus.BAD_REQUEST, BAD_REQUEST_TITLE,
                 "Validation failed", "validation");
 
         Map<String, String> invalidParams = new HashMap<>();
@@ -84,6 +87,12 @@ public class GlobalExceptionHandler {
         return problemDetail;
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleUnreadableBody() {
+        return problem(HttpStatus.BAD_REQUEST, BAD_REQUEST_TITLE,
+                "The request body contains malformed JSON or an unsupported field value.", "bad-request");
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         String cause = ex.getMostSpecificCause() != null
@@ -91,14 +100,14 @@ public class GlobalExceptionHandler {
                 : ex.getMessage();
         log.warn("Data constraint violation: {}", cause);
         return problem(HttpStatus.CONFLICT, "Conflict",
-                "Operation violates a data constraint (for example, a duplicate claim).", "conflict");
+                "Operation violates a data constraint (for example, a duplicate claim).", CONFLICT_TYPE);
     }
 
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ProblemDetail handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
         log.warn("Concurrent modification detected: {}", ex.getMessage());
         return problem(HttpStatus.CONFLICT, "Conflict",
-                "The resource was modified concurrently. Please retry.", "conflict");
+                "The resource was modified concurrently. Please retry.", CONFLICT_TYPE);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
@@ -117,7 +126,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgument(IllegalArgumentException ex) {
-        return problem(HttpStatus.BAD_REQUEST, "Bad Request", ex.getMessage(), "bad-request");
+        return problem(HttpStatus.BAD_REQUEST, BAD_REQUEST_TITLE, ex.getMessage(), "bad-request");
     }
 
     @ExceptionHandler(Exception.class)
