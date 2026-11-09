@@ -1,5 +1,5 @@
 # Gitleaks configuration for the Marketplace repository.
-# Run locally with: gitleaks detect --source . --config .gitleaks.toml
+# Run locally with: gitleaks git . --config .gitleaks.toml
 title = "Marketplace secret scanning"
 
 [extend]
