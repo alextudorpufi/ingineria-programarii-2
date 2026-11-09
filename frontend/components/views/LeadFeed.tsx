@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/context/AppContext';
-import { useAuth } from '@/context/AuthContext';
 import { SERVICE_CATEGORIES } from '@/services/api/categoryCatalog';
 import { Search, MapPin, Wallet, Check, Sparkles, Plus, ShieldCheck } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
@@ -30,11 +29,8 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
     searchQuery,
     setSearchQuery,
     isLeadClaimedByMe,
-    userRole,
-    setActiveTab,
-    openAuthModal
+    userRole
   } = useApp();
-  const { user } = useAuth();
 
   const [filterType, setFilterType] = useState<'all' | 'available' | 'claimed'>('all');
   const [adminStatusFilter, setAdminStatusFilter] = useState<'all' | 'validat' | 'audit'>('all');
@@ -124,21 +120,6 @@ export const LeadFeed: React.FC<LeadFeedProps> = ({ onOpenLeadSheet, onSelectLea
                 Oportunități Calificate & Matching
               </p>
             </div>
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<Plus className="w-3.5 h-3.5" />}
-              onClick={() => {
-                // Creating a lead is a mutating action: require a session first.
-                if (!user) {
-                  openAuthModal();
-                  return;
-                }
-                setActiveTab('ai');
-              }}
-            >
-              Cerere Nouă
-            </Button>
           </div>
         )}
 

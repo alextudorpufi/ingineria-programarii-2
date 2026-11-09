@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -11,17 +11,33 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialMode?: 'login' | 'register';
+  initialRole?: 'client' | 'pro';
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login' }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMode = 'login', initialRole = 'pro' }) => {
   const { login, register } = useAuth();
   const [mode, setMode] = useState<'login' | 'register'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [role, setRole] = useState<'client' | 'pro'>('pro');
+  const [role, setRole] = useState<'client' | 'pro'>(initialRole);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const dialog = dialogRef.current;
+    const trigger = document.activeElement;
+    const previousOverflow = document.body.style.overflow;
+    dialog?.showModal();
+    document.body.style.overflow = 'hidden';
+    return () => {
+      dialog?.close();
+      document.body.style.overflow = previousOverflow;
+      if (trigger instanceof HTMLElement) trigger.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -51,10 +67,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm"
-      role="dialog"
-      aria-modal="true"
+    <dialog
+      ref={dialogRef}
+      onCancel={event => { event.preventDefault(); onClose(); }}
+      className="m-auto max-h-[calc(100dvh_-_2rem)] w-[calc(100%_-_2rem)] max-w-md overflow-y-auto rounded-3xl bg-white text-slate-900 shadow-2xl backdrop:bg-slate-950/60 backdrop:backdrop-blur-sm dark:bg-slate-900 dark:text-slate-100"
       aria-labelledby="auth-modal-title"
     >
       <div className="relative w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6">
@@ -68,7 +84,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
                 {mode === 'login' ? 'Conectare în Skillink' : 'Creare Cont Nou'}
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                {mode === 'login' ? 'Acces la baza de date marketplace' : 'Alege-ți rolul și începe lucrul'}
+                {mode === 'login' ? 'Bine ai revenit. Continuă de unde ai rămas.' : 'Alege-ți rolul și începe lucrul'}
               </p>
             </div>
           </div>
@@ -191,6 +207,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialMo
         </form>
 
       </div>
-    </div>
+    </dialog>
   );
 };

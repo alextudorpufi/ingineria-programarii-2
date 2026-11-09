@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
+import { canUseHeaderAction } from '@/config/navigation';
 import { Coins, History, ArrowDownLeft, ArrowUpRight, X } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -17,6 +19,11 @@ function formatBundlePrice(bundle: CreditBundle): string {
 }
 
 export const WalletModal: React.FC = () => {
+  const { user, isLoading } = useAuth();
+  return !isLoading && canUseHeaderAction(user?.role, 'wallet') ? <ProfessionalWalletContent /> : null;
+};
+
+const ProfessionalWalletContent: React.FC = () => {
   const {
     showWalletModal,
     setShowWalletModal,
@@ -183,6 +190,9 @@ export const WalletModal: React.FC = () => {
 
         {/* Body Content */}
         <div className="p-6 overflow-y-auto space-y-6">
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+            Cumpărarea creditelor necesită verificarea contului de către un administrator. Eligibilitatea este verificată la inițierea plății.
+          </p>
           {/* Top-Up Packages */}
           <div>
             <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider mb-3">
