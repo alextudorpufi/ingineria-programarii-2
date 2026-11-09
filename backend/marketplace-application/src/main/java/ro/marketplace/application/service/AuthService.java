@@ -18,4 +18,15 @@ public interface AuthService {
                   String phone, String companyName);
 
     Optional<User> findById(UUID id);
+
+    /**
+     * True only when an administrator has verified the professional account.
+     */
+    boolean isVerifiedProfessional(UUID userId);
+
+    /**
+     * Marks a professional as verified and grants the one-time welcome credits
+     * in a single transaction, recording the grant for audit purposes.
+     */
+    User verifyProfessionalAndGrantCredits(UUID userId, int credits, UUID adminId);
 }

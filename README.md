@@ -16,7 +16,7 @@ Feature architecture and delivery plans:
 
 Credit bundles are priced by the backend (50 credits for 50 RON, 170 for 150 RON, or 480 for 350 RON). To enable hosted checkout:
 
-1. Copy `.env.example` to `.env`.
+1. Copy `.env.example` to `.env` and replace every `changeme` value (at minimum `JWT_SECRET`, generated with `openssl rand -hex 48`).
 2. From the Stripe Dashboard with **Test mode** enabled, copy the secret key (`sk_test_...`) into `STRIPE_SECRET_KEY`.
 3. Install and authenticate the Stripe CLI, then run `stripe listen --forward-to localhost:8080/api/payments/stripe/webhook`. Copy its `whsec_...` signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. Start the stack with `docker compose up --build`. Checkout creates a pending purchase; only a verified Stripe webhook grants credits.

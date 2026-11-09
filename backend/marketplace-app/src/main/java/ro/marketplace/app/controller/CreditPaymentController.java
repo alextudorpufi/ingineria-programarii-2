@@ -17,6 +17,7 @@ import ro.marketplace.app.dto.CreditBundleResponse;
 import ro.marketplace.app.dto.CreditCheckoutResponse;
 import ro.marketplace.app.dto.CreditPurchaseStatusResponse;
 import ro.marketplace.app.security.AuthenticatedUser;
+import ro.marketplace.application.service.AuthService;
 import ro.marketplace.application.service.CreditPaymentService;
 import ro.marketplace.domain.model.CreditPurchase;
 
@@ -30,9 +31,12 @@ import java.util.UUID;
 public class CreditPaymentController {
 
     private final CreditPaymentService creditPaymentService;
+    private final AuthService authService;
 
-    public CreditPaymentController(CreditPaymentService creditPaymentService) {
-        this.creditPaymentService = Objects.requireNonNull(creditPaymentService, "creditPaymentService must not be null");
+    public CreditPaymentController(CreditPaymentService creditPaymentService, AuthService authService) {
+        this.creditPaymentService = Objects.requireNonNull(creditPaymentService,
+                "creditPaymentService must not be null");
+        this.authService = Objects.requireNonNull(authService, "authService must not be null");
     }
 
     @GetMapping("/bundles")
@@ -62,6 +66,11 @@ public class CreditPaymentController {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         if (!user.isProfessional()) {
             throw new AccessDeniedException("Only professional accounts can purchase credits");
+        }
+        // The JWT role claim is not enough: verify the current server-side state so a
+        // self-registered, unverified account can never reach the payment flow.
+        if (!authService.isVerifiedProfessional(user.id())) {
+            throw new AccessDeniedException("The professional account has not been verified by an administrator");
         }
         return user;
     }

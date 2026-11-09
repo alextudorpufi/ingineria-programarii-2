@@ -16,6 +16,7 @@ import ro.marketplace.domain.port.UserRepository;
 import ro.marketplace.domain.port.WalletTransactionRepository;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataCreditPurchaseRepository;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataStripeWebhookEventRepository;
+import ro.marketplace.infrastructure.persistence.repository.SpringDataCreditGrantRepository;
 
 @SpringBootTest
 @TestPropertySource(properties = {
@@ -62,6 +63,9 @@ class BackendApplicationTests {
 
     @MockitoBean
     private SpringDataStripeWebhookEventRepository stripeWebhookEventRepository;
+
+    @MockitoBean
+    private SpringDataCreditGrantRepository creditGrantRepository;
 
     @Test
     void contextLoads() {

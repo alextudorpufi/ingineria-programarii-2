@@ -12,11 +12,11 @@ import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.mapper.ProfessionalProfileMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataUserRepository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
-import java.time.LocalDateTime;
 
 @Repository
 public class UserRepositoryAdapter implements UserRepository {
@@ -114,5 +114,27 @@ public class UserRepositoryAdapter implements UserRepository {
     public boolean deductCredits(UUID userId, int amount) {
         Objects.requireNonNull(userId, "userId must not be null");
         return springDataUserRepository.deductCredits(userId, amount) == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean registerFailedLogin(UUID userId, int maxAttempts, LocalDateTime lockoutUntil) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        Objects.requireNonNull(lockoutUntil, "lockoutUntil must not be null");
+        return springDataUserRepository.registerFailedLogin(userId, maxAttempts, lockoutUntil) == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean resetLoginState(UUID userId) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        return springDataUserRepository.resetLoginState(userId) == 1;
+    }
+
+    @Override
+    @Transactional
+    public boolean verifyProAndAddCredits(UUID userId, int amount) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        return springDataUserRepository.verifyProAndAddCredits(userId, amount) == 1;
     }
 }

@@ -15,6 +15,7 @@ import lombok.Setter;
 import ro.marketplace.infrastructure.persistence.audit.AuditableEntity;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
@@ -86,6 +87,15 @@ public class UserEntity extends AuditableEntity {
 
     @Column(name = "member_since")
     private String memberSince;
+
+    @Column(name = "pro_verified", nullable = false)
+    private boolean proVerified;
+
+    @Column(name = "login_attempts_count", nullable = false)
+    private int loginAttemptsCount;
+
+    @Column(name = "lockout_until")
+    private LocalDateTime lockoutUntil;
 
     @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private ProfessionalProfileEntity professionalProfile;

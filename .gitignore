@@ -1,6 +1,10 @@
 .env
 .env.*
 !.env.example
+.envrc
+*.secret
+*.pem
+secrets/
 
 frontend/node_modules
 frontend/.next

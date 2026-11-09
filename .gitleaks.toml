@@ -1,0 +1,30 @@
+# Gitleaks configuration for the Marketplace repository.
+# Run locally with: gitleaks git . --config .gitleaks.toml
+title = "Marketplace secret scanning"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "marketplace-jwt-secret"
+description = "JWT signing secret committed to the repository"
+regex = '''JWT_SECRET\s*=\s*[^\s#]{16,}'''
+keywords = ["JWT_SECRET"]
+
+[[rules]]
+id = "sonarqube-token"
+description = "SonarQube token committed to the repository"
+regex = '''sqp_[A-Za-z0-9]{20,}'''
+keywords = ["sqp_"]
+
+[allowlist]
+description = "Example files, test fixtures, and the documented development default"
+paths = [
+  '''(^|/)\.env\.example$''',
+  '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)src/test/''',
+]
+regexes = [
+  '''dev-only-marketplace-jwt-secret-change-me-32b''',
+  '''unit-test-secret-key-with-at-least-32-bytes''',
+]
