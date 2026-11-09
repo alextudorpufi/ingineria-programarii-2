@@ -17,11 +17,11 @@ const jetBrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Skillink - Marketplace Inteligent de Servicii",
   description:
-    "Skillink - Marketplace inteligent pentru conectarea clienților cu profesioniștii prin calificare AI, Lead Passport, rating multi-dimensional și model per lead.",
+    "Skillink conectează clienții cu profesioniștii prin cereri de servicii. Publică gratuit o cerere sau descoperă oportunități pentru serviciile tale.",
   openGraph: {
     title: "Skillink - Marketplace Inteligent de Servicii",
     description:
-      "Skillink - Marketplace inteligent pentru conectarea clienților cu profesioniștii prin calificare AI, Lead Passport, rating multi-dimensional și model per lead.",
+      "Skillink conectează clienții cu profesioniștii prin cereri de servicii. Publică gratuit o cerere sau descoperă oportunități pentru serviciile tale.",
     type: "website",
   },
   twitter: {

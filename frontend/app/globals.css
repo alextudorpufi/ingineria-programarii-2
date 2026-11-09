@@ -63,3 +63,20 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
+
+/* Public page and its authentication dialog: keyboard focus and motion preferences. */
+.landing-page :is(a, button, summary):focus-visible,
+.workspace-header button:focus-visible,
+dialog :is(button, input):focus-visible {
+  outline: 2px solid var(--color-indigo-600);
+  outline-offset: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-page *,
+  .workspace-header *,
+  dialog * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

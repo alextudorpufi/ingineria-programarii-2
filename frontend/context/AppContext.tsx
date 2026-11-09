@@ -16,11 +16,12 @@ import { useAuth } from '@/context/AuthContext';
 import type { UserProfile } from '@/services/api/authService';
 import { marketplaceService, CreateLeadPayload } from '@/services/api/marketplaceService';
 import { resolveCategoryId } from '@/services/api/categoryCatalog';
+import { canUseHeaderAction, isKnownRole, resolveWorkspaceTab, type WorkspaceTab } from '@/config/navigation';
 
-export type WorkspaceTab = 'leads' | 'ai' | 'chat' | 'disputes' | 'analytics' | 'profile';
+export type { WorkspaceTab } from '@/config/navigation';
 
 interface AppContextType {
-  userRole: UserRole;
+  userRole: UserRole | null;
   darkMode: boolean;
   toggleDarkMode: () => void;
   leads: LeadModel[];
@@ -59,7 +60,7 @@ interface AppContextType {
   isAuthModalOpen: boolean;
   openAuthModal: () => void;
   closeAuthModal: () => void;
-  activeTab: WorkspaceTab;
+  activeTab: WorkspaceTab | null;
   setActiveTab: (tab: WorkspaceTab) => void;
 }
 
@@ -152,10 +153,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [disputes, setDisputes] = useState<DisputeRecord[]>([]);
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
 
-  const [showWalletModal, setShowWalletModal] = useState<boolean>(false);
+  const [walletRequested, setWalletRequested] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>('leads');
+  const [requestedTab, setRequestedTab] = useState<WorkspaceTab>('leads');
 
   const [aiMessages, setAiMessages] = useState<AIChatMessage[]>([INITIAL_AI_MESSAGE]);
 
@@ -165,8 +166,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, []);
 
   const currentUserId = authUser?.id ?? null;
-  const currentUserRole = authUser?.role ?? null;
-  const userRole: UserRole = currentUserRole ?? 'pro';
+  const currentUserRole = !isAuthLoading && isKnownRole(authUser?.role) ? authUser.role : null;
+  const userRole = currentUserRole;
+  const activeTab = resolveWorkspaceTab(userRole, requestedTab);
+  const showWalletModal = walletRequested && canUseHeaderAction(userRole, 'wallet');
+
+  const setActiveTab = useCallback((tab: WorkspaceTab) => {
+    const permittedTab = resolveWorkspaceTab(currentUserRole, tab);
+    if (permittedTab) setRequestedTab(permittedTab);
+  }, [currentUserRole]);
+
+  const setShowWalletModal = useCallback((show: boolean) => {
+    setWalletRequested(show && canUseHeaderAction(currentUserRole, 'wallet'));
+  }, [currentUserRole]);
 
   // Sync the authenticated profile. `authUser` changes after claim/top-up refreshes.
   useEffect(() => {
