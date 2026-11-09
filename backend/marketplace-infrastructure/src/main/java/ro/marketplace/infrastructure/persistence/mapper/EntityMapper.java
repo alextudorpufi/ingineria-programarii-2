@@ -21,7 +21,6 @@ import ro.marketplace.infrastructure.persistence.entity.LeadEntity;
 import ro.marketplace.infrastructure.persistence.entity.UserEntity;
 import ro.marketplace.infrastructure.persistence.entity.WalletTransactionEntity;
 
-import java.util.ArrayList;
 
 public final class EntityMapper {
 
@@ -79,15 +78,13 @@ public final class EntityMapper {
                 .proVerified(entity.isProVerified())
                 .loginAttemptsCount(entity.getLoginAttemptsCount())
                 .lockoutUntil(entity.getLockoutUntil())
-                .coverageAreas(entity.getCoverageAreas() != null ? new ArrayList<>(entity.getCoverageAreas()) : new ArrayList<>())
-                .servicesOffered(entity.getServicesOffered() != null ? new ArrayList<>(entity.getServicesOffered()) : new ArrayList<>())
-                .categories(entity.getCategories() != null ? new ArrayList<>(entity.getCategories()) : new ArrayList<>())
+                .professionalProfile(ProfessionalProfileMapper.toDomain(entity.getProfessionalProfile()))
                 .build();
     }
 
     public static UserEntity toEntity(User domain) {
         if (domain == null) return null;
-        return UserEntity.builder()
+        UserEntity entity = UserEntity.builder()
                 .id(domain.getId())
                 .email(domain.getEmail())
                 .passwordHash(domain.getPasswordHash())
@@ -111,10 +108,9 @@ public final class EntityMapper {
                 .proVerified(domain.isProVerified())
                 .loginAttemptsCount(domain.getLoginAttemptsCount())
                 .lockoutUntil(domain.getLockoutUntil())
-                .coverageAreas(domain.getCoverageAreas() != null ? new ArrayList<>(domain.getCoverageAreas()) : new ArrayList<>())
-                .servicesOffered(domain.getServicesOffered() != null ? new ArrayList<>(domain.getServicesOffered()) : new ArrayList<>())
-                .categories(domain.getCategories() != null ? new ArrayList<>(domain.getCategories()) : new ArrayList<>())
                 .build();
+        entity.setProfessionalProfile(ProfessionalProfileMapper.toEntity(domain.getProfessionalProfile(), entity));
+        return entity;
     }
 
     // Lead
@@ -127,6 +123,9 @@ public final class EntityMapper {
                 .subcategory(entity.getSubcategory())
                 .description(entity.getDescription())
                 .location(entity.getLocation())
+                .workMode(entity.getWorkMode())
+                .requiredCapabilities(entity.getRequiredCapabilities())
+                .preferredCapabilities(entity.getPreferredCapabilities())
                 .budgetMin(entity.getBudgetMin())
                 .budgetMax(entity.getBudgetMax())
                 .budgetCurrency(entity.getBudgetCurrency())
@@ -170,6 +169,9 @@ public final class EntityMapper {
                 .subcategory(domain.getSubcategory())
                 .description(domain.getDescription())
                 .location(domain.getLocation())
+                .workMode(domain.getWorkMode())
+                .requiredCapabilities(domain.getRequiredCapabilities())
+                .preferredCapabilities(domain.getPreferredCapabilities())
                 .budgetMin(domain.getBudgetMin())
                 .budgetMax(domain.getBudgetMax())
                 .budgetCurrency(domain.getBudgetCurrency())

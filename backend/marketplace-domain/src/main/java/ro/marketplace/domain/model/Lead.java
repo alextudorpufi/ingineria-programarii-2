@@ -18,12 +18,19 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Lead {
+    public enum WorkMode { ONSITE, REMOTE }
+
     private UUID id;
     private String title;
     private String categoryId;
     private String subcategory;
     private String description;
     private String location;
+    private WorkMode workMode;
+    @Builder.Default
+    private List<String> requiredCapabilities = List.of();
+    @Builder.Default
+    private List<String> preferredCapabilities = List.of();
 
     // Budget
     private BigDecimal budgetMin;

@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -35,12 +36,41 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = LeadController.class)
 @Import(SecurityConfig.class)
 class LeadControllerTest {
+    private static final String CREATE_BODY = """
+            {"title":"Website","categoryId":"it-software","subcategory":"Web",
+             "description":"An online store","location":"Iași","budgetMin":100,"budgetMax":200,
+             "timeline":"Two weeks","clientName":"Client","clientPhone":"123",
+             "clientEmail":"client@example.com","clientCity":"Iași","workMode":"REMOTE",
+             "requiredCapabilities":["Payments"],"preferredCapabilities":["Branding"]}
+            """;
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockitoBean
     private LeadService leadService;
+
+    @Test
+    void creationMapsMatchingInputsAndReturnsThemInTheResponse() throws Exception {
+        when(leadService.createLead(any())).thenAnswer(call -> call.getArgument(0));
+        mockMvc.perform(post("/api/leads").with(token(UUID.randomUUID(), "CLIENT"))
+                        .contentType(MediaType.APPLICATION_JSON).content(CREATE_BODY))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.workMode").value("REMOTE"))
+                .andExpect(jsonPath("$.requiredCapabilities[0]").value("Payments"))
+                .andExpect(jsonPath("$.preferredCapabilities[0]").value("Branding"));
+    }
+
+    @Test
+    void creationRejectsMissingOrUnknownWorkModeAndBlankCapabilities() throws Exception {
+        for (String body : List.of(CREATE_BODY.replace("\"workMode\":\"REMOTE\",", ""),
+                CREATE_BODY.replace("REMOTE", "UNKNOWN"),
+                CREATE_BODY.replace("Payments", " "))) {
+            mockMvc.perform(post("/api/leads").with(token(UUID.randomUUID(), "CLIENT"))
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isBadRequest());
+        }
+    }
 
     @Test
     @DisplayName("GET /api/leads returns lead list with nested budget and passport")
@@ -108,6 +138,13 @@ class LeadControllerTest {
         UUID leadId = UUID.randomUUID();
         mockMvc.perform(post("/api/leads/" + leadId + "/claim")
                         .with(token(UUID.randomUUID(), "CLIENT")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void claimLeadRejectsRemovedProfessionalAlias() throws Exception {
+        mockMvc.perform(post("/api/leads/" + UUID.randomUUID() + "/claim")
+                        .with(token(UUID.randomUUID(), "PROFESSIONAL")))
                 .andExpect(status().isForbidden());
     }
 

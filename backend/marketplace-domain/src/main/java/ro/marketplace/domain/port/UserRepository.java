@@ -11,6 +11,9 @@ public interface UserRepository {
 
     User save(User user);
 
+    /** Updates only editable profile fields, preserving credentials, roles and credits. */
+    User updateProfessionalProfile(User user, long expectedProfileVersion);
+
     Optional<User> findById(UUID id);
 
     Optional<User> findByEmail(String email);

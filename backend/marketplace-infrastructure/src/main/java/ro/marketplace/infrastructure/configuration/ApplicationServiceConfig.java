@@ -7,6 +7,8 @@ import ro.marketplace.application.service.AuditService;
 import ro.marketplace.application.service.AuditServiceImpl;
 import ro.marketplace.application.service.AuthService;
 import ro.marketplace.application.service.AuthServiceImpl;
+import ro.marketplace.application.service.ProfessionalProfileService;
+import ro.marketplace.application.service.ProfessionalProfileServiceImpl;
 import ro.marketplace.application.service.CreditPaymentService;
 import ro.marketplace.application.service.CustomerService;
 import ro.marketplace.application.service.CustomerServiceImpl;
@@ -54,6 +56,13 @@ public class ApplicationServiceConfig {
                                    UnitOfWork unitOfWork,
                                    Clock clock) {
         return new AuthServiceImpl(userRepository, creditGrantRepository, passwordHasher, unitOfWork, clock);
+    }
+
+    @Bean
+    public ProfessionalProfileService professionalProfileService(UserRepository users,
+                                                                 ServiceCategoryRepository categories,
+                                                                 UnitOfWork unitOfWork) {
+        return new ProfessionalProfileServiceImpl(users, categories, unitOfWork);
     }
 
     @Bean

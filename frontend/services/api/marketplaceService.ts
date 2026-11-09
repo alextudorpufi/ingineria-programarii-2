@@ -1,7 +1,7 @@
 import { apiFetch } from './apiClient';
 import type { RawLeadApiPayload } from '@/models/LeadModel';
 import type { AuthRole } from './authService';
-import type { CreditBundle, CreditPurchaseStatus, DisputeRecord, WalletTransaction } from '@/types';
+import type { CreditBundle, CreditPurchaseStatus, DisputeRecord, WalletTransaction, WorkMode } from '@/types';
 
 interface RawWalletTransaction {
   id: string;
@@ -62,6 +62,9 @@ export interface RaiseDisputePayload {
 }
 
 export interface CreateLeadPayload {
+  workMode: WorkMode;
+  requiredCapabilities: string[];
+  preferredCapabilities: string[];
   title: string;
   categoryId: string;
   subcategory: string;

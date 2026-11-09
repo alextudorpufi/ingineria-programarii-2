@@ -15,6 +15,7 @@ export interface ApiError {
   status: number;
   title: string;
   detail: string;
+  invalidParams?: Record<string, string>;
 }
 
 function isAuthRequest(endpoint: string): boolean {
@@ -24,6 +25,9 @@ function isAuthRequest(endpoint: string): boolean {
 async function readErrorMessage(response: Response): Promise<string> {
   try {
     const payload = (await response.json()) as Partial<ApiError> & { message?: string };
+    if (payload.invalidParams && Object.keys(payload.invalidParams).length > 0) {
+      return Object.values(payload.invalidParams).join(' ');
+    }
     return payload.detail || payload.title || payload.message || response.statusText;
   } catch {
     return response.statusText || 'A apărut o eroare neașteptată.';

@@ -1,12 +1,11 @@
 package ro.marketplace.infrastructure.persistence.entity;
 
-import jakarta.persistence.CollectionTable;
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
-import jakarta.persistence.ElementCollection;
+import jakarta.persistence.OneToOne;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,8 +16,6 @@ import ro.marketplace.infrastructure.persistence.audit.AuditableEntity;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -100,21 +97,6 @@ public class UserEntity extends AuditableEntity {
     @Column(name = "lockout_until")
     private LocalDateTime lockoutUntil;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_coverage_areas", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "area")
-    @Builder.Default
-    private List<String> coverageAreas = new ArrayList<>();
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_services_offered", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "service_name")
-    @Builder.Default
-    private List<String> servicesOffered = new ArrayList<>();
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "user_categories", joinColumns = @JoinColumn(name = "user_id"))
-    @Column(name = "category_name")
-    @Builder.Default
-    private List<String> categories = new ArrayList<>();
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private ProfessionalProfileEntity professionalProfile;
 }

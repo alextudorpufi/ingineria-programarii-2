@@ -1,5 +1,5 @@
 -- ==============================================================================
--- V3: Security hardening
+-- V6: Security hardening
 -- Adds professional verification, login-lockout state, and an auditable
 -- record of administrator-granted free credits.
 -- ==============================================================================

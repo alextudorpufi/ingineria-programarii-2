@@ -14,3 +14,6 @@ backend/target
 backend/*/target
 
 .DS_Store
+
+# Local analysis artifacts
+.scannerwork/

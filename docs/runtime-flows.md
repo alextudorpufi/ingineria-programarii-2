@@ -10,7 +10,7 @@ flowchart TD
   C -->|Yes| D[Resolve user roles]
   D --> E{Role selected}
   E -->|CLIENT| F[ClientDashboard]
-  E -->|PROFESSIONAL| G[ProfessionalDashboard]
+  E -->|PRO| G[ProfessionalDashboard]
   E -->|ADMIN| H[AdminDashboard]
   F --> I[Evaluate widget policies]
   G --> I
@@ -72,7 +72,7 @@ stateDiagram-v2
 flowchart LR
   Client[CLIENT] --> Own[OWN requests]
   Client --> Create[CREATE request]
-  Professional[PROFESSIONAL] --> Eligible[ELIGIBLE leads]
+  Professional[PRO] --> Eligible[ELIGIBLE leads]
   Professional --> Purchased[PURCHASED leads]
   Professional --> Credits[OWN credits and profile]
   Admin[ADMIN] --> Platform[PLATFORM moderation / users / disputes]

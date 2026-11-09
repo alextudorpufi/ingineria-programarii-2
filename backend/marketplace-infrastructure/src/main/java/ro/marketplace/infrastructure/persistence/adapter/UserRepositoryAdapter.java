@@ -3,10 +3,13 @@ package ro.marketplace.infrastructure.persistence.adapter;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.port.UserRepository;
 import ro.marketplace.infrastructure.persistence.PersistenceLimits;
 import ro.marketplace.infrastructure.persistence.entity.UserEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
+import ro.marketplace.infrastructure.persistence.mapper.ProfessionalProfileMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataUserRepository;
 
 import java.time.LocalDateTime;
@@ -31,6 +34,27 @@ public class UserRepositoryAdapter implements UserRepository {
         UserEntity entity = EntityMapper.toEntity(user);
         UserEntity saved = springDataUserRepository.save(entity);
         return EntityMapper.toDomain(saved);
+    }
+
+    @Override
+    @Transactional
+    public User updateProfessionalProfile(User user, long expectedProfileVersion) {
+        UserEntity entity = springDataUserRepository.findById(user.getId())
+                .orElseThrow(() -> new ResourceNotFoundException("Profilul nu a fost găsit."));
+        var profile = entity.getProfessionalProfile();
+        if (profile == null || profile.getVersion() == null || profile.getVersion() != expectedProfileVersion) {
+            throw new ConflictException("Profilul a fost modificat între timp. Reîncarcă datele înainte de a salva.");
+        }
+        entity.setName(user.getName());
+        entity.setCompanyName(user.getCompanyName());
+        entity.setTitle(user.getTitle());
+        entity.setPhone(user.getPhone());
+        entity.setBio(user.getBio());
+        ProfessionalProfileMapper.updateEntity(user.getProfessionalProfile(), profile);
+        // Touch every save, including identity-only edits, so @Version protects the whole form.
+        profile.setUpdatedAt(LocalDateTime.now());
+        springDataUserRepository.flush();
+        return EntityMapper.toDomain(entity);
     }
 
     @Override

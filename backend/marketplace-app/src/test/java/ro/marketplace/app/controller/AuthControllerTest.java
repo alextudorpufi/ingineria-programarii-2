@@ -115,9 +115,6 @@ class AuthControllerTest {
                 .creditsBalance(100)
                 .rating(BigDecimal.valueOf(5.00))
                 .trustScore(BigDecimal.valueOf(100.00))
-                .coverageAreas(List.of())
-                .servicesOffered(List.of())
-                .categories(List.of())
                 .build();
     }
 

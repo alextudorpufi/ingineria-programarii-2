@@ -27,7 +27,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/wallet")
-@PreAuthorize("hasAnyRole('PRO','PROFESSIONAL')")
+@PreAuthorize("hasRole('PRO')")
 public class CreditPaymentController {
 
     private final CreditPaymentService creditPaymentService;

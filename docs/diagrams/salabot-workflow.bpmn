@@ -1,0 +1,345 @@
+<?xml version='1.0' encoding='utf-8'?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" id="Definitions_Salabot" targetNamespace="https://marketplace.example/salabot">
+  <bpmn:process id="Process_Salabot" name="Salabot request qualification" isExecutable="false">
+    <bpmn:documentation>Proposed workflow based on docs/salabot-plan.md. Extraction includes bounded retries and at most one output repair. All operations enforce session ownership, revisions and idempotency. Unknown values remain null. Matching is deterministic and read-only. Publication requires explicit client action and the latest confirmed revision.</bpmn:documentation>
+    <bpmn:laneSet id="Lanes">
+      <bpmn:lane id="Lane_client" name="Client / Next.js">
+        <bpmn:flowNodeRef>Start</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Describe</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Recovery</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>RecoveryChoice</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Saved</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Form</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Clarify</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Review</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Approve</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Shortlist</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Decision</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SaveEnd</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_backend" name="Marketplace / Spring Boot">
+        <bpmn:flowNodeRef>Session</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Extract</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Usable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Merge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Complete</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Confirm</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Preview</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Matches</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>NoMatches</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Revalidate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Publishable</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Publish</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Published</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Start" name="Service needed" />
+    <bpmn:userTask id="Describe" name="Describe need or answer clarification" />
+    <bpmn:serviceTask id="Session" name="Check ownership / revision; save turn" />
+    <bpmn:serviceTask id="Extract" name="Extract structured fields; validate output; repair once" />
+    <bpmn:exclusiveGateway id="Usable" name="Usable output?" />
+    <bpmn:userTask id="Recovery" name="Preserve draft; choose retry, form or save" />
+    <bpmn:exclusiveGateway id="RecoveryChoice" name="Recovery choice" />
+    <bpmn:endEvent id="Saved" name="Draft saved" />
+    <bpmn:userTask id="Form" name="Complete or edit traditional form" />
+    <bpmn:serviceTask id="Merge" name="Validate and merge fields; invalidate old confirmation / preview" />
+    <bpmn:exclusiveGateway id="Complete" name="Required fields valid and complete?" />
+    <bpmn:userTask id="Clarify" name="Answer template questions about gaps / conflicts" />
+    <bpmn:userTask id="Review" name="Review editable summary and unknown values" />
+    <bpmn:exclusiveGateway id="Approve" name="Confirm this revision?" />
+    <bpmn:serviceTask id="Confirm" name="Record confirmed draft revision" />
+    <bpmn:serviceTask id="Preview" name="Filter and rank eligible profiles; create read-only preview" />
+    <bpmn:exclusiveGateway id="Matches" name="Any matches?" />
+    <bpmn:userTask id="Shortlist" name="View shortlist with factual reasons" />
+    <bpmn:userTask id="NoMatches" name="Review why no profiles qualify; keep constraints or edit" />
+    <bpmn:exclusiveGateway id="Decision" name="Client action" />
+    <bpmn:endEvent id="SaveEnd" name="Draft saved; no publication" />
+    <bpmn:serviceTask id="Revalidate" name="Check latest confirmation, request rules and current eligibility" />
+    <bpmn:exclusiveGateway id="Publishable" name="Publication valid?" />
+    <bpmn:serviceTask id="Publish" name="Publish request through request module; distribute to eligible leads" />
+    <bpmn:endEvent id="Published" name="Request published" />
+    <bpmn:sequenceFlow id="F01" sourceRef="Start" targetRef="Describe" />
+    <bpmn:sequenceFlow id="F02" sourceRef="Describe" targetRef="Session" />
+    <bpmn:sequenceFlow id="F03" sourceRef="Session" targetRef="Extract" />
+    <bpmn:sequenceFlow id="F04" sourceRef="Extract" targetRef="Usable" />
+    <bpmn:sequenceFlow id="F05" sourceRef="Usable" targetRef="Recovery" name="No / provider failure" />
+    <bpmn:sequenceFlow id="F06" sourceRef="Recovery" targetRef="RecoveryChoice" />
+    <bpmn:sequenceFlow id="F07" sourceRef="RecoveryChoice" targetRef="Extract" name="Retry" />
+    <bpmn:sequenceFlow id="F08" sourceRef="RecoveryChoice" targetRef="Form" name="Form" />
+    <bpmn:sequenceFlow id="F09" sourceRef="RecoveryChoice" targetRef="Saved" name="Save / exit" />
+    <bpmn:sequenceFlow id="F10" sourceRef="Usable" targetRef="Merge" name="Yes" />
+    <bpmn:sequenceFlow id="F11" sourceRef="Form" targetRef="Merge" />
+    <bpmn:sequenceFlow id="F12" sourceRef="Merge" targetRef="Complete" />
+    <bpmn:sequenceFlow id="F13" sourceRef="Complete" targetRef="Clarify" name="No" />
+    <bpmn:sequenceFlow id="F14" sourceRef="Clarify" targetRef="Describe" name="Next turn" />
+    <bpmn:sequenceFlow id="F15" sourceRef="Complete" targetRef="Review" name="Yes" />
+    <bpmn:sequenceFlow id="F16" sourceRef="Review" targetRef="Approve" />
+    <bpmn:sequenceFlow id="F17" sourceRef="Approve" targetRef="Form" name="Edit" />
+    <bpmn:sequenceFlow id="F18" sourceRef="Approve" targetRef="Confirm" name="Confirm" />
+    <bpmn:sequenceFlow id="F19" sourceRef="Confirm" targetRef="Preview" />
+    <bpmn:sequenceFlow id="F20" sourceRef="Preview" targetRef="Matches" />
+    <bpmn:sequenceFlow id="F21" sourceRef="Matches" targetRef="Shortlist" name="Yes" />
+    <bpmn:sequenceFlow id="F22" sourceRef="Matches" targetRef="NoMatches" name="No" />
+    <bpmn:sequenceFlow id="F23" sourceRef="Shortlist" targetRef="Decision" />
+    <bpmn:sequenceFlow id="F24" sourceRef="NoMatches" targetRef="Decision" />
+    <bpmn:sequenceFlow id="F25" sourceRef="Decision" targetRef="Form" name="Edit constraints" />
+    <bpmn:sequenceFlow id="F26" sourceRef="Decision" targetRef="SaveEnd" name="Save / exit" />
+    <bpmn:sequenceFlow id="F27" sourceRef="Decision" targetRef="Revalidate" name="Explicitly publish" />
+    <bpmn:sequenceFlow id="F28" sourceRef="Revalidate" targetRef="Publishable" />
+    <bpmn:sequenceFlow id="F29" sourceRef="Publishable" targetRef="Review" name="No: resolve / reconfirm" />
+    <bpmn:sequenceFlow id="F30" sourceRef="Publishable" targetRef="Publish" name="Yes" />
+    <bpmn:sequenceFlow id="F31" sourceRef="Publish" targetRef="Published" />
+  </bpmn:process>
+  <bpmn:collaboration id="Collaboration">
+    <bpmn:participant id="Marketplace" name="Salabot — proposed AI-assisted request workflow" processRef="Process_Salabot" />
+    <bpmn:participant id="Provider" name="External LLM provider" />
+    <bpmn:messageFlow id="M01" sourceRef="Extract" targetRef="Provider" name="Minimized context + schema" />
+    <bpmn:messageFlow id="M02" sourceRef="Provider" targetRef="Extract" name="Candidate fields / failure" />
+  </bpmn:collaboration>
+  <bpmndi:BPMNDiagram id="Diagram">
+    <bpmndi:BPMNPlane id="Plane" bpmnElement="Collaboration">
+      <bpmndi:BPMNShape id="DI_Marketplace" bpmnElement="Marketplace">
+        <dc:Bounds x="0" y="70" width="1040" height="2500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Lane_client" bpmnElement="Lane_client">
+        <dc:Bounds x="0" y="70" width="450" height="2500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Lane_backend" bpmnElement="Lane_backend">
+        <dc:Bounds x="450" y="70" width="590" height="2500" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Provider" bpmnElement="Provider">
+        <dc:Bounds x="1100" y="300" width="270" height="160" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Start" bpmnElement="Start">
+        <dc:Bounds x="227" y="110" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Describe" bpmnElement="Describe">
+        <dc:Bounds x="130" y="200" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Session" bpmnElement="Session">
+        <dc:Bounds x="650" y="200" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Extract" bpmnElement="Extract">
+        <dc:Bounds x="650" y="340" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Usable" bpmnElement="Usable">
+        <dc:Bounds x="740" y="470" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Recovery" bpmnElement="Recovery">
+        <dc:Bounds x="130" y="470" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_RecoveryChoice" bpmnElement="RecoveryChoice">
+        <dc:Bounds x="220" y="590" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Saved" bpmnElement="Saved">
+        <dc:Bounds x="65" y="680" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Form" bpmnElement="Form">
+        <dc:Bounds x="130" y="740" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Merge" bpmnElement="Merge">
+        <dc:Bounds x="650" y="740" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Complete" bpmnElement="Complete">
+        <dc:Bounds x="740" y="880" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Clarify" bpmnElement="Clarify">
+        <dc:Bounds x="130" y="1010" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Review" bpmnElement="Review">
+        <dc:Bounds x="130" y="1160" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Approve" bpmnElement="Approve">
+        <dc:Bounds x="220" y="1280" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Confirm" bpmnElement="Confirm">
+        <dc:Bounds x="650" y="1400" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Preview" bpmnElement="Preview">
+        <dc:Bounds x="650" y="1530" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Matches" bpmnElement="Matches">
+        <dc:Bounds x="740" y="1660" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Shortlist" bpmnElement="Shortlist">
+        <dc:Bounds x="130" y="1780" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_NoMatches" bpmnElement="NoMatches">
+        <dc:Bounds x="650" y="1780" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Decision" bpmnElement="Decision">
+        <dc:Bounds x="220" y="1930" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_SaveEnd" bpmnElement="SaveEnd">
+        <dc:Bounds x="65" y="2070" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Revalidate" bpmnElement="Revalidate">
+        <dc:Bounds x="650" y="2070" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Publishable" bpmnElement="Publishable">
+        <dc:Bounds x="740" y="2200" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Publish" bpmnElement="Publish">
+        <dc:Bounds x="650" y="2340" width="230" height="66" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DI_Published" bpmnElement="Published">
+        <dc:Bounds x="747" y="2480" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="DI_F01" bpmnElement="F01">
+        <di:waypoint x="245" y="146" />
+        <di:waypoint x="245" y="200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F02" bpmnElement="F02">
+        <di:waypoint x="360" y="233" />
+        <di:waypoint x="650" y="233" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F03" bpmnElement="F03">
+        <di:waypoint x="765" y="266" />
+        <di:waypoint x="765" y="340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F04" bpmnElement="F04">
+        <di:waypoint x="765" y="406" />
+        <di:waypoint x="765" y="470" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F05" bpmnElement="F05">
+        <di:waypoint x="740" y="495" />
+        <di:waypoint x="360" y="495" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F06" bpmnElement="F06">
+        <di:waypoint x="245" y="536" />
+        <di:waypoint x="245" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F07" bpmnElement="F07">
+        <di:waypoint x="270" y="615" />
+        <di:waypoint x="545" y="615" />
+        <di:waypoint x="545" y="373" />
+        <di:waypoint x="650" y="373" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F08" bpmnElement="F08">
+        <di:waypoint x="245" y="640" />
+        <di:waypoint x="245" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F09" bpmnElement="F09">
+        <di:waypoint x="220" y="615" />
+        <di:waypoint x="83" y="615" />
+        <di:waypoint x="83" y="680" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F10" bpmnElement="F10">
+        <di:waypoint x="765" y="520" />
+        <di:waypoint x="765" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F11" bpmnElement="F11">
+        <di:waypoint x="360" y="773" />
+        <di:waypoint x="650" y="773" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F12" bpmnElement="F12">
+        <di:waypoint x="765" y="806" />
+        <di:waypoint x="765" y="880" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F13" bpmnElement="F13">
+        <di:waypoint x="740" y="905" />
+        <di:waypoint x="500" y="905" />
+        <di:waypoint x="500" y="1043" />
+        <di:waypoint x="360" y="1043" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F14" bpmnElement="F14">
+        <di:waypoint x="130" y="1043" />
+        <di:waypoint x="40" y="1043" />
+        <di:waypoint x="40" y="233" />
+        <di:waypoint x="130" y="233" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F15" bpmnElement="F15">
+        <di:waypoint x="765" y="930" />
+        <di:waypoint x="765" y="1120" />
+        <di:waypoint x="245" y="1120" />
+        <di:waypoint x="245" y="1160" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F16" bpmnElement="F16">
+        <di:waypoint x="245" y="1226" />
+        <di:waypoint x="245" y="1280" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F17" bpmnElement="F17">
+        <di:waypoint x="220" y="1305" />
+        <di:waypoint x="100" y="1305" />
+        <di:waypoint x="100" y="773" />
+        <di:waypoint x="130" y="773" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F18" bpmnElement="F18">
+        <di:waypoint x="270" y="1305" />
+        <di:waypoint x="765" y="1305" />
+        <di:waypoint x="765" y="1400" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F19" bpmnElement="F19">
+        <di:waypoint x="765" y="1466" />
+        <di:waypoint x="765" y="1530" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F20" bpmnElement="F20">
+        <di:waypoint x="765" y="1596" />
+        <di:waypoint x="765" y="1660" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F21" bpmnElement="F21">
+        <di:waypoint x="740" y="1685" />
+        <di:waypoint x="245" y="1685" />
+        <di:waypoint x="245" y="1780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F22" bpmnElement="F22">
+        <di:waypoint x="765" y="1710" />
+        <di:waypoint x="765" y="1780" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F23" bpmnElement="F23">
+        <di:waypoint x="245" y="1846" />
+        <di:waypoint x="245" y="1930" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F24" bpmnElement="F24">
+        <di:waypoint x="765" y="1846" />
+        <di:waypoint x="765" y="1955" />
+        <di:waypoint x="270" y="1955" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F25" bpmnElement="F25">
+        <di:waypoint x="220" y="1955" />
+        <di:waypoint x="20" y="1955" />
+        <di:waypoint x="20" y="720" />
+        <di:waypoint x="245" y="720" />
+        <di:waypoint x="245" y="740" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F26" bpmnElement="F26">
+        <di:waypoint x="245" y="1980" />
+        <di:waypoint x="245" y="2030" />
+        <di:waypoint x="83" y="2030" />
+        <di:waypoint x="83" y="2070" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F27" bpmnElement="F27">
+        <di:waypoint x="270" y="1955" />
+        <di:waypoint x="480" y="1955" />
+        <di:waypoint x="480" y="2103" />
+        <di:waypoint x="650" y="2103" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F28" bpmnElement="F28">
+        <di:waypoint x="765" y="2136" />
+        <di:waypoint x="765" y="2200" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F29" bpmnElement="F29">
+        <di:waypoint x="740" y="2225" />
+        <di:waypoint x="410" y="2225" />
+        <di:waypoint x="410" y="1193" />
+        <di:waypoint x="360" y="1193" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F30" bpmnElement="F30">
+        <di:waypoint x="765" y="2250" />
+        <di:waypoint x="765" y="2340" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_F31" bpmnElement="F31">
+        <di:waypoint x="765" y="2406" />
+        <di:waypoint x="765" y="2480" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_M01" bpmnElement="M01">
+        <di:waypoint x="880" y="355" />
+        <di:waypoint x="1100" y="355" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DI_M02" bpmnElement="M02">
+        <di:waypoint x="1100" y="395" />
+        <di:waypoint x="880" y="395" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

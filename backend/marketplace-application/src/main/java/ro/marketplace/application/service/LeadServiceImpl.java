@@ -15,6 +15,7 @@ import ro.marketplace.domain.port.UnitOfWork;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -59,6 +60,7 @@ public class LeadServiceImpl implements LeadService {
             if (lead.getCategoryId() == null || !serviceCategoryRepository.existsById(lead.getCategoryId())) {
                 throw new ValidationException("Unknown service category: " + lead.getCategoryId());
             }
+            normalizeMatchingRequirements(lead);
             if (lead.getId() == null) {
                 lead.setId(UUID.randomUUID());
             }
@@ -90,6 +92,31 @@ public class LeadServiceImpl implements LeadService {
                             "maxPros", saved.getMaxPros()));
             return saved;
         });
+    }
+
+    private void normalizeMatchingRequirements(Lead lead) {
+        if (lead.getWorkMode() == null) {
+            throw new ValidationException("Selectează modul de lucru: la locație sau la distanță.");
+        }
+        List<String> required = normalizeCapabilities(lead.getRequiredCapabilities());
+        List<String> preferred = normalizeCapabilities(lead.getPreferredCapabilities()).stream()
+                .filter(value -> required.stream().noneMatch(value::equalsIgnoreCase)).toList();
+        lead.setRequiredCapabilities(required);
+        lead.setPreferredCapabilities(preferred);
+    }
+
+    private List<String> normalizeCapabilities(List<String> values) {
+        if (values == null) return List.of();
+        if (values.size() > 50 || values.stream()
+                .anyMatch(value -> value == null || value.isBlank() || value.length() > 255)) {
+            throw new ValidationException("Folosește maximum 50 de competențe în fiecare listă, cu 1–255 de caractere fiecare.");
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String value : values) {
+            String trimmed = value.trim();
+            if (normalized.stream().noneMatch(trimmed::equalsIgnoreCase)) normalized.add(trimmed);
+        }
+        return List.copyOf(normalized);
     }
 
     @Override

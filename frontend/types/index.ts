@@ -4,6 +4,25 @@
  */
 
 export type UserRole = 'client' | 'pro' | 'admin';
+export type WorkMode = 'ONSITE' | 'REMOTE';
+
+export interface EditableProfessionalProfile {
+  name: string;
+  companyName: string | null;
+  title: string | null;
+  phone: string | null;
+  bio: string | null;
+  categories: string[];
+  servicesOffered: string[];
+  coverageAreas: string[];
+  capabilities: string[];
+  supportsOnsite: boolean | null;
+  supportsRemote: boolean | null;
+  yearsExperience: number | null;
+  acceptingLeads: boolean;
+  onboardingStatus: 'DRAFT' | 'COMPLETE';
+  version: number;
+}
 
 export interface ServiceCategory {
   id: string;
@@ -42,6 +61,9 @@ export interface Lead {
   subcategory: string;
   description: string;
   location: string;
+  workMode: WorkMode | null;
+  requiredCapabilities: string[];
+  preferredCapabilities: string[];
   budget: {
     min: number;
     max: number;

@@ -29,6 +29,9 @@ public final class LeadDtoMapper {
                 .subcategory(req.subcategory())
                 .description(req.description())
                 .location(req.location())
+                .workMode(req.workMode())
+                .requiredCapabilities(req.requiredCapabilities() == null ? List.of() : req.requiredCapabilities())
+                .preferredCapabilities(req.preferredCapabilities() == null ? List.of() : req.preferredCapabilities())
                 .budgetMin(req.budgetMin())
                 .budgetMax(req.budgetMax())
                 .budgetCurrency(req.budgetCurrency() != null ? req.budgetCurrency() : "RON")
@@ -132,7 +135,10 @@ public final class LeadDtoMapper {
                 passportDto,
                 matchDto,
                 domain.getCreatedAt(),
-                ownedByCurrentUser
+                ownedByCurrentUser,
+                domain.getWorkMode(),
+                domain.getRequiredCapabilities(),
+                domain.getPreferredCapabilities()
         );
     }
 

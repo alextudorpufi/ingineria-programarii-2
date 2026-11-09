@@ -145,6 +145,26 @@ class ClaimLeadIntegrationTest {
         return userRepository.save(user);
     }
 
+    @Test
+    void matchingRequirementsPersistAndLegacyWorkModeRemainsUnknown() {
+        User client = createUser("matching-client@example.com", 0, "client");
+        Lead legacy = createLead(client, 4, 30);
+        UUID legacyId = legacy.getId();
+        assertThat(legacy.getWorkMode()).isNull();
+        assertThat(legacy.getRequiredCapabilities()).isEmpty();
+
+        legacy.setId(null);
+        legacy.setWorkMode(Lead.WorkMode.REMOTE);
+        legacy.setRequiredCapabilities(List.of(" Payments ", "payments"));
+        legacy.setPreferredCapabilities(List.of("PAYMENTS", "Branding"));
+        Lead created = leadService.createLead(legacy);
+        Lead loaded = leadRepository.findById(created.getId()).orElseThrow();
+        assertThat(loaded.getWorkMode()).isEqualTo(Lead.WorkMode.REMOTE);
+        assertThat(loaded.getRequiredCapabilities()).containsExactly("Payments");
+        assertThat(loaded.getPreferredCapabilities()).containsExactly("Branding");
+        assertThat(leadRepository.findById(legacyId).orElseThrow().getWorkMode()).isNull();
+    }
+
     private Lead createLead(User client, int maxPros, int leadPrice) {
         Lead lead = Lead.builder()
                 .id(UUID.randomUUID())

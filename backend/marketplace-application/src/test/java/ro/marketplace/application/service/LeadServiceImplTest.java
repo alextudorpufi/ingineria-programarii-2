@@ -189,6 +189,9 @@ class LeadServiceImplTest {
         Lead lead = Lead.builder()
                 .title("Website")
                 .categoryId("it-software")
+                .workMode(Lead.WorkMode.REMOTE)
+                .requiredCapabilities(List.of(" Payments ", "payments"))
+                .preferredCapabilities(List.of("PAYMENTS", " Branding ", "branding"))
                 .budgetMin(BigDecimal.TEN)
                 .budgetMax(BigDecimal.valueOf(20))
                 .clientId(UUID.randomUUID())
@@ -200,12 +203,31 @@ class LeadServiceImplTest {
         Lead created = leadService.createLead(lead);
 
         assertThat(created.getId()).isNotNull();
+        assertThat(created.getRequiredCapabilities()).containsExactly("Payments");
+        assertThat(created.getPreferredCapabilities()).containsExactly("Branding");
         assertThat(created.getStatus()).isEqualTo(LeadStatus.VALIDAT);
         assertThat(created.getLeadPrice()).isEqualTo(30);
         assertThat(created.getMaxPros()).isEqualTo(4);
         assertThat(created.getCreatedAt()).isNotNull();
         verify(auditService).recordEvent(eq("Lead"), eq(created.getId().toString()), eq(AuditAction.CREATE),
                 eq("client@example.com"), anyString());
+    }
+
+    @Test
+    void createLeadRequiresExplicitWorkModeAndBoundedCapabilities() {
+        Lead lead = Lead.builder().categoryId("it-software").clientId(UUID.randomUUID())
+                .budgetMin(BigDecimal.TEN).budgetMax(BigDecimal.TEN).build();
+        when(serviceCategoryRepository.existsById("it-software")).thenReturn(true);
+        assertThatThrownBy(() -> leadService.createLead(lead)).isInstanceOf(ValidationException.class)
+                .hasMessageContaining("modul de lucru");
+        lead.setWorkMode(Lead.WorkMode.ONSITE);
+        for (List<String> invalid : List.of(List.of(" "), List.of("x".repeat(256)),
+                java.util.Collections.nCopies(51, "Payments"))) {
+            lead.setRequiredCapabilities(invalid);
+            assertThatThrownBy(() -> leadService.createLead(lead)).isInstanceOf(ValidationException.class)
+                    .hasMessageContaining("50 de competențe");
+        }
+        verify(leadRepository, never()).save(any());
     }
 
     @Test

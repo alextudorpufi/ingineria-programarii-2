@@ -146,3 +146,16 @@ Once analysis completes, inspect the results at:
 - **Backend Quality Gate & Issues**: `http://localhost:9000/dashboard?id=marketplace-backend`
 - **Frontend Quality Gate & Issues**: `http://localhost:9000/dashboard?id=marketplace-frontend`
 - **Unified Monorepo (if scanned with `--monorepo`)**: `http://localhost:9000/dashboard?id=marketplace`
+
+## Verification runner
+
+`./run-sonar-analysis.sh --both` builds the analyzer from `docker/sonar/Dockerfile`
+(the single scanner Dockerfile). The Maven scan installs reactor artifacts before
+analysis and uses Maven's module source/test detection. The frontend scan includes
+components, hooks, models, services and context, not only `app/`. For the local
+SonarQube 9.9 parser, the runner generates a temporary TypeScript configuration
+with `moduleResolution: node`; the Next.js configuration remains unchanged.
+
+Run backend tests and frontend lint/build separately before analysis. An uploaded
+analysis is not proof that the Quality Gate passed: check each dashboard after
+server processing, including coverage and security hotspot review conditions.

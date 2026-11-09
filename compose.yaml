@@ -92,7 +92,7 @@ services:
       PGUSER: ${DB_USER:-marketplace}
       PGPASSWORD: ${DB_PASSWORD:-local_dev_password}
     volumes:
-      - ./scripts/populate_5000_records.sql:/scripts/populate_5000_records.sql:ro
+      - ./scripts:/scripts:ro
     entrypoint:
       - sh
       - -c
@@ -128,7 +128,7 @@ services:
       PGUSER: ${DB_USER:-marketplace}
       PGPASSWORD: ${DB_PASSWORD:-local_dev_password}
     volumes:
-      - ./scripts/populate_100000_records.sql:/scripts/populate_100000_records.sql:ro
+      - ./scripts:/scripts:ro
     entrypoint:
       - sh
       - -c
@@ -183,7 +183,7 @@ services:
       - sonarqube_extensions:/opt/sonarqube/extensions
       - sonarqube_logs:/opt/sonarqube/logs
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9000/api/system/status || exit 1"]
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/api/system/status | grep -q '\"status\":\"UP\"'"]
       interval: 10s
       timeout: 5s
       retries: 25
@@ -196,7 +196,7 @@ services:
   sonar-analyzer:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/sonar/Dockerfile
     container_name: marketplace-sonar-analyzer
     profiles:
       - analysis
