@@ -17,4 +17,10 @@ public interface DisputeRepository {
     List<Dispute> findByProId(UUID proId);
 
     List<Dispute> findByStatus(String status);
+
+    /**
+     * @return {@code true} when the professional already has an unresolved dispute
+     *         for the same lead
+     */
+    boolean existsOpenDispute(UUID leadId, UUID proId);
 }

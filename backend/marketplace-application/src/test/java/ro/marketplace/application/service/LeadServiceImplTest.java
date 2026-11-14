@@ -13,8 +13,10 @@ import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
+import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.LeadRepository;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
+import ro.marketplace.domain.port.UserRepository;
 
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -46,6 +48,9 @@ class LeadServiceImplTest {
     private ServiceCategoryRepository serviceCategoryRepository;
 
     @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private WalletService walletService;
 
     @Mock
@@ -55,8 +60,16 @@ class LeadServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        leadService = new LeadServiceImpl(leadRepository, serviceCategoryRepository, walletService,
-                auditService, new DirectUnitOfWork(), CLOCK);
+        leadService = new LeadServiceImpl(leadRepository, serviceCategoryRepository, userRepository,
+                walletService, auditService, new DirectUnitOfWork(), CLOCK);
+    }
+
+    private static User verifiedPro(UUID proId) {
+        return User.builder()
+                .id(proId)
+                .role("pro")
+                .proVerified(true)
+                .build();
     }
 
     @Test
@@ -76,6 +89,7 @@ class LeadServiceImplTest {
                 .build();
 
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
+        when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(false);
         when(leadRepository.reserveSlot(leadId)).thenReturn(true);
         when(leadRepository.saveClaim(any(LeadClaim.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -98,6 +112,7 @@ class LeadServiceImplTest {
 
         Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).build();
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
+        when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(true);
 
         assertThatThrownBy(() -> leadService.claimLead(leadId, proId, "DevCraft Studio"))
@@ -115,6 +130,7 @@ class LeadServiceImplTest {
 
         Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).build();
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
+        when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(false);
         when(leadRepository.reserveSlot(leadId)).thenReturn(false);
 
@@ -132,6 +148,7 @@ class LeadServiceImplTest {
 
         Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).build();
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
+        when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(false);
         when(leadRepository.reserveSlot(leadId)).thenReturn(true);
         when(leadRepository.saveClaim(any(LeadClaim.class))).thenThrow(new IllegalStateException("db failure"));

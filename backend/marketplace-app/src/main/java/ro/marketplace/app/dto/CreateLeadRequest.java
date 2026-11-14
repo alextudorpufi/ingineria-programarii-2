@@ -7,7 +7,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -28,6 +28,7 @@ public record CreateLeadRequest(
         String subcategory,
 
         @NotBlank(message = "Description is required")
+        @Size(max = 20_000, message = "Description must not exceed 20000 characters")
         String description,
 
         @NotBlank(message = "Location is required")
@@ -36,12 +37,12 @@ public record CreateLeadRequest(
 
         @NotNull(message = "Minimum budget is required")
         @DecimalMin(value = "0.0", message = "Budget min must be positive")
-        @Digits(integer = 12, fraction = 2, message = "Budget min has an invalid format")
+        @Digits(integer = 10, fraction = 2, message = "Budget min has an invalid format")
         BigDecimal budgetMin,
 
         @NotNull(message = "Maximum budget is required")
         @DecimalMin(value = "0.0", message = "Budget max must be positive")
-        @Digits(integer = 12, fraction = 2, message = "Budget max has an invalid format")
+        @Digits(integer = 10, fraction = 2, message = "Budget max has an invalid format")
         BigDecimal budgetMax,
 
         @Size(max = 20, message = "Budget currency must not exceed 20 characters")
@@ -53,11 +54,11 @@ public record CreateLeadRequest(
         @Size(max = 255, message = "Timeline must not exceed 255 characters")
         String timeline,
 
-        @Positive(message = "Lead price must be positive")
+        @PositiveOrZero(message = "Lead price must not be negative")
         @Max(value = 10_000, message = "Lead price must not exceed 10000")
         Integer leadPrice,
 
-        @Positive(message = "Max pros must be positive")
+        @PositiveOrZero(message = "Max pros must not be negative")
         @Max(value = 100, message = "Max pros must not exceed 100")
         Integer maxPros,
 
@@ -65,7 +66,8 @@ public record CreateLeadRequest(
         @Size(max = 255, message = "Client name must not exceed 255 characters")
         String clientName,
 
-        @NotBlank(message = "Client phone is required")
+        // Optional: users who registered without a phone can still publish. The
+        // mapper stores an empty string, which the NOT NULL column accepts.
         @Size(max = 50, message = "Client phone must not exceed 50 characters")
         String clientPhone,
 

@@ -12,6 +12,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
+import ro.marketplace.application.service.AuditService;
 import ro.marketplace.application.service.AuthService;
 import ro.marketplace.domain.model.User;
 
@@ -37,6 +38,9 @@ class AdminControllerTest {
 
     @MockitoBean
     private AuthService authService;
+
+    @MockitoBean
+    private AuditService auditService;
 
     @Test
     @DisplayName("POST /api/admin/verify/{id} is forbidden for non-administrators")

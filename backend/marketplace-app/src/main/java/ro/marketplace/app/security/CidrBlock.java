@@ -33,7 +33,7 @@ public final class CidrBlock {
             throw new IllegalArgumentException("Invalid CIDR address: " + cidr, ex);
         }
 
-        byte[] bytes = address.getAddress();
+        byte[] bytes = normalize(address.getAddress());
         int defaultPrefix = bytes.length * 8;
         int prefix = separator < 0 ? defaultPrefix : Integer.parseInt(value.substring(separator + 1));
         if (prefix < 0 || prefix > defaultPrefix) {
@@ -50,7 +50,7 @@ public final class CidrBlock {
     }
 
     public boolean matches(InetAddress candidate) {
-        byte[] candidateBytes = candidate.getAddress();
+        byte[] candidateBytes = normalize(candidate.getAddress());
         if (candidateBytes.length != network.length) {
             return false;
         }
@@ -66,5 +66,26 @@ public final class CidrBlock {
         }
         int mask = 0xFF << (8 - remainingBits);
         return (candidateBytes[fullBytes] & mask) == (network[fullBytes] & mask);
+    }
+
+    /**
+     * An IPv4 client can reach the JVM as an IPv4-mapped IPv6 address
+     * ({@code ::ffff:203.0.113.7}) depending on the socket/container stack.
+     * Collapse those 16-byte addresses to their 4-byte IPv4 form before
+     * comparing so the configured IPv4 CIDRs keep matching.
+     */
+    private static byte[] normalize(byte[] bytes) {
+        if (bytes.length != 16) {
+            return bytes;
+        }
+        for (int i = 0; i < 10; i++) {
+            if (bytes[i] != 0) {
+                return bytes;
+            }
+        }
+        if ((bytes[10] & 0xFF) != 0xFF || (bytes[11] & 0xFF) != 0xFF) {
+            return bytes;
+        }
+        return Arrays.copyOfRange(bytes, 12, 16);
     }
 }

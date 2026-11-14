@@ -106,7 +106,7 @@ class LeadControllerTest {
 
         mockMvc.perform(get("/api/leads").with(token(UUID.randomUUID(), "PRO")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.content[0].client.phone").value("+407 ••• ••• 05"))
+                .andExpect(jsonPath("$.content[0].client.phone").value("•••• ••• 05"))
                 .andExpect(jsonPath("$.content[0].client.email").value("e•••••@florariapetale.ro"));
     }
 

@@ -19,6 +19,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 
 @Repository
 public class LeadRepositoryAdapter implements LeadRepository {
@@ -77,7 +78,7 @@ public class LeadRepositoryAdapter implements LeadRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Lead> findPage(int page, int size) {
-        return springDataLeadRepository.findAll(PageRequest.of(page, size)).stream()
+        return springDataLeadRepository.findAll(pageRequest(page, size)).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
     }
@@ -85,7 +86,7 @@ public class LeadRepositoryAdapter implements LeadRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Lead> findPageByCategoryId(String categoryId, int page, int size) {
-        return springDataLeadRepository.findByCategoryId(categoryId, PageRequest.of(page, size)).stream()
+        return springDataLeadRepository.findByCategoryId(categoryId, pageRequest(page, size)).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
     }
@@ -93,9 +94,18 @@ public class LeadRepositoryAdapter implements LeadRepository {
     @Override
     @Transactional(readOnly = true)
     public List<Lead> findPageByStatus(LeadStatus status, int page, int size) {
-        return springDataLeadRepository.findByStatus(status.getDbValue(), PageRequest.of(page, size)).stream()
+        return springDataLeadRepository.findByStatus(status.getDbValue(), pageRequest(page, size)).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
+    }
+
+    /**
+     * Stable ordering is required for offset pagination: without it, rows can be
+     * repeated or skipped when the underlying table changes between page loads.
+     */
+    private static PageRequest pageRequest(int page, int size) {
+        Sort sort = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
+        return PageRequest.of(page, size, sort);
     }
 
     @Override
