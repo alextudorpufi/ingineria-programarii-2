@@ -10,11 +10,17 @@ import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
+import ro.marketplace.domain.model.Lead;
+import ro.marketplace.domain.model.LeadClaim;
+import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.DisputeRepository;
+import ro.marketplace.domain.port.LeadRepository;
+import ro.marketplace.domain.port.UserRepository;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -37,6 +43,12 @@ class DisputeServiceImplTest {
     private DisputeRepository disputeRepository;
 
     @Mock
+    private LeadRepository leadRepository;
+
+    @Mock
+    private UserRepository userRepository;
+
+    @Mock
     private WalletService walletService;
 
     @Mock
@@ -46,8 +58,8 @@ class DisputeServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        disputeService = new DisputeServiceImpl(disputeRepository, walletService, auditService,
-                new DirectUnitOfWork(), CLOCK);
+        disputeService = new DisputeServiceImpl(disputeRepository, leadRepository, userRepository,
+                walletService, auditService, new DirectUnitOfWork(), CLOCK);
     }
 
     @Test
@@ -55,6 +67,21 @@ class DisputeServiceImplTest {
     void raiseDispute_Success() {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
+        when(userRepository.findById(proId)).thenReturn(Optional.of(User.builder()
+                .id(proId)
+                .role("pro")
+                .proVerified(true)
+                .build()));
+        when(leadRepository.findById(leadId)).thenReturn(Optional.of(Lead.builder()
+                .id(leadId)
+                .title("Lead")
+                .leadPrice(30)
+                .build()));
+        when(leadRepository.findClaimsByLeadId(leadId)).thenReturn(List.of(LeadClaim.builder()
+                .leadId(leadId)
+                .proId(proId)
+                .build()));
+        when(disputeRepository.existsOpenDispute(leadId, proId)).thenReturn(false);
         when(disputeRepository.save(any(Dispute.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Dispute dispute = disputeService.raiseDispute(leadId, "Lead", proId, "Pro",
@@ -86,7 +113,8 @@ class DisputeServiceImplTest {
 
         assertThat(resolved.getStatus()).isEqualTo(DisputeStatus.APROBAT);
         assertThat(resolved.getResolvedAt()).isNotNull();
-        verify(walletService).refundCredits(proId, 30, "Rambursare sesizare aprobată #" + disputeId, leadId);
+        verify(walletService).refundCredits(proId, 30, "Rambursare sesizare aprobată #" + disputeId, leadId,
+                "admin@marketplace.ro");
         verify(auditService).recordEvent(eq("Dispute"), eq(disputeId.toString()),
                 eq(AuditAction.RESOLVE_DISPUTE), eq("admin@marketplace.ro"), anyString());
     }
@@ -105,7 +133,7 @@ class DisputeServiceImplTest {
         assertThatThrownBy(() -> disputeService.resolveDispute(disputeId, true, "again", "admin"))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("already resolved");
-        verify(walletService, never()).refundCredits(any(), anyInt(), any(), any());
+        verify(walletService, never()).refundCredits(any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -124,6 +152,6 @@ class DisputeServiceImplTest {
         Dispute resolved = disputeService.resolveDispute(disputeId, false, "rejected", "admin");
 
         assertThat(resolved.getStatus()).isEqualTo(DisputeStatus.RESPINS);
-        verify(walletService, never()).refundCredits(any(), anyInt(), any(), any());
+        verify(walletService, never()).refundCredits(any(), anyInt(), any(), any(), any());
     }
 }

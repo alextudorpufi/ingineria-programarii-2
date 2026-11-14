@@ -13,6 +13,12 @@ public interface WalletService {
 
     WalletTransaction refundCredits(UUID userId, int credits, String description, UUID leadId);
 
+    /**
+     * @param actor the administrator or system component that approved the refund;
+     *              recorded in the audit trail instead of a hard-coded "admin"
+     */
+    WalletTransaction refundCredits(UUID userId, int credits, String description, UUID leadId, String actor);
+
     List<WalletTransaction> getUserTransactions(UUID userId);
 
     int getBalance(UUID userId);

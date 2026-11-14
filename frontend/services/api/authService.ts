@@ -13,6 +13,7 @@ export interface UserProfile {
   avatarUrl?: string | null;
   bio?: string | null;
   verifiedBadge: boolean;
+  proVerified?: boolean;
   rating: number;
   reviewCount: number;
   creditsBalance: number;

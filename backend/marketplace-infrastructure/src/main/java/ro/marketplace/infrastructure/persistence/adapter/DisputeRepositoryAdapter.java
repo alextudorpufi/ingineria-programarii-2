@@ -3,6 +3,7 @@ package ro.marketplace.infrastructure.persistence.adapter;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.port.DisputeRepository;
 import ro.marketplace.infrastructure.persistence.PersistenceLimits;
 import ro.marketplace.infrastructure.persistence.entity.DisputeEntity;
@@ -27,7 +28,15 @@ public class DisputeRepositoryAdapter implements DisputeRepository {
     @Transactional
     public Dispute save(Dispute dispute) {
         Objects.requireNonNull(dispute, "dispute must not be null");
-        DisputeEntity entity = EntityMapper.toEntity(dispute);
+        // Update the managed entity instead of rebuilding it: rebuilding loses the
+        // @Version value, which makes Spring Data treat the row as new and persist
+        // an INSERT for an existing primary key.
+        DisputeEntity entity = springDataDisputeRepository.findById(dispute.getId())
+                .map(existing -> {
+                    EntityMapper.updateEntity(dispute, existing);
+                    return existing;
+                })
+                .orElseGet(() -> EntityMapper.toEntity(dispute));
         DisputeEntity saved = springDataDisputeRepository.save(entity);
         return EntityMapper.toDomain(saved);
     }
@@ -63,5 +72,14 @@ public class DisputeRepositoryAdapter implements DisputeRepository {
         return springDataDisputeRepository.findByStatus(status, PersistenceLimits.firstPage()).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsOpenDispute(UUID leadId, UUID proId) {
+        Objects.requireNonNull(leadId, "leadId must not be null");
+        Objects.requireNonNull(proId, "proId must not be null");
+        return springDataDisputeRepository.existsByLeadIdAndProIdAndStatus(
+                leadId, proId, DisputeStatus.IN_ANALIZA.getDbValue());
     }
 }

@@ -23,6 +23,7 @@ public final class LeadDtoMapper {
 
     public static Lead toDomain(CreateLeadRequest req) {
         if (req == null) return null;
+        int completeness = completenessScore(req);
         return Lead.builder()
                 .title(req.title())
                 .categoryId(req.categoryId())
@@ -34,7 +35,8 @@ public final class LeadDtoMapper {
                 .preferredCapabilities(req.preferredCapabilities() == null ? List.of() : req.preferredCapabilities())
                 .budgetMin(req.budgetMin())
                 .budgetMax(req.budgetMax())
-                .budgetCurrency(req.budgetCurrency() != null ? req.budgetCurrency() : "RON")
+                .budgetCurrency(req.budgetCurrency() != null && !req.budgetCurrency().isBlank()
+                        ? req.budgetCurrency().trim() : "RON")
                 .budgetIsNegotiable(req.budgetIsNegotiable() == null || req.budgetIsNegotiable())
                 .budgetIsConfirmed(req.budgetIsConfirmed() == null || req.budgetIsConfirmed())
                 .timeline(req.timeline())
@@ -44,14 +46,41 @@ public final class LeadDtoMapper {
                 .clientPhone(req.clientPhone())
                 .clientEmail(req.clientEmail())
                 .clientCity(req.clientCity())
-                .clientIsVerified(true)
-                .passportCompletenessScore(85)
-                .passportCoherenceStatus("Excelentă")
-                .passportContactVerified(true)
-                .passportIntentVerified(true)
-                .passportExtractedByAi(true)
-                .passportDuplicateRisk("Scăzut (< 2%)")
+                // Trust indicators must reflect checks that actually happened. A
+                // lead created through this endpoint has not been independently
+                // verified, AI-extracted, or de-duplicated, so do not claim so.
+                .clientIsVerified(false)
+                .passportCompletenessScore(completeness)
+                .passportCoherenceStatus(coherenceStatus(completeness))
+                .passportContactVerified(false)
+                .passportIntentVerified(false)
+                .passportExtractedByAi(false)
+                .passportDuplicateRisk("Nedeterminat")
                 .build();
+    }
+
+    /**
+     * Percentage of the key passport fields the client actually supplied.
+     */
+    private static int completenessScore(CreateLeadRequest req) {
+        Object[] fields = {
+                req.title(), req.categoryId(), req.subcategory(), req.description(),
+                req.location(), req.budgetMin(), req.budgetMax(), req.timeline(),
+                req.workMode(), req.clientEmail(), req.clientPhone(), req.clientCity()
+        };
+        int filled = 0;
+        for (Object field : fields) {
+            if (field instanceof String text ? !text.isBlank() : field != null) {
+                filled++;
+            }
+        }
+        return Math.round(filled * 100f / fields.length);
+    }
+
+    private static String coherenceStatus(int completeness) {
+        if (completeness >= 85) return "Complet";
+        if (completeness >= 60) return "Parțial";
+        return "Incomplet";
     }
 
     public static LeadResponse toResponse(Lead domain) {
@@ -152,11 +181,11 @@ public final class LeadDtoMapper {
 
     private static String maskPhone(String phone) {
         if (phone == null || phone.isBlank()) return phone;
-        String compact = phone.replaceAll("\\s+", "");
-        if (compact.length() <= 4) return "••••";
-        String prefix = compact.substring(0, Math.min(4, compact.length() - 2));
-        String suffix = compact.substring(compact.length() - 2);
-        return prefix + " ••• ••• " + suffix;
+        // Reveal only the last two digits. Keeping a prefix made the masked value
+        // much easier to correlate with the real subscriber number.
+        String digits = phone.replaceAll("\\D", "");
+        if (digits.length() <= 2) return "••••";
+        return "•••• ••• " + digits.substring(digits.length() - 2);
     }
 
     private static String maskEmail(String email) {

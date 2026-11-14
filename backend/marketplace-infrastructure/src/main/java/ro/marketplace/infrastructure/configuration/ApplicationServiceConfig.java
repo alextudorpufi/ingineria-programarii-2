@@ -95,20 +95,24 @@ public class ApplicationServiceConfig {
     @Bean
     public LeadService leadService(LeadRepository leadRepository,
                                    ServiceCategoryRepository serviceCategoryRepository,
+                                   UserRepository userRepository,
                                    WalletService walletService,
                                    AuditService auditService,
                                    UnitOfWork unitOfWork,
                                    Clock clock) {
-        return new LeadServiceImpl(leadRepository, serviceCategoryRepository, walletService,
+        return new LeadServiceImpl(leadRepository, serviceCategoryRepository, userRepository, walletService,
                 auditService, unitOfWork, clock);
     }
 
     @Bean
     public DisputeService disputeService(DisputeRepository disputeRepository,
+                                         LeadRepository leadRepository,
+                                         UserRepository userRepository,
                                          WalletService walletService,
                                          AuditService auditService,
                                          UnitOfWork unitOfWork,
                                          Clock clock) {
-        return new DisputeServiceImpl(disputeRepository, walletService, auditService, unitOfWork, clock);
+        return new DisputeServiceImpl(disputeRepository, leadRepository, userRepository,
+                walletService, auditService, unitOfWork, clock);
     }
 }
