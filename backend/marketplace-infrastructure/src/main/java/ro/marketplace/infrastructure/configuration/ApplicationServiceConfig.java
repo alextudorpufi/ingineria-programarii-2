@@ -108,11 +108,12 @@ public class ApplicationServiceConfig {
     public DisputeService disputeService(DisputeRepository disputeRepository,
                                          LeadRepository leadRepository,
                                          UserRepository userRepository,
+                                         WalletTransactionRepository walletTransactionRepository,
                                          WalletService walletService,
                                          AuditService auditService,
                                          UnitOfWork unitOfWork,
                                          Clock clock) {
         return new DisputeServiceImpl(disputeRepository, leadRepository, userRepository,
-                walletService, auditService, unitOfWork, clock);
+                walletTransactionRepository, walletService, auditService, unitOfWork, clock);
     }
 }

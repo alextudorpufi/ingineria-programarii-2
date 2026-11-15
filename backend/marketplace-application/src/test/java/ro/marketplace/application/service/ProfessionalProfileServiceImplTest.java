@@ -102,6 +102,20 @@ class ProfessionalProfileServiceImplTest {
     }
 
     @Test
+    void professionalRoleComparisonIsCaseInsensitive() {
+        when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role(" PRO ").build()));
+        assertThat(service.get(userId).getId()).isEqualTo(userId);
+    }
+
+    @Test
+    void aMissingProfileBodyIsRejectedAsValidation() {
+        assertThatThrownBy(() -> service.update(userId,
+                new ProfessionalProfileService.Update("Updated Pro", null, null, null, null, null)))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("obligatorii");
+    }
+
+    @Test
     void missingWorkModeAndNonProfessionalAccountsAreRejected() {
         var profile = ProfessionalProfile.builder().categories(List.of("it-software"))
                 .servicesOffered(List.of("Web")).onboardingStatus(ProfessionalProfile.OnboardingStatus.COMPLETE).build();

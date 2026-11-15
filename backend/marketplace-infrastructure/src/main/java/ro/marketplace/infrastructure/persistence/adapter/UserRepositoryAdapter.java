@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 @Repository
@@ -104,16 +105,31 @@ public class UserRepositoryAdapter implements UserRepository {
 
     @Override
     @Transactional
-    public boolean addCredits(UUID userId, int amount) {
+    public OptionalInt addCredits(UUID userId, int amount) {
         Objects.requireNonNull(userId, "userId must not be null");
-        return springDataUserRepository.addCredits(userId, amount) == 1;
+        return springDataUserRepository.findByIdForUpdate(userId)
+                .map(user -> {
+                    user.setCreditsBalance(user.getCreditsBalance() + amount);
+                    springDataUserRepository.flush();
+                    return OptionalInt.of(user.getCreditsBalance());
+                })
+                .orElseGet(OptionalInt::empty);
     }
 
     @Override
     @Transactional
-    public boolean deductCredits(UUID userId, int amount) {
+    public OptionalInt deductCredits(UUID userId, int amount) {
         Objects.requireNonNull(userId, "userId must not be null");
-        return springDataUserRepository.deductCredits(userId, amount) == 1;
+        return springDataUserRepository.findByIdForUpdate(userId)
+                .map(user -> {
+                    if (user.getCreditsBalance() < amount) {
+                        return OptionalInt.empty();
+                    }
+                    user.setCreditsBalance(user.getCreditsBalance() - amount);
+                    springDataUserRepository.flush();
+                    return OptionalInt.of(user.getCreditsBalance());
+                })
+                .orElseGet(OptionalInt::empty);
     }
 
     @Override

@@ -1,7 +1,10 @@
 package ro.marketplace.application.service;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
+import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.CreditBundle;
 import ro.marketplace.domain.model.CreditPurchase;
 import ro.marketplace.domain.model.CreditPurchaseStatus;
@@ -16,10 +19,12 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 public class CreditPaymentService {
 
+    private static final Logger log = LoggerFactory.getLogger(CreditPaymentService.class);
     private static final String CURRENCY = "RON";
     private static final List<CreditBundle> BUNDLES = List.of(
             new CreditBundle("starter", "Pachet Starter", "Testare Rapidă", 50, 0, 5_000, CURRENCY, false),
@@ -55,7 +60,7 @@ public class CreditPaymentService {
     public CreditPurchase createCheckout(UUID userId, String bundleId, String idempotencyKey) {
         Objects.requireNonNull(userId, "userId must not be null");
         if (idempotencyKey == null || idempotencyKey.isBlank() || idempotencyKey.length() > 255) {
-            throw new IllegalArgumentException("A valid Idempotency-Key header is required");
+            throw new ValidationException("A valid Idempotency-Key header is required");
         }
 
         CreditBundle bundle = findBundle(bundleId);
@@ -101,8 +106,20 @@ public class CreditPaymentService {
             }
             creditPurchaseRepository.recordWebhookEvent(event.id(), event.type());
 
-            CreditPurchase purchase = creditPurchaseRepository.findByStripeSessionIdForUpdate(event.sessionId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Credit purchase for Stripe session not found"));
+            if (event.sessionId() == null || event.sessionId().isBlank()) {
+                log.warn("Ignoring Stripe webhook {} without a checkout session id", event.id());
+                return null;
+            }
+            Optional<CreditPurchase> matchingPurchase =
+                    creditPurchaseRepository.findByStripeSessionIdForUpdate(event.sessionId());
+            if (matchingPurchase.isEmpty()) {
+                // Acknowledge with 2xx: retrying cannot help if we have no local
+                // purchase for this session, and endless retries hide real incidents.
+                log.warn("Ignoring Stripe webhook {} for unknown checkout session {}",
+                        event.id(), event.sessionId());
+                return null;
+            }
+            CreditPurchase purchase = matchingPurchase.get();
             if (!purchase.id().toString().equals(event.purchaseId())) {
                 markFailed(purchase);
                 return null;
@@ -163,7 +180,7 @@ public class CreditPaymentService {
         return BUNDLES.stream()
                 .filter(bundle -> bundle.id().equals(bundleId))
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown credit bundle"));
+                .orElseThrow(() -> new ValidationException("Unknown credit bundle"));
     }
 
     private boolean matchesExpectedPayment(CreditPurchase purchase, StripeWebhookEvent event) {

@@ -2,6 +2,7 @@ package ro.marketplace.application.service;
 
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
+import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.Customer;
 import ro.marketplace.domain.port.CustomerRepository;
 import ro.marketplace.domain.port.UnitOfWork;
@@ -9,6 +10,7 @@ import ro.marketplace.domain.port.UnitOfWork;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -27,6 +29,7 @@ public class CustomerServiceImpl implements CustomerService {
     @Override
     public Customer createCustomer(Customer customer) {
         Objects.requireNonNull(customer, "customer must not be null");
+        validateAndNormalize(customer);
         return unitOfWork.executeInTransaction(() -> {
             if (customer.getEmail() != null && customerRepository.existsByEmail(customer.getEmail())) {
                 throw new ConflictException("Customer already exists with email: " + customer.getEmail());
@@ -57,6 +60,7 @@ public class CustomerServiceImpl implements CustomerService {
     public Customer updateCustomer(UUID id, Customer updatedData) {
         Objects.requireNonNull(id, "id must not be null");
         Objects.requireNonNull(updatedData, "updatedData must not be null");
+        validateAndNormalize(updatedData);
 
         return unitOfWork.executeInTransaction(() -> {
             Customer existing = getCustomerById(id);
@@ -73,6 +77,19 @@ public class CustomerServiceImpl implements CustomerService {
 
             return customerRepository.save(existing);
         });
+    }
+
+    private void validateAndNormalize(Customer customer) {
+        if (customer.getName() == null || customer.getName().isBlank()) {
+            throw new ValidationException("Numele clientului este obligatoriu.");
+        }
+        if (customer.getEmail() == null || customer.getEmail().isBlank()) {
+            throw new ValidationException("Emailul clientului este obligatoriu.");
+        }
+        customer.setName(customer.getName().trim());
+        customer.setEmail(customer.getEmail().trim().toLowerCase(Locale.ROOT));
+        customer.setPhone(customer.getPhone() == null || customer.getPhone().isBlank()
+                ? null : customer.getPhone().trim());
     }
 
     @Override

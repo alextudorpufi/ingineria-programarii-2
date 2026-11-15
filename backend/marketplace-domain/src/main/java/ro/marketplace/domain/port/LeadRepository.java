@@ -54,11 +54,6 @@ public interface LeadRepository {
     boolean reserveSlot(UUID leadId);
 
     /**
-     * Releases a previously reserved slot (compensation for a failed claim).
-     */
-    void releaseSlot(UUID leadId);
-
-    /**
      * Marks the lead as assigned when the authoritative counter is full.
      */
     void markAssignedIfFull(UUID leadId);

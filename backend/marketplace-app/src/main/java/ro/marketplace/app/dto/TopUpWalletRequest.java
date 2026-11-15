@@ -3,6 +3,7 @@ package ro.marketplace.app.dto;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 
 public record TopUpWalletRequest(
         @NotNull(message = "Credits amount is required")
@@ -10,5 +11,6 @@ public record TopUpWalletRequest(
         @Max(value = 10_000, message = "Credits amount must not exceed 10000")
         int credits,
 
+        @Size(max = 500, message = "Description must not exceed 500 characters")
         String description
 ) {}
