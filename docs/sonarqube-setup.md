@@ -147,6 +147,31 @@ Once analysis completes, inspect the results at:
 - **Frontend Quality Gate & Issues**: `http://localhost:9000/dashboard?id=marketplace-frontend`
 - **Unified Monorepo (if scanned with `--monorepo`)**: `http://localhost:9000/dashboard?id=marketplace`
 
+## GitHub Actions CI analysis
+
+`.github/workflows/sonar.yml` mirrors the local Docker workflow for pull requests
+(plus pushes to `main`). It runs two jobs and blocks on each project's Quality
+Gate:
+
+| Job | Tooling |
+|-----|---------|
+| `backend` | JDK 21, `mvnw clean verify` + SonarScanner for Maven (`sonar-maven-plugin` pinned), waits for the Quality Gate |
+| `frontend` | Node 22, SonarSource `sonarqube-scan-action` on `frontend/`, self-hosted SonarQube 9.9 gets an analysis-only tsconfig (same workaround as `docker/sonar/run-analysis.sh`) |
+
+Required configuration (both absent → analysis is skipped and the workflow still
+passes, so PRs stay mergeable):
+
+| Setting | Type | Purpose |
+|---------|------|---------|
+| `SONAR_TOKEN` | Secret | Analysis token with "Execute Analysis" permission |
+| `SONAR_HOST_URL` | Organization/repo variable or secret | Target server. Default: `https://sonarcloud.io` |
+| `SONAR_ORGANIZATION` | Organization/repo variable or secret | Required for SonarQube Cloud. Ignored by self-hosted servers. |
+
+On SonarQube Cloud the analyzed projects are `<organization>_marketplace-backend`
+and `<organization>_marketplace-frontend`; self-hosted servers keep the keys used
+by `docker/sonar/run-analysis.sh` (`marketplace-backend`, `marketplace-frontend`).
+For PR decoration on Cloud, also install the SonarQube Cloud GitHub App.
+
 ## Verification runner
 
 `./run-sonar-analysis.sh --both` builds the analyzer from `docker/sonar/Dockerfile`

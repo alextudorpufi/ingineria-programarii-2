@@ -1,0 +1,167 @@
+name: SonarQube
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Configure per repository (or organization):
+  #   secret/var SONAR_HOST_URL       analysis server. Default: SonarQube Cloud (https://sonarcloud.io)
+  #   secret/var SONAR_ORGANIZATION   SonarQube Cloud organization. Not needed for self-hosted servers.
+  #   secret     SONAR_TOKEN          analysis token with "Execute Analysis" permission.
+  #
+  # When SONAR_TOKEN is missing, this workflow succeeds without running any
+  # analysis so PRs stay mergeable until the secrets are configured.
+  SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL || secrets.SONAR_HOST_URL || 'https://sonarcloud.io' }}
+  SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION || secrets.SONAR_ORGANIZATION || '' }}
+  SONAR_MAVEN_PLUGIN_VERSION: "5.8.0.7211"
+
+jobs:
+  backend:
+    name: Backend (Java / Spring Boot)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Cache Sonar scanner engine
+        uses: actions/cache@v6
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "${SONAR_TOKEN:-}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SONAR_TOKEN secret is not set. Skipping Sonar analysis (PRs stay mergeable until it is configured)."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - name: Build, test and analyze
+        if: steps.config.outputs.configured == 'true'
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          project_key="marketplace-backend"
+          extra_args=()
+          if [ -n "${SONAR_ORGANIZATION:-}" ]; then
+            project_key="${SONAR_ORGANIZATION}_marketplace-backend"
+            extra_args+=("-Dsonar.organization=${SONAR_ORGANIZATION}")
+          fi
+
+          # Build and test in one reactor pass, then submit the analysis.
+          # Runs the full test suite so issue detection and test statistics
+          # come from CI. Fails the job if the Quality Gate is not passed.
+          ./mvnw -B clean verify \
+            "org.sonarsource.scanner.maven:sonar-maven-plugin:${SONAR_MAVEN_PLUGIN_VERSION}:sonar" \
+            -Dsonar.host.url="${SONAR_HOST_URL}" \
+            -Dsonar.token="${SONAR_TOKEN}" \
+            -Dsonar.login="${SONAR_TOKEN}" \
+            -Dsonar.projectKey="${project_key}" \
+            -Dsonar.qualitygate.wait=true \
+            "${extra_args[@]}"
+
+  frontend:
+    name: Frontend (Next.js / TypeScript)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Cache Sonar scanner engine
+        uses: actions/cache@v6
+        with:
+          path: ~/.sonar/cache
+          key: ${{ runner.os }}-sonar
+          restore-keys: ${{ runner.os }}-sonar
+
+      - name: Check configuration
+        id: config
+        run: |
+          if [ -z "${SONAR_TOKEN:-}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::SONAR_TOKEN secret is not set. Skipping Sonar analysis (PRs stay mergeable until it is configured)."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      # SonarQube Server 9.9 LTS's TypeScript parser predates
+      # moduleResolution=bundler from Next.js, so generate an analysis-only
+      # tsconfig for self-hosted servers. SonarQube Cloud and current servers
+      # read frontend/tsconfig.json directly.
+      - name: Prepare TS analysis config for self-hosted SonarQube Server
+        if: steps.config.outputs.configured == 'true' && env.SONAR_HOST_URL != 'https://sonarcloud.io'
+        run: |
+          jq ".compilerOptions.moduleResolution = \"node\" |
+              .compilerOptions.baseUrl = \"${GITHUB_WORKSPACE}/frontend\" |
+              .include = [\"${GITHUB_WORKSPACE}/frontend/**/*.ts\", \"${GITHUB_WORKSPACE}/frontend/**/*.tsx\", \"${GITHUB_WORKSPACE}/frontend/**/*.mts\"] |
+              .exclude = [\"${GITHUB_WORKSPACE}/frontend/node_modules\", \"${GITHUB_WORKSPACE}/frontend/.next\", \"${GITHUB_WORKSPACE}/frontend/.scannerwork\"]" \
+            frontend/tsconfig.json > "${RUNNER_TEMP}/sonar-tsconfig.json"
+
+      - name: Build scanner arguments
+        id: scan-args
+        if: steps.config.outputs.configured == 'true'
+        env:
+          RUNS_SELF_HOSTED: ${{ env.SONAR_HOST_URL != 'https://sonarcloud.io' }}
+        run: |
+          project_key="marketplace-frontend"
+          args=""
+          if [ -n "${SONAR_ORGANIZATION:-}" ]; then
+            project_key="${SONAR_ORGANIZATION}_marketplace-frontend"
+            args="${args} -Dsonar.organization=${SONAR_ORGANIZATION}"
+          fi
+          if [ "${RUNS_SELF_HOSTED}" = "true" ]; then
+            args="${args} -Dsonar.typescript.tsconfigPaths=${RUNNER_TEMP}/sonar-tsconfig.json"
+          fi
+          echo "frontend_project_key=${project_key}" >> "$GITHUB_OUTPUT"
+          echo "args=${args}" >> "$GITHUB_OUTPUT"
+
+      - name: Analyze frontend
+        if: steps.config.outputs.configured == 'true'
+        uses: SonarSource/sonarqube-scan-action@v8.4
+        with:
+          projectBaseDir: frontend
+          args: >
+            -Dsonar.projectKey=${{ steps.scan-args.outputs.frontend_project_key }}
+            -Dsonar.projectName="Marketplace Frontend"
+            -Dsonar.qualitygate.wait=true
+            ${{ steps.scan-args.outputs.args }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
