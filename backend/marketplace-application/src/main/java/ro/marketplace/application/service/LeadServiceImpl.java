@@ -8,9 +8,11 @@ import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
+import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.LeadRepository;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.domain.port.UnitOfWork;
+import ro.marketplace.domain.port.UserRepository;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
@@ -30,6 +32,7 @@ public class LeadServiceImpl implements LeadService {
 
     private final LeadRepository leadRepository;
     private final ServiceCategoryRepository serviceCategoryRepository;
+    private final UserRepository userRepository;
     private final WalletService walletService;
     private final AuditService auditService;
     private final UnitOfWork unitOfWork;
@@ -37,12 +40,14 @@ public class LeadServiceImpl implements LeadService {
 
     public LeadServiceImpl(LeadRepository leadRepository,
                            ServiceCategoryRepository serviceCategoryRepository,
+                           UserRepository userRepository,
                            WalletService walletService,
                            AuditService auditService,
                            UnitOfWork unitOfWork,
                            Clock clock) {
         this.leadRepository = Objects.requireNonNull(leadRepository, "leadRepository must not be null");
         this.serviceCategoryRepository = Objects.requireNonNull(serviceCategoryRepository, "serviceCategoryRepository must not be null");
+        this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
         this.walletService = Objects.requireNonNull(walletService, "walletService must not be null");
         this.auditService = Objects.requireNonNull(auditService, "auditService must not be null");
         this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
@@ -181,6 +186,22 @@ public class LeadServiceImpl implements LeadService {
         return unitOfWork.executeInTransaction(() -> {
             Lead lead = leadRepository.findById(leadId)
                     .orElseThrow(() -> new ResourceNotFoundException("Lead not found with id: " + leadId));
+
+            User pro = userRepository.findById(proId)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + proId));
+            if (!pro.isProVerified()) {
+                throw new ConflictException(
+                        "The professional account has not been verified by an administrator.");
+            }
+            if (lead.getClientId() != null && lead.getClientId().equals(proId)) {
+                throw new ConflictException("A professional cannot claim their own lead.");
+            }
+            if (lead.getStatus() != null
+                    && lead.getStatus() != LeadStatus.VALIDAT
+                    && lead.getStatus() != LeadStatus.IN_ASTEPTARE) {
+                throw new ConflictException(
+                        "Lead " + leadId + " is no longer open for claims (status=" + lead.getStatus().getDbValue() + ")");
+            }
 
             // Idempotency guard. The UNIQUE (lead_id, pro_id) constraint remains the hard backstop.
             if (leadRepository.existsClaimByLeadIdAndProId(leadId, proId)) {

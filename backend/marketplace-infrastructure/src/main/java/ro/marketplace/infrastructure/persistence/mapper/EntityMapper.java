@@ -21,6 +21,8 @@ import ro.marketplace.infrastructure.persistence.entity.LeadEntity;
 import ro.marketplace.infrastructure.persistence.entity.UserEntity;
 import ro.marketplace.infrastructure.persistence.entity.WalletTransactionEntity;
 
+import java.util.Objects;
+
 
 public final class EntityMapper {
 
@@ -292,6 +294,25 @@ public final class EntityMapper {
                 .adminDecisionNote(domain.getAdminDecisionNote())
                 .resolvedAt(domain.getResolvedAt())
                 .build();
+    }
+
+    /**
+     * Copies mutable dispute state onto a managed entity. Never touches the
+     * {@code @Version} or auditing columns; those are owned by JPA.
+     */
+    public static void updateEntity(Dispute domain, DisputeEntity entity) {
+        Objects.requireNonNull(domain, "domain must not be null");
+        Objects.requireNonNull(entity, "entity must not be null");
+        entity.setLeadId(domain.getLeadId());
+        entity.setLeadTitle(domain.getLeadTitle());
+        entity.setProId(domain.getProId());
+        entity.setProName(domain.getProName());
+        entity.setReason(domain.getReason());
+        entity.setDetails(domain.getDetails());
+        entity.setCreditsRequested(domain.getCreditsRequested());
+        entity.setStatus(domain.getStatus() != null ? domain.getStatus().getDbValue() : null);
+        entity.setAdminDecisionNote(domain.getAdminDecisionNote());
+        entity.setResolvedAt(domain.getResolvedAt());
     }
 
     // AuditLog

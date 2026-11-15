@@ -138,6 +138,7 @@ class ClaimLeadIntegrationTest {
                 .email(email)
                 .role(role)
                 .name("User " + id)
+                .proVerified("pro".equalsIgnoreCase(role))
                 .rating(BigDecimal.valueOf(5))
                 .trustScore(BigDecimal.valueOf(100))
                 .creditsBalance(credits)

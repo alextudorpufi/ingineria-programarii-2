@@ -108,6 +108,11 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     public WalletTransaction refundCredits(UUID userId, int credits, String description, UUID leadId) {
+        return refundCredits(userId, credits, description, leadId, "admin");
+    }
+
+    @Override
+    public WalletTransaction refundCredits(UUID userId, int credits, String description, UUID leadId, String actor) {
         validateAmount(credits, "Refund credits");
         return unitOfWork.executeInTransaction(() -> {
             User user = getUser(userId);
@@ -129,7 +134,8 @@ public class WalletServiceImpl implements WalletService {
                     .build();
 
             WalletTransaction savedTx = walletTransactionRepository.save(tx);
-            auditService.recordEvent("User", userId.toString(), AuditAction.REFUND_APPROVED, "admin",
+            auditService.recordEvent("User", userId.toString(), AuditAction.REFUND_APPROVED,
+                    actor != null && !actor.isBlank() ? actor : "admin",
                     AuditDetails.of(
                             "amount", credits,
                             "balanceBefore", balanceBefore,

@@ -17,9 +17,11 @@ public final class AuthDtos {
     public record LoginRequest(
             @NotBlank(message = "Email is required")
             @Email(message = "Invalid email format")
+            @Size(max = 255, message = "Email must not exceed 255 characters")
             String email,
 
             @NotBlank(message = "Password is required")
+            @Size(max = 128, message = "Password must not exceed 128 characters")
             String password
     ) {
     }
@@ -27,6 +29,7 @@ public final class AuthDtos {
     public record RegisterRequest(
             @NotBlank(message = "Email is required")
             @Email(message = "Invalid email format")
+            @Size(max = 255, message = "Email must not exceed 255 characters")
             String email,
 
             @NotBlank(message = "Password is required")
@@ -36,12 +39,16 @@ public final class AuthDtos {
             String password,
 
             @NotBlank(message = "Name is required")
+            @Size(max = 255, message = "Name must not exceed 255 characters")
             String name,
 
             @NotBlank(message = "Role must be 'client' or 'pro'")
+            @Size(max = 20, message = "Role must not exceed 20 characters")
             String role,
 
+            @Size(max = 50, message = "Phone must not exceed 50 characters")
             String phone,
+            @Size(max = 255, message = "Company name must not exceed 255 characters")
             String companyName
     ) {
     }
@@ -57,6 +64,7 @@ public final class AuthDtos {
             String avatarUrl,
             String bio,
             boolean verifiedBadge,
+            boolean proVerified,
             BigDecimal rating,
             int reviewCount,
             int creditsBalance,

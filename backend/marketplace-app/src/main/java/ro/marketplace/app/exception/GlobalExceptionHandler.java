@@ -1,11 +1,15 @@
 package ro.marketplace.app.exception;
 
+import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import ro.marketplace.application.exception.StripeConfigurationException;
 import ro.marketplace.application.exception.StripeProviderException;
 import ro.marketplace.application.exception.StripeWebhookVerificationException;
@@ -14,8 +18,13 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.ServletRequestBindingException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.DomainException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
@@ -88,9 +97,25 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    public ProblemDetail handleUnreadableBody() {
+    public ProblemDetail handleUnreadableBody(HttpMessageNotReadableException ex) {
+        // The streaming size cap surfaces while Jackson reads the body; Jackson
+        // wraps the runtime exception, so inspect the cause chain before treating
+        // the request as malformed JSON.
+        if (hasCause(ex, PayloadTooLargeException.class)) {
+            return problem(HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large",
+                    "The request body exceeds the maximum allowed size.", "payload-too-large");
+        }
         return problem(HttpStatus.BAD_REQUEST, BAD_REQUEST_TITLE,
                 "The request body contains malformed JSON or an unsupported field value.", "bad-request");
+    }
+
+    private static boolean hasCause(Throwable throwable, Class<? extends Throwable> type) {
+        for (Throwable current = throwable; current != null; current = current.getCause()) {
+            if (type.isInstance(current)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -122,6 +147,49 @@ public class GlobalExceptionHandler {
                 ? ex.getMessage()
                 : "A valid bearer token is required to access this resource.";
         return problem(HttpStatus.UNAUTHORIZED, "Authentication Required", detail, "unauthorized");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        // Do not echo the rejected value back: it is untrusted input.
+        return problem(HttpStatus.BAD_REQUEST, BAD_REQUEST_TITLE,
+                "Parameter '" + ex.getName() + "' has an invalid value.", "bad-request");
+    }
+
+    @ExceptionHandler(ServletRequestBindingException.class)
+    public ProblemDetail handleBinding(ServletRequestBindingException ex) {
+        return problem(HttpStatus.BAD_REQUEST, BAD_REQUEST_TITLE,
+                "A required request parameter or header is missing or invalid.", "bad-request");
+    }
+
+    @ExceptionHandler({ConstraintViolationException.class, HandlerMethodValidationException.class})
+    public ProblemDetail handleConstraintViolation(Exception ex) {
+        return problem(HttpStatus.BAD_REQUEST, BAD_REQUEST_TITLE,
+                "Request parameter validation failed.", "validation");
+    }
+
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ProblemDetail handleNoResource(Exception ex) {
+        return problem(HttpStatus.NOT_FOUND, "Resource Not Found",
+                "The requested endpoint does not exist.", "not-found");
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ProblemDetail handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return problem(HttpStatus.METHOD_NOT_ALLOWED, "Method Not Allowed",
+                "The HTTP method is not supported for this endpoint.", "method-not-allowed");
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ProblemDetail handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
+        return problem(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "Unsupported Media Type",
+                "The request Content-Type is not supported by this endpoint.", "unsupported-media-type");
+    }
+
+    @ExceptionHandler({MaxUploadSizeExceededException.class, PayloadTooLargeException.class})
+    public ProblemDetail handlePayloadTooLarge(Exception ex) {
+        return problem(HttpStatus.PAYLOAD_TOO_LARGE, "Payload Too Large",
+                "The request body exceeds the maximum allowed size.", "payload-too-large");
     }
 
     @ExceptionHandler(IllegalArgumentException.class)

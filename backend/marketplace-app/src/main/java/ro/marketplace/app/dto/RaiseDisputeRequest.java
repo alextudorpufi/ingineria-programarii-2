@@ -20,6 +20,7 @@ public record RaiseDisputeRequest(
         String reason,
 
         @NotBlank(message = "details is required")
+        @Size(max = 4000, message = "Details must not exceed 4000 characters")
         String details,
 
         @Min(value = 1, message = "creditsRequested must be at least 1")

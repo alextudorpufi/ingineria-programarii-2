@@ -26,6 +26,7 @@ public final class UserDtoMapper {
                 user.getAvatarUrl(),
                 user.getBio(),
                 user.isVerifiedBadge(),
+                user.isProVerified(),
                 user.getRating(),
                 user.getReviewCount(),
                 user.getCreditsBalance(),

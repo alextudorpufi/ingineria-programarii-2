@@ -12,6 +12,7 @@ import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -27,6 +28,11 @@ public class AuthServiceImpl implements AuthService {
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
     private static final Duration LOCKOUT_DURATION = Duration.ofMinutes(30);
     private static final int MAX_LIFETIME_FREE_CREDITS = 30;
+    /**
+     * BCrypt silently truncates inputs after 72 bytes. Without this guard two
+     * different long passwords could authenticate the same account.
+     */
+    private static final int BCRYPT_MAX_PASSWORD_BYTES = 72;
 
     private final UserRepository userRepository;
     private final CreditGrantRepository creditGrantRepository;
@@ -50,6 +56,11 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public Optional<User> authenticate(String email, String rawPassword) {
         if (email == null || email.isBlank() || rawPassword == null || rawPassword.isEmpty()) {
+            return Optional.empty();
+        }
+        // Reject over-long candidate passwords before hashing: BCrypt would ignore
+        // everything past 72 bytes, which can produce false matches.
+        if (exceedsBcryptLimit(rawPassword)) {
             return Optional.empty();
         }
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
@@ -83,6 +94,9 @@ public class AuthServiceImpl implements AuthService {
         String normalizedEmail = requireText(email, "Email").toLowerCase(Locale.ROOT);
         String normalizedName = requireText(name, "Name");
         requireText(rawPassword, "Password");
+        if (exceedsBcryptLimit(rawPassword)) {
+            throw new ValidationException("Password must not exceed 72 bytes when UTF-8 encoded.");
+        }
 
         String normalizedRole = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
         if (!ROLE_CLIENT.equals(normalizedRole) && !ROLE_PRO.equals(normalizedRole)) {
@@ -174,5 +188,9 @@ public class AuthServiceImpl implements AuthService {
             throw new ValidationException(fieldName + " is required.");
         }
         return value.trim();
+    }
+
+    private static boolean exceedsBcryptLimit(String rawPassword) {
+        return rawPassword.getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_PASSWORD_BYTES;
     }
 }

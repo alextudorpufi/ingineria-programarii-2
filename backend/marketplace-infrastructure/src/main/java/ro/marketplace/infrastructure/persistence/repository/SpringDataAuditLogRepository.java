@@ -12,7 +12,8 @@ import java.util.UUID;
 @Repository
 public interface SpringDataAuditLogRepository extends JpaRepository<AuditLogEntity, UUID> {
 
-    List<AuditLogEntity> findByEntityNameAndEntityIdOrderByCreatedAtDesc(String entityName, String entityId);
+    List<AuditLogEntity> findByEntityNameAndEntityIdOrderByCreatedAtDesc(
+            String entityName, String entityId, Pageable pageable);
 
     @Query("SELECT a FROM AuditLogEntity a ORDER BY a.createdAt DESC")
     List<AuditLogEntity> findRecentAuditLogs(Pageable pageable);

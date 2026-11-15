@@ -14,7 +14,10 @@ import ro.marketplace.app.dto.AuthDtos.UserProfileDto;
 import ro.marketplace.app.dto.VerifyProfessionalRequest;
 import ro.marketplace.app.mapper.UserDtoMapper;
 import ro.marketplace.app.security.AuthenticatedUser;
+import ro.marketplace.application.audit.AuditDetails;
+import ro.marketplace.application.service.AuditService;
 import ro.marketplace.application.service.AuthService;
+import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.User;
 
 import java.util.Objects;
@@ -26,9 +29,11 @@ import java.util.UUID;
 public class AdminController {
 
     private final AuthService authService;
+    private final AuditService auditService;
 
-    public AdminController(AuthService authService) {
+    public AdminController(AuthService authService, AuditService auditService) {
         this.authService = Objects.requireNonNull(authService, "authService must not be null");
+        this.auditService = Objects.requireNonNull(auditService, "auditService must not be null");
     }
 
     @PostMapping("/verify/{userId}")
@@ -37,6 +42,12 @@ public class AdminController {
                                                              @AuthenticationPrincipal Jwt jwt) {
         AuthenticatedUser admin = AuthenticatedUser.from(jwt);
         User verified = authService.verifyProfessionalAndGrantCredits(userId, request.credits(), admin.id());
+        auditService.recordEvent("User", userId.toString(), AuditAction.VERIFY_PROFESSIONAL,
+                admin.email() != null && !admin.email().isBlank() ? admin.email() : admin.id().toString(),
+                AuditDetails.of(
+                        "creditsGranted", request.credits(),
+                        "adminId", admin.id(),
+                        "proVerified", true));
         return ResponseEntity.ok(UserDtoMapper.toProfile(verified));
     }
 }

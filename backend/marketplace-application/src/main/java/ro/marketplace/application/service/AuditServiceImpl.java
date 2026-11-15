@@ -13,6 +13,8 @@ import java.util.UUID;
 
 public class AuditServiceImpl implements AuditService {
 
+    private static final int MAX_SHORT_FIELD_LENGTH = 100;
+
     private final AuditLogRepository auditLogRepository;
     private final Clock clock;
     private final CurrentActorProvider currentActorProvider;
@@ -39,15 +41,27 @@ public class AuditServiceImpl implements AuditService {
 
         AuditLog log = AuditLog.builder()
                 .id(UUID.randomUUID())
-                .entityName(entityName)
-                .entityId(entityId)
+                .entityName(truncate(entityName, MAX_SHORT_FIELD_LENGTH))
+                .entityId(truncate(entityId, MAX_SHORT_FIELD_LENGTH))
                 .action(action)
-                .changedBy(actor)
+                .changedBy(truncate(actor, MAX_SHORT_FIELD_LENGTH))
                 .details(details)
                 .createdAt(LocalDateTime.now(clock))
                 .build();
 
         return auditLogRepository.save(log);
+    }
+
+    /**
+     * Database columns are bounded; truncating here avoids a failed audit insert
+     * (and therefore a rolled-back business transaction) when a caller supplies a
+     * long identifier or display name.
+     */
+    private static String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     @Override

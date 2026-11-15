@@ -55,7 +55,7 @@ class LeadContactMaskingTest {
 
         mockMvc.perform(get("/api/leads/" + leadId))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.client.phone").value("+407 ••• ••• 05"))
+                .andExpect(jsonPath("$.client.phone").value("•••• ••• 05"))
                 .andExpect(jsonPath("$.client.email").value("e•••••@florariapetale.ro"));
     }
 
@@ -88,7 +88,7 @@ class LeadContactMaskingTest {
 
         mockMvc.perform(get("/api/leads/" + leadId).with(token(UUID.randomUUID(), "PRO")))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.client.phone").value("+407 ••• ••• 05"))
+                .andExpect(jsonPath("$.client.phone").value("•••• ••• 05"))
                 .andExpect(jsonPath("$.client.email").value("e•••••@florariapetale.ro"));
     }
 

@@ -45,6 +45,11 @@ public class JwtTokenProvider {
         if (keyBytes.length < 32) {
             throw new IllegalArgumentException("JWT secret must be at least 32 bytes (256 bits)");
         }
+        if (secret.startsWith("changeme")
+                || secret.equals("dev-only-marketplace-jwt-secret-change-me-32b")) {
+            throw new IllegalStateException(
+                    "JWT secret is a published placeholder. Generate one with: openssl rand -hex 48");
+        }
         this.secretKeyBytes = keyBytes;
         this.issuer = Objects.requireNonNull(issuer, "issuer must not be null");
         this.audience = Objects.requireNonNull(audience, "audience must not be null");

@@ -43,8 +43,12 @@ public final class InMemoryRateLimiter {
     }
 
     public Decision tryConsume(String key, Rule rule) {
-        if (buckets.size() > MAX_TRACKED_KEYS) {
+        if (buckets.size() >= MAX_TRACKED_KEYS) {
             removeIdleBuckets(rule);
+            // Hard bound: never let a key flood grow the map without limit.
+            if (buckets.size() >= MAX_TRACKED_KEYS) {
+                buckets.keySet().stream().findFirst().ifPresent(buckets::remove);
+            }
         }
         TokenBucket bucket = buckets.computeIfAbsent(key, ignored -> new TokenBucket(rule));
         return bucket.tryConsume(rule);
@@ -69,7 +73,7 @@ public final class InMemoryRateLimiter {
             this.lastRefill = clock.instant();
         }
 
-        private Decision tryConsume(Rule rule) {
+        private synchronized Decision tryConsume(Rule rule) {
             refill(rule);
             if (tokens >= 1.0) {
                 tokens -= 1.0;
@@ -95,7 +99,7 @@ public final class InMemoryRateLimiter {
             return Math.max(1, (missingMillis + 999) / 1000);
         }
 
-        private boolean isIdle(Rule rule, Instant now) {
+        private synchronized boolean isIdle(Rule rule, Instant now) {
             return tokens >= rule.capacity()
                     && Duration.between(lastRefill, now).compareTo(rule.period()) > 0;
         }

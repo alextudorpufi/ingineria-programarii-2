@@ -5,6 +5,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.port.AuditLogRepository;
+import ro.marketplace.infrastructure.persistence.PersistenceLimits;
 import ro.marketplace.infrastructure.persistence.entity.AuditLogEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataAuditLogRepository;
@@ -36,7 +37,8 @@ public class AuditLogRepositoryAdapter implements AuditLogRepository {
     public List<AuditLog> findByEntityNameAndEntityId(String entityName, String entityId) {
         Objects.requireNonNull(entityName, "entityName must not be null");
         Objects.requireNonNull(entityId, "entityId must not be null");
-        return springDataAuditLogRepository.findByEntityNameAndEntityIdOrderByCreatedAtDesc(entityName, entityId).stream()
+        return springDataAuditLogRepository.findByEntityNameAndEntityIdOrderByCreatedAtDesc(
+                        entityName, entityId, PersistenceLimits.firstPage()).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
     }
