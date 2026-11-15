@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
+import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.Customer;
 import ro.marketplace.domain.port.CustomerRepository;
 
@@ -21,6 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -106,6 +108,16 @@ class CustomerServiceImplTest {
 
         List<Customer> all = customerService.getAllCustomers();
         assertThat(all).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("updateCustomer rejects blank required fields before touching storage")
+    void updateCustomer_BlankName_ThrowsValidation() {
+        assertThatThrownBy(() -> customerService.updateCustomer(UUID.randomUUID(),
+                Customer.builder().name("  ").email("valid@example.com").build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Numele");
+        verify(customerRepository, never()).findById(any());
     }
 
     @Test

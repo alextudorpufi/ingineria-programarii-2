@@ -67,6 +67,18 @@ class AuditServiceImplTest {
     }
 
     @Test
+    @DisplayName("recordEvent truncates long values without splitting surrogate pairs")
+    void recordEvent_TruncatesOnCodePointBoundary() {
+        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        String value = "a".repeat(99) + "😀" + "tail";
+
+        AuditLog log = auditService.recordEvent("Lead", value, AuditAction.CREATE, "actor", "{}");
+
+        assertThat(log.getEntityId()).isEqualTo("a".repeat(99) + "😀");
+        assertThat(log.getEntityId().codePointCount(0, log.getEntityId().length())).isEqualTo(100);
+    }
+
+    @Test
     @DisplayName("getEntityAuditTrail returns audit history for entity")
     void getEntityAuditTrail_Success() {
         AuditLog l1 = AuditLog.builder().id(UUID.randomUUID()).entityName("Lead").entityId("lead-1")

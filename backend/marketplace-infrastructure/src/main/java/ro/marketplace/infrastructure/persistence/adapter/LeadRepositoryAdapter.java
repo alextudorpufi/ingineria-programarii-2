@@ -180,13 +180,6 @@ public class LeadRepositoryAdapter implements LeadRepository {
 
     @Override
     @Transactional
-    public void releaseSlot(UUID leadId) {
-        Objects.requireNonNull(leadId, "leadId must not be null");
-        springDataLeadRepository.releaseSlot(leadId);
-    }
-
-    @Override
-    @Transactional
     public void markAssignedIfFull(UUID leadId) {
         Objects.requireNonNull(leadId, "leadId must not be null");
         springDataLeadRepository.markAssignedIfFull(leadId);

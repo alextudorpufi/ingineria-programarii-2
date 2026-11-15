@@ -18,6 +18,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -25,10 +26,12 @@ import java.util.stream.Collectors;
 
 public class LeadServiceImpl implements LeadService {
 
+    /**
+     * Capacity is a platform policy, not a client preference: a lead may be sold
+     * to at most this many professionals.
+     */
     private static final int DEFAULT_MAX_PROS = 4;
-    private static final int MAX_MAX_PROS = 100;
     private static final int DEFAULT_LEAD_PRICE = 30;
-    private static final int MAX_LEAD_PRICE = 10_000;
 
     private final LeadRepository leadRepository;
     private final ServiceCategoryRepository serviceCategoryRepository;
@@ -62,7 +65,10 @@ public class LeadServiceImpl implements LeadService {
             if (lead.getClientId() == null) {
                 throw new ValidationException("clientId is required");
             }
-            if (lead.getCategoryId() == null || !serviceCategoryRepository.existsById(lead.getCategoryId())) {
+            int categoryPrice = lead.getCategoryId() == null
+                    ? -1
+                    : serviceCategoryRepository.findAvgLeadPriceById(lead.getCategoryId()).orElse(-1);
+            if (categoryPrice < 0) {
                 throw new ValidationException("Unknown service category: " + lead.getCategoryId());
             }
             normalizeMatchingRequirements(lead);
@@ -72,21 +78,24 @@ public class LeadServiceImpl implements LeadService {
             if (lead.getCreatedAt() == null) {
                 lead.setCreatedAt(LocalDateTime.now(clock));
             }
-            if (lead.getStatus() == null) {
-                lead.setStatus(LeadStatus.VALIDAT);
+            // New leads always start in the platform's initial state; callers cannot
+            // skip the workflow by posting a different status.
+            lead.setStatus(LeadStatus.VALIDAT);
+            // Ignore any client-supplied price/capacity and apply the platform policy.
+            lead.setLeadPrice(categoryPrice > 0 ? categoryPrice : DEFAULT_LEAD_PRICE);
+            lead.setMaxPros(DEFAULT_MAX_PROS);
+
+            // The contact snapshot must belong to the authenticated account. A client
+            // can no longer publish somebody else's name, email, or phone number.
+            User client = userRepository.findById(lead.getClientId())
+                    .orElseThrow(() -> new ValidationException("Unknown client account."));
+            String role = client.getRole() == null ? "" : client.getRole().trim().toLowerCase(Locale.ROOT);
+            if (!"client".equals(role) && !"admin".equals(role)) {
+                throw new ValidationException("Only client accounts can publish leads.");
             }
-            if (lead.getMaxPros() <= 0) {
-                lead.setMaxPros(DEFAULT_MAX_PROS);
-            }
-            if (lead.getMaxPros() > MAX_MAX_PROS) {
-                throw new ValidationException("maxPros must not exceed " + MAX_MAX_PROS);
-            }
-            if (lead.getLeadPrice() <= 0) {
-                lead.setLeadPrice(DEFAULT_LEAD_PRICE);
-            }
-            if (lead.getLeadPrice() > MAX_LEAD_PRICE) {
-                throw new ValidationException("leadPrice must not exceed " + MAX_LEAD_PRICE);
-            }
+            lead.setClientName(client.getName());
+            lead.setClientEmail(client.getEmail());
+            lead.setClientPhone(client.getPhone() != null ? client.getPhone().trim() : "");
 
             Lead saved = leadRepository.save(lead);
             auditService.recordEvent("Lead", saved.getId().toString(), AuditAction.CREATE, saved.getClientEmail(),
@@ -214,31 +223,25 @@ public class LeadServiceImpl implements LeadService {
                         + lead.getMaxPros() + " professionals");
             }
 
-            try {
-                walletService.deductCredits(proId, lead.getLeadPrice(), "Achiziție lead #" + leadId, leadId);
+            walletService.deductCredits(proId, lead.getLeadPrice(), "Achiziție lead #" + leadId, leadId);
 
-                LeadClaim claim = LeadClaim.builder()
-                        .id(UUID.randomUUID())
-                        .leadId(leadId)
-                        .proId(proId)
-                        .proName(proName != null && !proName.isBlank() ? proName : "Professional")
-                        .claimedAt(LocalDateTime.now(clock))
-                        .build();
+            LeadClaim claim = LeadClaim.builder()
+                    .id(UUID.randomUUID())
+                    .leadId(leadId)
+                    .proId(proId)
+                    .proName(proName != null && !proName.isBlank() ? proName : "Professional")
+                    .claimedAt(LocalDateTime.now(clock))
+                    .build();
 
-                LeadClaim savedClaim = leadRepository.saveClaim(claim);
-                leadRepository.markAssignedIfFull(leadId);
+            LeadClaim savedClaim = leadRepository.saveClaim(claim);
+            leadRepository.markAssignedIfFull(leadId);
 
-                auditService.recordEvent("Lead", leadId.toString(), AuditAction.CLAIM_LEAD, claim.getProName(),
-                        AuditDetails.of(
-                                "leadId", leadId,
-                                "proId", proId,
-                                "leadPrice", lead.getLeadPrice()));
-                return savedClaim;
-            } catch (RuntimeException ex) {
-                // Compensation inside the same unit of work: the reservation is rolled back with it.
-                leadRepository.releaseSlot(leadId);
-                throw ex;
-            }
+            auditService.recordEvent("Lead", leadId.toString(), AuditAction.CLAIM_LEAD, claim.getProName(),
+                    AuditDetails.of(
+                            "leadId", leadId,
+                            "proId", proId,
+                            "leadPrice", lead.getLeadPrice()));
+            return savedClaim;
         });
     }
 

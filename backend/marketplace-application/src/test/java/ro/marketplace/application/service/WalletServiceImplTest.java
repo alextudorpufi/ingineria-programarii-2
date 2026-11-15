@@ -18,6 +18,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,8 +58,8 @@ class WalletServiceImplTest {
         User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(50).build();
         User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(150).build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user), Optional.of(updated));
-        when(userRepository.addCredits(userId, 100)).thenReturn(true);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.addCredits(userId, 100)).thenReturn(OptionalInt.of(150));
         when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.topUpCredits(userId, 100, "Reîncărcare pachet");
@@ -78,8 +79,8 @@ class WalletServiceImplTest {
         User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(50).build();
         User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(20).build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user), Optional.of(updated));
-        when(userRepository.deductCredits(userId, 30)).thenReturn(true);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.deductCredits(userId, 30)).thenReturn(OptionalInt.of(20));
         when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.deductCredits(userId, 30, "Achiziție lead", leadId);
@@ -98,7 +99,7 @@ class WalletServiceImplTest {
         User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(10).build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(userRepository.deductCredits(userId, 30)).thenReturn(false);
+        when(userRepository.deductCredits(userId, 30)).thenReturn(OptionalInt.empty());
 
         assertThatThrownBy(() -> walletService.deductCredits(userId, 30, "Achiziție lead", UUID.randomUUID()))
                 .isInstanceOf(ConflictException.class)
@@ -114,8 +115,8 @@ class WalletServiceImplTest {
         User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(10).build();
         User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(40).build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user), Optional.of(updated));
-        when(userRepository.addCredits(userId, 30)).thenReturn(true);
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(40));
         when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.refundCredits(userId, 30, "Rambursare", UUID.randomUUID());

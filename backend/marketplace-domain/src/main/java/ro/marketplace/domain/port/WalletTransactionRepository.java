@@ -13,4 +13,10 @@ public interface WalletTransactionRepository {
     Optional<WalletTransaction> findById(UUID id);
 
     List<WalletTransaction> findByUserId(UUID userId);
+
+    /**
+     * Ledger entries for one professional and one lead, oldest first. Used to
+     * cap refunds at what was actually paid and not already returned.
+     */
+    List<WalletTransaction> findByUserIdAndLeadId(UUID userId, UUID leadId);
 }

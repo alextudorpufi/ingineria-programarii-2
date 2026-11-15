@@ -32,11 +32,6 @@ public interface SpringDataLeadRepository extends JpaRepository<LeadEntity, UUID
     int reserveSlot(@Param("leadId") UUID leadId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "UPDATE leads SET current_pros = current_pros - 1, version = version + 1, updated_at = now() "
-            + "WHERE id = :leadId AND current_pros > 0", nativeQuery = true)
-    int releaseSlot(@Param("leadId") UUID leadId);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "UPDATE leads SET status = 'atribuit', version = version + 1, updated_at = now() "
             + "WHERE id = :leadId AND current_pros >= max_pros AND status <> 'atribuit'", nativeQuery = true)
     int markAssignedIfFull(@Param("leadId") UUID leadId);

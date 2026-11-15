@@ -58,10 +58,12 @@ public class AuditServiceImpl implements AuditService {
      * long identifier or display name.
      */
     private static String truncate(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
+        if (value == null || value.codePointCount(0, value.length()) <= maxLength) {
             return value;
         }
-        return value.substring(0, maxLength);
+        // Cut on a code point, never in the middle of a surrogate pair.
+        int end = value.offsetByCodePoints(0, maxLength);
+        return value.substring(0, end);
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.CreditGrantRepository;
@@ -63,6 +64,20 @@ class AuthServiceImplTest {
 
         assertThat(registered.getCreditsBalance()).isZero();
         assertThat(registered.isProVerified()).isFalse();
+        assertThat(registered.getRating()).isEqualByComparingTo("0.00");
+        assertThat(registered.getTrustScore()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("registration enforces password rules even without the web layer")
+    void registerRejectsWeakPasswords() {
+        assertThatThrownBy(() -> authService.register("pro@example.com", "short1", "Pro", "pro", null, null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("between 8 and 128");
+        assertThatThrownBy(() -> authService.register("pro@example.com", "onlyletters", "Pro", "pro", null, null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("letter and one digit");
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -99,6 +114,36 @@ class AuthServiceImplTest {
         assertThat(authService.authenticate("pro@example.com", "Secret123!")).isEmpty();
 
         verify(passwordHasher, never()).matches(anyString(), anyString());
+    }
+
+    @Test
+    @DisplayName("unknown accounts still perform a dummy password verification")
+    void unknownAccountUsesDummyHash() {
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThat(authService.authenticate("missing@example.com", "Secret123!")).isEmpty();
+
+        verify(passwordHasher).matches(eq("Secret123!"), anyString());
+    }
+
+    @Test
+    @DisplayName("an expired lockout is cleared before the next attempt is evaluated")
+    void expiredLockoutStartsFreshAttemptWindow() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("pro@example.com")
+                .passwordHash("stored-hash")
+                .role("pro")
+                .loginAttemptsCount(10)
+                .lockoutUntil(CLOCK.instant().atZone(ZoneOffset.UTC).toLocalDateTime().minusMinutes(1))
+                .build();
+        when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
+        when(passwordHasher.matches("Secret123!", "stored-hash")).thenReturn(true);
+
+        assertThat(authService.authenticate("pro@example.com", "Secret123!")).isPresent();
+
+        verify(userRepository).resetLoginState(userId);
     }
 
     @Test

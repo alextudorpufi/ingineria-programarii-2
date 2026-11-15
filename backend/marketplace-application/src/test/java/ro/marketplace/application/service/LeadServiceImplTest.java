@@ -34,6 +34,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -141,8 +142,8 @@ class LeadServiceImplTest {
     }
 
     @Test
-    @DisplayName("claimLead releases the reserved slot when the claim cannot be persisted")
-    void claimLead_SaveClaimFails_ReleasesSlot() {
+    @DisplayName("claimLead propagates persistence failures so the unit of work rolls back")
+    void claimLead_SaveClaimFails_PropagatesForRollback() {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
 
@@ -156,7 +157,7 @@ class LeadServiceImplTest {
         assertThatThrownBy(() -> leadService.claimLead(leadId, proId, "DevCraft Studio"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("db failure");
-        verify(leadRepository).releaseSlot(leadId);
+        verify(walletService).deductCredits(proId, 30, "Achiziție lead #" + leadId, leadId);
     }
 
     @Test
@@ -192,7 +193,7 @@ class LeadServiceImplTest {
                 .maxPros(4)
                 .clientId(UUID.randomUUID())
                 .build();
-        when(serviceCategoryRepository.existsById("does-not-exist")).thenReturn(false);
+        when(serviceCategoryRepository.findAvgLeadPriceById("does-not-exist")).thenReturn(java.util.OptionalInt.empty());
 
         assertThatThrownBy(() -> leadService.createLead(lead))
                 .isInstanceOf(ValidationException.class)
@@ -201,8 +202,9 @@ class LeadServiceImplTest {
     }
 
     @Test
-    @DisplayName("createLead sets defaults and audits the creation")
+    @DisplayName("createLead applies server defaults and the authenticated contact snapshot")
     void createLead_Success() {
+        UUID clientId = UUID.randomUUID();
         Lead lead = Lead.builder()
                 .title("Website")
                 .categoryId("it-software")
@@ -211,10 +213,20 @@ class LeadServiceImplTest {
                 .preferredCapabilities(List.of("PAYMENTS", " Branding ", "branding"))
                 .budgetMin(BigDecimal.TEN)
                 .budgetMax(BigDecimal.valueOf(20))
-                .clientId(UUID.randomUUID())
-                .clientEmail("client@example.com")
+                .clientId(clientId)
+                .clientName("forged name")
+                .clientEmail("forged@example.com")
+                .clientPhone("forged-phone")
                 .build();
-        when(serviceCategoryRepository.existsById("it-software")).thenReturn(true);
+        when(serviceCategoryRepository.findAvgLeadPriceById("it-software"))
+                .thenReturn(java.util.OptionalInt.of(35));
+        when(userRepository.findById(clientId)).thenReturn(Optional.of(User.builder()
+                .id(clientId)
+                .role("client")
+                .name("Real Client")
+                .email("client@example.com")
+                .phone("+40700000000")
+                .build()));
         when(leadRepository.save(any(Lead.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Lead created = leadService.createLead(lead);
@@ -223,8 +235,11 @@ class LeadServiceImplTest {
         assertThat(created.getRequiredCapabilities()).containsExactly("Payments");
         assertThat(created.getPreferredCapabilities()).containsExactly("Branding");
         assertThat(created.getStatus()).isEqualTo(LeadStatus.VALIDAT);
-        assertThat(created.getLeadPrice()).isEqualTo(30);
+        assertThat(created.getLeadPrice()).isEqualTo(35);
         assertThat(created.getMaxPros()).isEqualTo(4);
+        assertThat(created.getClientName()).isEqualTo("Real Client");
+        assertThat(created.getClientEmail()).isEqualTo("client@example.com");
+        assertThat(created.getClientPhone()).isEqualTo("+40700000000");
         assertThat(created.getCreatedAt()).isNotNull();
         verify(auditService).recordEvent(eq("Lead"), eq(created.getId().toString()), eq(AuditAction.CREATE),
                 eq("client@example.com"), anyString());
@@ -234,7 +249,8 @@ class LeadServiceImplTest {
     void createLeadRequiresExplicitWorkModeAndBoundedCapabilities() {
         Lead lead = Lead.builder().categoryId("it-software").clientId(UUID.randomUUID())
                 .budgetMin(BigDecimal.TEN).budgetMax(BigDecimal.TEN).build();
-        when(serviceCategoryRepository.existsById("it-software")).thenReturn(true);
+        when(serviceCategoryRepository.findAvgLeadPriceById("it-software"))
+                .thenReturn(java.util.OptionalInt.of(35));
         assertThatThrownBy(() -> leadService.createLead(lead)).isInstanceOf(ValidationException.class)
                 .hasMessageContaining("modul de lucru");
         lead.setWorkMode(Lead.WorkMode.ONSITE);
@@ -260,7 +276,7 @@ class LeadServiceImplTest {
         assertThatThrownBy(() -> leadService.createLead(lead))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("budgetMin");
-        verify(serviceCategoryRepository, never()).existsById(anyString());
+        verifyNoInteractions(serviceCategoryRepository);
     }
 
     @Test

@@ -10,6 +10,7 @@ import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -27,9 +28,11 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
 
     @Override
     public User get(UUID userId) {
+        Objects.requireNonNull(userId, "userId must not be null");
         User user = users.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profilul nu a fost găsit."));
-        if (!"pro".equals(user.getRole())) {
+        String role = user.getRole() == null ? "" : user.getRole().trim().toLowerCase(Locale.ROOT);
+        if (!"pro".equals(role)) {
             throw new ValidationException("Doar profesioniștii pot modifica acest profil.");
         }
         return user;
@@ -37,7 +40,10 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
 
     @Override
     public User update(UUID userId, Update update) {
-        Objects.requireNonNull(update);
+        Objects.requireNonNull(update, "update must not be null");
+        if (update.profile() == null) {
+            throw new ValidationException("Datele profilului sunt obligatorii.");
+        }
         return unitOfWork.executeInTransaction(() -> {
             User user = get(userId);
             ProfessionalProfile profile = normalize(update.profile());

@@ -1,7 +1,9 @@
 package ro.marketplace.infrastructure.persistence.repository;
 
+import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -22,16 +24,9 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
 
     boolean existsByEmail(String email);
 
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "UPDATE users SET credits_balance = credits_balance + :amount, "
-            + "version = version + 1, updated_at = now() WHERE id = :userId", nativeQuery = true)
-    int addCredits(@Param("userId") UUID userId, @Param("amount") int amount);
-
-    @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "UPDATE users SET credits_balance = credits_balance - :amount, "
-            + "version = version + 1, updated_at = now() "
-            + "WHERE id = :userId AND credits_balance >= :amount", nativeQuery = true)
-    int deductCredits(@Param("userId") UUID userId, @Param("amount") int amount);
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from UserEntity u where u.id = :userId")
+    Optional<UserEntity> findByIdForUpdate(@Param("userId") UUID userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "UPDATE users SET login_attempts_count = login_attempts_count + 1, "

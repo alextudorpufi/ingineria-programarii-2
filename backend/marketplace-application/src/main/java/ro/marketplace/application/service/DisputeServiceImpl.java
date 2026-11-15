@@ -9,22 +9,34 @@ import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.WalletTransaction;
+import ro.marketplace.domain.model.WalletTransactionType;
 import ro.marketplace.domain.port.DisputeRepository;
 import ro.marketplace.domain.port.LeadRepository;
 import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
+import ro.marketplace.domain.port.WalletTransactionRepository;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 public class DisputeServiceImpl implements DisputeService {
 
+    private static final Set<String> ALLOWED_REASONS = Set.of(
+            "unreachable_contact",
+            "wrong_category",
+            "incompatible_budget",
+            "duplicate_or_fake");
+
     private final DisputeRepository disputeRepository;
     private final LeadRepository leadRepository;
     private final UserRepository userRepository;
+    private final WalletTransactionRepository walletTransactionRepository;
     private final WalletService walletService;
     private final AuditService auditService;
     private final UnitOfWork unitOfWork;
@@ -33,6 +45,7 @@ public class DisputeServiceImpl implements DisputeService {
     public DisputeServiceImpl(DisputeRepository disputeRepository,
                               LeadRepository leadRepository,
                               UserRepository userRepository,
+                              WalletTransactionRepository walletTransactionRepository,
                               WalletService walletService,
                               AuditService auditService,
                               UnitOfWork unitOfWork,
@@ -40,6 +53,8 @@ public class DisputeServiceImpl implements DisputeService {
         this.disputeRepository = Objects.requireNonNull(disputeRepository, "disputeRepository must not be null");
         this.leadRepository = Objects.requireNonNull(leadRepository, "leadRepository must not be null");
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
+        this.walletTransactionRepository = Objects.requireNonNull(walletTransactionRepository,
+                "walletTransactionRepository must not be null");
         this.walletService = Objects.requireNonNull(walletService, "walletService must not be null");
         this.auditService = Objects.requireNonNull(auditService, "auditService must not be null");
         this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
@@ -51,6 +66,7 @@ public class DisputeServiceImpl implements DisputeService {
                                 String reason, String details, int creditsRequested) {
         Objects.requireNonNull(leadId, "leadId must not be null");
         Objects.requireNonNull(proId, "proId must not be null");
+        String normalizedReason = normalizeReason(reason);
 
         return unitOfWork.executeInTransaction(() -> {
             User pro = userRepository.findById(proId)
@@ -64,20 +80,18 @@ public class DisputeServiceImpl implements DisputeService {
 
             Lead lead = leadRepository.findById(leadId)
                     .orElseThrow(() -> new ResourceNotFoundException("Lead not found with id: " + leadId));
-            boolean purchased = leadRepository.findClaimsByLeadId(leadId).stream()
-                    .anyMatch(claim -> proId.equals(claim.getProId()));
-            if (!purchased) {
+            if (!leadRepository.existsClaimByLeadIdAndProId(leadId, proId)) {
                 throw new ValidationException("A dispute can only be raised for a lead the professional has purchased.");
             }
             if (disputeRepository.existsOpenDispute(leadId, proId)) {
                 throw new ConflictException("An open dispute already exists for this lead.");
             }
 
-            int maxRefund = Math.max(lead.getLeadPrice(), 0);
+            int maxRefund = calculateMaxRefund(proId, leadId, lead);
             int refundRequested = creditsRequested > 0 ? creditsRequested : maxRefund;
             if (refundRequested <= 0 || refundRequested > maxRefund) {
                 throw new ValidationException(
-                        "creditsRequested must be between 1 and the lead price (" + maxRefund + ").");
+                        "creditsRequested must be between 1 and the refundable amount (" + maxRefund + ").");
             }
 
             Dispute dispute = Dispute.builder()
@@ -88,7 +102,7 @@ public class DisputeServiceImpl implements DisputeService {
                             : (leadTitle != null ? leadTitle : "Solicitare Servicii"))
                     .proId(proId)
                     .proName(proName != null ? proName : "Professional")
-                    .reason(reason != null ? reason : "unreachable_contact")
+                    .reason(normalizedReason)
                     .details(details != null ? details : "")
                     .creditsRequested(refundRequested)
                     .status(DisputeStatus.IN_ANALIZA)
@@ -104,6 +118,35 @@ public class DisputeServiceImpl implements DisputeService {
                             "creditsRequested", dispute.getCreditsRequested()));
             return saved;
         });
+    }
+
+    private static String normalizeReason(String reason) {
+        String normalized = reason == null ? "" : reason.trim().toLowerCase(Locale.ROOT);
+        if (!ALLOWED_REASONS.contains(normalized)) {
+            throw new ValidationException("Motivul sesizării nu este valid. Alege unul dintre motivele disponibile.");
+        }
+        return normalized;
+    }
+
+    /**
+     * Refundable amount is what the professional actually paid for this lead minus
+     * any refunds already issued for it. The lead's list price is only a fallback
+     * for legacy leads that predate the wallet ledger.
+     */
+    private int calculateMaxRefund(UUID proId, UUID leadId, Lead lead) {
+        List<WalletTransaction> ledger = walletTransactionRepository.findByUserIdAndLeadId(proId, leadId);
+        int paid = ledger.stream()
+                .filter(tx -> tx.getType() == WalletTransactionType.LEAD_PURCHASE)
+                .mapToInt(tx -> Math.abs(tx.getAmount()))
+                .sum();
+        if (paid == 0) {
+            return Math.max(lead.getLeadPrice(), 0);
+        }
+        int alreadyRefunded = ledger.stream()
+                .filter(tx -> tx.getType() == WalletTransactionType.REFUND)
+                .mapToInt(WalletTransaction::getAmount)
+                .sum();
+        return Math.max(paid - alreadyRefunded, 0);
     }
 
     @Override

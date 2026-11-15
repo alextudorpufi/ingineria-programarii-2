@@ -6,6 +6,7 @@ import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataServiceCategoryRepository;
 
 import java.util.Objects;
+import java.util.OptionalInt;
 
 @Repository
 public class ServiceCategoryRepositoryAdapter implements ServiceCategoryRepository {
@@ -22,5 +23,14 @@ public class ServiceCategoryRepositoryAdapter implements ServiceCategoryReposito
     public boolean existsById(String id) {
         Objects.requireNonNull(id, "id must not be null");
         return springDataServiceCategoryRepository.existsById(id);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public OptionalInt findAvgLeadPriceById(String id) {
+        Objects.requireNonNull(id, "id must not be null");
+        return springDataServiceCategoryRepository.findAvgLeadPriceById(id)
+                .map(OptionalInt::of)
+                .orElseGet(OptionalInt::empty);
     }
 }

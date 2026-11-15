@@ -47,4 +47,14 @@ public class WalletTransactionRepositoryAdapter implements WalletTransactionRepo
                 .map(EntityMapper::toDomain)
                 .toList();
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WalletTransaction> findByUserIdAndLeadId(UUID userId, UUID leadId) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        Objects.requireNonNull(leadId, "leadId must not be null");
+        return springDataWalletTransactionRepository.findByUserIdAndLeadIdOrderByCreatedAtAsc(userId, leadId).stream()
+                .map(EntityMapper::toDomain)
+                .toList();
+    }
 }

@@ -3,6 +3,7 @@ package ro.marketplace.application.service;
 import ro.marketplace.application.audit.AuditDetails;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
+import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.WalletTransaction;
@@ -15,6 +16,7 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 public class WalletServiceImpl implements WalletService {
@@ -44,11 +46,12 @@ public class WalletServiceImpl implements WalletService {
         validateAmount(credits, "Credits amount");
         return unitOfWork.executeInTransaction(() -> {
             User user = getUser(userId);
-            int balanceBefore = user.getCreditsBalance();
-            if (!userRepository.addCredits(userId, credits)) {
+            OptionalInt newBalance = userRepository.addCredits(userId, credits);
+            if (newBalance.isEmpty()) {
                 throw new ResourceNotFoundException("User not found with id: " + userId);
             }
-            int balanceAfter = getUser(userId).getCreditsBalance();
+            int balanceAfter = newBalance.getAsInt();
+            int balanceBefore = balanceAfter - credits;
 
             WalletTransaction tx = WalletTransaction.builder()
                     .id(UUID.randomUUID())
@@ -76,12 +79,13 @@ public class WalletServiceImpl implements WalletService {
         validateAmount(credits, "Credits to deduct");
         return unitOfWork.executeInTransaction(() -> {
             User user = getUser(userId);
-            int balanceBefore = user.getCreditsBalance();
-            if (!userRepository.deductCredits(userId, credits)) {
+            OptionalInt newBalance = userRepository.deductCredits(userId, credits);
+            if (newBalance.isEmpty()) {
                 throw new ConflictException("Insufficient credit balance for user " + userId
-                        + ": current " + balanceBefore + ", required " + credits);
+                        + ": current " + user.getCreditsBalance() + ", required " + credits);
             }
-            int balanceAfter = getUser(userId).getCreditsBalance();
+            int balanceAfter = newBalance.getAsInt();
+            int balanceBefore = balanceAfter + credits;
 
             WalletTransaction tx = WalletTransaction.builder()
                     .id(UUID.randomUUID())
@@ -116,11 +120,12 @@ public class WalletServiceImpl implements WalletService {
         validateAmount(credits, "Refund credits");
         return unitOfWork.executeInTransaction(() -> {
             User user = getUser(userId);
-            int balanceBefore = user.getCreditsBalance();
-            if (!userRepository.addCredits(userId, credits)) {
+            OptionalInt newBalance = userRepository.addCredits(userId, credits);
+            if (newBalance.isEmpty()) {
                 throw new ResourceNotFoundException("User not found with id: " + userId);
             }
-            int balanceAfter = getUser(userId).getCreditsBalance();
+            int balanceAfter = newBalance.getAsInt();
+            int balanceBefore = balanceAfter - credits;
 
             WalletTransaction tx = WalletTransaction.builder()
                     .id(UUID.randomUUID())
@@ -158,10 +163,10 @@ public class WalletServiceImpl implements WalletService {
 
     private void validateAmount(int credits, String label) {
         if (credits <= 0) {
-            throw new IllegalArgumentException(label + " must be positive");
+            throw new ValidationException(label + " must be positive");
         }
         if (credits > MAX_CREDITS_PER_OPERATION) {
-            throw new IllegalArgumentException(label + " must not exceed " + MAX_CREDITS_PER_OPERATION);
+            throw new ValidationException(label + " must not exceed " + MAX_CREDITS_PER_OPERATION);
         }
     }
 
