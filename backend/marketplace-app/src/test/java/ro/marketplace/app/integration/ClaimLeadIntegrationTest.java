@@ -145,7 +145,7 @@ class ClaimLeadIntegrationTest {
                 .trustScore(BigDecimal.valueOf(100))
                 .creditsBalance(Credits.of(credits))
                 .build();
-        return userRepository.save(user);
+        return userRepository.create(user);
     }
 
     @Test

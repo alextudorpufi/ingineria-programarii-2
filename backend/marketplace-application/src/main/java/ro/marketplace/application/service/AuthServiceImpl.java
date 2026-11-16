@@ -168,7 +168,7 @@ public class AuthServiceImpl implements AuthService {
                     .professionalProfile(requestedRole.isPro() ? ProfessionalProfile.builder().build() : null)
                     .build();
 
-            return userRepository.save(newUser);
+            return userRepository.create(newUser);
         });
     }
 

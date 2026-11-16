@@ -63,7 +63,7 @@ class AuthServiceImplTest {
     void registerDoesNotGrantCredits() {
         when(userRepository.existsByEmail("pro@example.com")).thenReturn(false);
         when(passwordHasher.encode("Secret123!")).thenReturn("hash");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.create(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         User registered = authService.register("pro@example.com", "Secret123!", "Pro", "pro", null, null);
 
@@ -82,7 +82,7 @@ class AuthServiceImplTest {
         assertThatThrownBy(() -> authService.register("pro@example.com", "onlyletters", "Pro", "pro", null, null))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("letter and one digit");
-        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).create(any());
     }
 
     @Test

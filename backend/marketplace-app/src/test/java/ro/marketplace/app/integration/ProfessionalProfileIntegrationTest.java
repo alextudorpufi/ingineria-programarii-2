@@ -42,7 +42,7 @@ class ProfessionalProfileIntegrationTest {
         User user = account("pro");
         user.setCreditsBalance(Credits.of(120));
         user.setPasswordHash("preserved-password-hash");
-        users.save(user);
+        users.create(user);
         var profile = ProfessionalProfile.builder().categories(List.of("it-software"))
                 .servicesOffered(List.of("Web development")).capabilities(List.of("Payments"))
                 .supportsRemote(true).supportsOnsite(true).coverageAreas(List.of("RO-IS", "RO-B"))
@@ -79,7 +79,7 @@ class ProfessionalProfileIntegrationTest {
                 .build();
         User pro = account("pro");
         pro.setProfessionalProfile(profile);
-        users.save(pro);
+        users.create(pro);
 
         User loaded = users.findById(pro.getId()).orElseThrow();
         assertThat(loaded.getProfessionalProfile()).usingRecursiveComparison().isEqualTo(profile);
@@ -90,8 +90,8 @@ class ProfessionalProfileIntegrationTest {
 
     @Test
     void newProfessionalsGetDraftProfilesAndClientsDoNot() {
-        User pro = users.save(account("pro"));
-        User client = users.save(account("client"));
+        User pro = users.create(account("pro"));
+        User client = users.create(account("client"));
         assertThat(pro.getProfessionalProfile().getOnboardingStatus())
                 .isEqualTo(ProfessionalProfile.OnboardingStatus.DRAFT);
         assertThat(pro.getProfessionalProfile().isAcceptingLeads()).isFalse();
