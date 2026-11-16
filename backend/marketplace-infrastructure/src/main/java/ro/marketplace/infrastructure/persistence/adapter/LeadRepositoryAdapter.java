@@ -184,4 +184,14 @@ public class LeadRepositoryAdapter implements LeadRepository {
         Objects.requireNonNull(leadId, "leadId must not be null");
         springDataLeadRepository.markAssignedIfFull(leadId);
     }
+
+    @Override
+    @Transactional
+    public boolean updateStatus(UUID leadId, LeadStatus expectedStatus, LeadStatus newStatus) {
+        Objects.requireNonNull(leadId, "leadId must not be null");
+        Objects.requireNonNull(expectedStatus, "expectedStatus must not be null");
+        Objects.requireNonNull(newStatus, "newStatus must not be null");
+        return springDataLeadRepository.updateStatus(
+                leadId, expectedStatus.getDbValue(), newStatus.getDbValue()) == 1;
+    }
 }

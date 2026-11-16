@@ -22,4 +22,6 @@ public interface LeadService {
     LeadPage getLeadsPage(String categoryId, LeadStatus status, int page, int size);
 
     LeadClaim claimLead(UUID leadId, UUID proId, String proName);
+
+    Lead closeLead(UUID leadId, String actor);
 }

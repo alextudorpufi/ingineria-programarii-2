@@ -23,4 +23,10 @@ public interface DisputeRepository {
      *         for the same lead
      */
     boolean existsOpenDispute(UUID leadId, UUID proId);
+
+    /**
+     * @return {@code true} when any professional still has an unresolved dispute
+     *         for the lead, so the lead must stay in the disputed state
+     */
+    boolean existsOpenDisputeForLead(UUID leadId);
 }

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import ro.marketplace.domain.exception.ConflictException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -79,4 +80,49 @@ public class Lead {
 
     @Builder.Default
     private List<LeadClaim> claimedPros = new ArrayList<>();
+
+    /** A lead accepts new claims only before it is assigned, closed, or disputed. */
+    public boolean isOpenForClaims() {
+        return status == LeadStatus.VALIDAT || status == LeadStatus.IN_ASTEPTARE;
+    }
+
+    public boolean hasReachedCapacity() {
+        return maxPros > 0 && currentPros >= maxPros;
+    }
+
+    /**
+     * Marks the lead as disputed. A finalized lead is immutable, so it can no
+     * longer be disputed.
+     */
+    public void markDisputed() {
+        if (status == LeadStatus.FINALIZAT) {
+            throw new ConflictException("A finalized lead cannot be disputed.");
+        }
+        this.status = LeadStatus.DISPUTAT;
+    }
+
+    /**
+     * Restores the lead after the last open dispute is resolved: full leads are
+     * assigned again, otherwise the lead becomes claimable again.
+     */
+    public void reopenAfterDispute() {
+        if (status != LeadStatus.DISPUTAT) {
+            return;
+        }
+        this.status = hasReachedCapacity() ? LeadStatus.ATRIBUIT : LeadStatus.VALIDAT;
+    }
+
+    /**
+     * Closes a lead. Disputed leads must be resolved first so that a pending
+     * refund can never be silently discarded.
+     */
+    public void close() {
+        if (status == LeadStatus.DISPUTAT) {
+            throw new ConflictException("A disputed lead must be resolved before it can be closed.");
+        }
+        if (status == LeadStatus.FINALIZAT) {
+            return;
+        }
+        this.status = LeadStatus.FINALIZAT;
+    }
 }

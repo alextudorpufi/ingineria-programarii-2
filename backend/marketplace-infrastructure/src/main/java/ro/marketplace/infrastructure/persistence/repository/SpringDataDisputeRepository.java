@@ -16,4 +16,6 @@ public interface SpringDataDisputeRepository extends JpaRepository<DisputeEntity
     List<DisputeEntity> findByStatus(String status, Pageable pageable);
 
     boolean existsByLeadIdAndProIdAndStatus(UUID leadId, UUID proId, String status);
+
+    boolean existsByLeadIdAndStatus(UUID leadId, String status);
 }

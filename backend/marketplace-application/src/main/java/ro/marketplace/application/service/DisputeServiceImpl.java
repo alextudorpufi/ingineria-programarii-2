@@ -8,6 +8,7 @@ import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
+import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
@@ -109,6 +110,12 @@ public class DisputeServiceImpl implements DisputeService {
                     .createdAt(LocalDateTime.now(clock))
                     .build();
 
+            LeadStatus previousLeadStatus = lead.getStatus();
+            lead.markDisputed();
+            if (!leadRepository.updateStatus(leadId, previousLeadStatus, lead.getStatus())) {
+                throw new ConflictException("Lead status changed concurrently; please retry.");
+            }
+
             Dispute saved = disputeRepository.save(dispute);
             auditService.recordEvent("Dispute", saved.getId().toString(), AuditAction.RAISE_DISPUTE, proName,
                     AuditDetails.of(
@@ -171,6 +178,18 @@ public class DisputeServiceImpl implements DisputeService {
             }
 
             Dispute updated = disputeRepository.save(dispute);
+
+            // A lead leaves the disputed state only when no other open dispute remains.
+            leadRepository.findById(dispute.getLeadId()).ifPresent(lead -> {
+                if (!disputeRepository.existsOpenDisputeForLead(dispute.getLeadId())) {
+                    LeadStatus previousLeadStatus = lead.getStatus();
+                    lead.reopenAfterDispute();
+                    if (lead.getStatus() != previousLeadStatus) {
+                        leadRepository.updateStatus(lead.getId(), previousLeadStatus, lead.getStatus());
+                    }
+                }
+            });
+
             auditService.recordEvent("Dispute", disputeId.toString(), AuditAction.RESOLVE_DISPUTE, actor,
                     AuditDetails.of(
                             "status", newStatus.getDbValue(),

@@ -205,11 +205,9 @@ public class LeadServiceImpl implements LeadService {
             if (lead.getClientId() != null && lead.getClientId().equals(proId)) {
                 throw new ConflictException("A professional cannot claim their own lead.");
             }
-            if (lead.getStatus() != null
-                    && lead.getStatus() != LeadStatus.VALIDAT
-                    && lead.getStatus() != LeadStatus.IN_ASTEPTARE) {
-                throw new ConflictException(
-                        "Lead " + leadId + " is no longer open for claims (status=" + lead.getStatus().getDbValue() + ")");
+            if (!lead.isOpenForClaims()) {
+                throw new ConflictException("Lead " + leadId + " is no longer open for claims (status="
+                        + (lead.getStatus() != null ? lead.getStatus().getDbValue() : "unknown") + ")");
             }
 
             // Idempotency guard. The UNIQUE (lead_id, pro_id) constraint remains the hard backstop.
@@ -242,6 +240,25 @@ public class LeadServiceImpl implements LeadService {
                             "proId", proId,
                             "leadPrice", lead.getLeadPrice()));
             return savedClaim;
+        });
+    }
+
+    @Override
+    public Lead closeLead(UUID leadId, String actor) {
+        Objects.requireNonNull(leadId, "leadId must not be null");
+        return unitOfWork.executeInTransaction(() -> {
+            Lead lead = leadRepository.findById(leadId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Lead not found with id: " + leadId));
+            LeadStatus previous = lead.getStatus();
+            lead.close();
+            if (!leadRepository.updateStatus(leadId, previous, lead.getStatus())) {
+                throw new ConflictException("Lead status changed concurrently; please retry.");
+            }
+            Lead updated = leadRepository.findById(leadId).orElse(lead);
+            auditService.recordEvent("Lead", leadId.toString(), AuditAction.STATUS_CHANGE,
+                    actor != null && !actor.isBlank() ? actor : "admin",
+                    AuditDetails.of("previousStatus", previous, "status", updated.getStatus()));
+            return updated;
         });
     }
 

@@ -82,4 +82,12 @@ public class DisputeRepositoryAdapter implements DisputeRepository {
         return springDataDisputeRepository.existsByLeadIdAndProIdAndStatus(
                 leadId, proId, DisputeStatus.IN_ANALIZA.getDbValue());
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsOpenDisputeForLead(UUID leadId) {
+        Objects.requireNonNull(leadId, "leadId must not be null");
+        return springDataDisputeRepository.existsByLeadIdAndStatus(
+                leadId, DisputeStatus.IN_ANALIZA.getDbValue());
+    }
 }

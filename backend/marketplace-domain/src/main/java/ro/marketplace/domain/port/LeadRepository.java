@@ -57,4 +57,12 @@ public interface LeadRepository {
      * Marks the lead as assigned when the authoritative counter is full.
      */
     void markAssignedIfFull(UUID leadId);
+
+    /**
+     * Atomically applies a lifecycle transition only when the row is still in the
+     * state that was validated in memory.
+     *
+     * @return {@code false} when the lead is missing or its status already changed
+     */
+    boolean updateStatus(UUID leadId, LeadStatus expectedStatus, LeadStatus newStatus);
 }
