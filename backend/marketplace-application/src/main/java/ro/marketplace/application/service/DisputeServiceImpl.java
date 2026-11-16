@@ -159,14 +159,8 @@ public class DisputeServiceImpl implements DisputeService {
 
         return unitOfWork.executeInTransaction(() -> {
             Dispute dispute = getDisputeById(disputeId);
-            if (dispute.getStatus() != DisputeStatus.IN_ANALIZA) {
-                throw new ConflictException("Dispute is already resolved with status: " + dispute.getStatus().getDbValue());
-            }
-
-            DisputeStatus newStatus = approved ? DisputeStatus.APROBAT : DisputeStatus.RESPINS;
-            dispute.setStatus(newStatus);
-            dispute.setAdminDecisionNote(adminDecisionNote);
-            dispute.setResolvedAt(LocalDateTime.now(clock));
+            dispute.resolve(approved, adminDecisionNote, LocalDateTime.now(clock));
+            DisputeStatus newStatus = dispute.getStatus();
 
             String actor = adminUsername != null && !adminUsername.isBlank() ? adminUsername : "admin";
             if (approved) {

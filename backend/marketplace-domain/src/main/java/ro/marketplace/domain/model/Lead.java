@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.exception.ValidationException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -20,6 +21,15 @@ import java.util.UUID;
 @AllArgsConstructor
 public class Lead {
     public enum WorkMode { ONSITE, REMOTE }
+
+    /**
+     * Capacity is a platform policy, not a client preference: a lead may be sold
+     * to at most this many professionals.
+     */
+    public static final int DEFAULT_MAX_PROS = 4;
+    public static final int DEFAULT_LEAD_PRICE = 30;
+    private static final int MAX_CAPABILITIES = 50;
+    private static final int MAX_CAPABILITY_LENGTH = 255;
 
     private UUID id;
     private String title;
@@ -81,9 +91,77 @@ public class Lead {
     @Builder.Default
     private List<LeadClaim> claimedPros = new ArrayList<>();
 
+    /**
+     * Validates the client-supplied part of a lead before it is priced and
+     * persisted. Unknown categories are checked by the application because they
+     * require a repository lookup.
+     */
+    public void validateForCreation() {
+        if (budgetMin != null && budgetMax != null && budgetMin.compareTo(budgetMax) > 0) {
+            throw new ValidationException("budgetMin must not exceed budgetMax");
+        }
+        if (budgetMin != null && budgetMin.signum() < 0 || budgetMax != null && budgetMax.signum() < 0) {
+            throw new ValidationException("Budget values must not be negative");
+        }
+    }
+
+    /**
+     * Applies the platform's immutable listing policy: the authoritative category
+     * price and the maximum number of buyers. Client-supplied values are ignored.
+     */
+    public void applyPlatformPolicy(int categoryPrice) {
+        this.status = LeadStatus.VALIDAT;
+        this.leadPrice = categoryPrice > 0 ? categoryPrice : DEFAULT_LEAD_PRICE;
+        this.maxPros = DEFAULT_MAX_PROS;
+    }
+
+    /**
+     * Denormalises the authenticated client's contact details onto the lead so
+     * the sold lead remains an immutable snapshot.
+     */
+    public void snapshotClient(User client) {
+        this.clientName = client.getName();
+        this.clientEmail = client.getEmail();
+        this.clientPhone = client.getPhone() != null ? client.getPhone().trim() : "";
+    }
+
+    /**
+     * Trims, de-duplicates and bounds the matching requirements. Preferred
+     * capabilities already present in the required list are dropped.
+     */
+    public void normalizeRequirements() {
+        if (workMode == null) {
+            throw new ValidationException("Selectează modul de lucru: la locație sau la distanță.");
+        }
+        List<String> required = normalizeCapabilities(requiredCapabilities);
+        List<String> preferred = normalizeCapabilities(preferredCapabilities).stream()
+                .filter(value -> required.stream().noneMatch(value::equalsIgnoreCase))
+                .toList();
+        this.requiredCapabilities = required;
+        this.preferredCapabilities = preferred;
+    }
+
+    private static List<String> normalizeCapabilities(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        if (values.size() > MAX_CAPABILITIES || values.stream()
+                .anyMatch(value -> value == null || value.isBlank() || value.length() > MAX_CAPABILITY_LENGTH)) {
+            throw new ValidationException("Folosește maximum " + MAX_CAPABILITIES
+                    + " de competențe în fiecare listă, cu 1–" + MAX_CAPABILITY_LENGTH + " de caractere fiecare.");
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String value : values) {
+            String trimmed = value.trim();
+            if (normalized.stream().noneMatch(trimmed::equalsIgnoreCase)) {
+                normalized.add(trimmed);
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
     /** A lead accepts new claims only before it is assigned, closed, or disputed. */
-    public boolean isOpenForClaims() {
-        return status == LeadStatus.VALIDAT || status == LeadStatus.IN_ASTEPTARE;
+    public boolean isOpenForClaims() {        return status == LeadStatus.VALIDAT || status == LeadStatus.IN_ASTEPTARE;
     }
 
     public boolean hasReachedCapacity() {

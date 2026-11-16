@@ -18,20 +18,12 @@ import ro.marketplace.domain.port.UserRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class LeadServiceImpl implements LeadService {
-
-    /**
-     * Capacity is a platform policy, not a client preference: a lead may be sold
-     * to at most this many professionals.
-     */
-    private static final int DEFAULT_MAX_PROS = 4;
-    private static final int DEFAULT_LEAD_PRICE = 30;
 
     private final LeadRepository leadRepository;
     private final ServiceCategoryRepository serviceCategoryRepository;
@@ -61,7 +53,7 @@ public class LeadServiceImpl implements LeadService {
     public Lead createLead(Lead lead) {
         Objects.requireNonNull(lead, "lead must not be null");
         return unitOfWork.executeInTransaction(() -> {
-            validateBudget(lead);
+            lead.validateForCreation();
             if (lead.getClientId() == null) {
                 throw new ValidationException("clientId is required");
             }
@@ -71,7 +63,7 @@ public class LeadServiceImpl implements LeadService {
             if (categoryPrice < 0) {
                 throw new ValidationException("Unknown service category: " + lead.getCategoryId());
             }
-            normalizeMatchingRequirements(lead);
+            lead.normalizeRequirements();
             if (lead.getId() == null) {
                 lead.setId(UUID.randomUUID());
             }
@@ -79,11 +71,8 @@ public class LeadServiceImpl implements LeadService {
                 lead.setCreatedAt(LocalDateTime.now(clock));
             }
             // New leads always start in the platform's initial state; callers cannot
-            // skip the workflow by posting a different status.
-            lead.setStatus(LeadStatus.VALIDAT);
-            // Ignore any client-supplied price/capacity and apply the platform policy.
-            lead.setLeadPrice(categoryPrice > 0 ? categoryPrice : DEFAULT_LEAD_PRICE);
-            lead.setMaxPros(DEFAULT_MAX_PROS);
+            // skip the workflow by posting a different status or price.
+            lead.applyPlatformPolicy(categoryPrice);
 
             // The contact snapshot must belong to the authenticated account. A client
             // can no longer publish somebody else's name, email, or phone number.
@@ -92,9 +81,7 @@ public class LeadServiceImpl implements LeadService {
             if (client.getRole() != UserRole.CLIENT && client.getRole() != UserRole.ADMIN) {
                 throw new ValidationException("Only client accounts can publish leads.");
             }
-            lead.setClientName(client.getName());
-            lead.setClientEmail(client.getEmail());
-            lead.setClientPhone(client.getPhone() != null ? client.getPhone().trim() : "");
+            lead.snapshotClient(client);
 
             Lead saved = leadRepository.save(lead);
             auditService.recordEvent("Lead", saved.getId().toString(), AuditAction.CREATE, saved.getClientEmail(),
@@ -105,31 +92,6 @@ public class LeadServiceImpl implements LeadService {
                             "maxPros", saved.getMaxPros()));
             return saved;
         });
-    }
-
-    private void normalizeMatchingRequirements(Lead lead) {
-        if (lead.getWorkMode() == null) {
-            throw new ValidationException("Selectează modul de lucru: la locație sau la distanță.");
-        }
-        List<String> required = normalizeCapabilities(lead.getRequiredCapabilities());
-        List<String> preferred = normalizeCapabilities(lead.getPreferredCapabilities()).stream()
-                .filter(value -> required.stream().noneMatch(value::equalsIgnoreCase)).toList();
-        lead.setRequiredCapabilities(required);
-        lead.setPreferredCapabilities(preferred);
-    }
-
-    private List<String> normalizeCapabilities(List<String> values) {
-        if (values == null) return List.of();
-        if (values.size() > 50 || values.stream()
-                .anyMatch(value -> value == null || value.isBlank() || value.length() > 255)) {
-            throw new ValidationException("Folosește maximum 50 de competențe în fiecare listă, cu 1–255 de caractere fiecare.");
-        }
-        List<String> normalized = new ArrayList<>();
-        for (String value : values) {
-            String trimmed = value.trim();
-            if (normalized.stream().noneMatch(trimmed::equalsIgnoreCase)) normalized.add(trimmed);
-        }
-        return List.copyOf(normalized);
     }
 
     @Override
@@ -269,12 +231,5 @@ public class LeadServiceImpl implements LeadService {
         Map<UUID, List<LeadClaim>> claimsByLead = leadRepository.findClaimsByLeadIds(leadIds).stream()
                 .collect(Collectors.groupingBy(LeadClaim::getLeadId));
         leads.forEach(lead -> lead.setClaimedPros(claimsByLead.getOrDefault(lead.getId(), List.of())));
-    }
-
-    private void validateBudget(Lead lead) {
-        if (lead.getBudgetMin() != null && lead.getBudgetMax() != null
-                && lead.getBudgetMin().compareTo(lead.getBudgetMax()) > 0) {
-            throw new ValidationException("budgetMin must not exceed budgetMax");
-        }
     }
 }

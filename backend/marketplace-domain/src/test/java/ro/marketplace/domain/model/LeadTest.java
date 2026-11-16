@@ -114,4 +114,67 @@ class LeadTest {
         assertThat(lead(LeadStatus.VALIDAT, 4, 4).hasReachedCapacity()).isTrue();
         assertThat(lead(LeadStatus.VALIDAT, 0, 0).hasReachedCapacity()).isFalse();
     }
+
+    @Test
+    @DisplayName("creation rejects an inverted or negative budget")
+    void validateForCreation() {
+        Lead inverted = Lead.builder()
+                .budgetMin(java.math.BigDecimal.TEN)
+                .budgetMax(java.math.BigDecimal.ONE)
+                .build();
+        assertThatThrownBy(inverted::validateForCreation)
+                .isInstanceOf(ro.marketplace.domain.exception.ValidationException.class)
+                .hasMessageContaining("budgetMin");
+
+        Lead negative = Lead.builder().budgetMin(java.math.BigDecimal.valueOf(-1)).build();
+        assertThatThrownBy(negative::validateForCreation)
+                .isInstanceOf(ro.marketplace.domain.exception.ValidationException.class);
+    }
+
+    @Test
+    @DisplayName("platform policy overrides client price and capacity")
+    void applyPlatformPolicy() {
+        Lead lead = Lead.builder().leadPrice(1).maxPros(99).build();
+
+        lead.applyPlatformPolicy(45);
+
+        assertThat(lead.getStatus()).isEqualTo(LeadStatus.VALIDAT);
+        assertThat(lead.getLeadPrice()).isEqualTo(45);
+        assertThat(lead.getMaxPros()).isEqualTo(Lead.DEFAULT_MAX_PROS);
+    }
+
+    @Test
+    @DisplayName("a zero category price falls back to the platform default")
+    void applyPlatformPolicyFallsBackToDefaultPrice() {
+        Lead lead = Lead.builder().build();
+
+        lead.applyPlatformPolicy(0);
+
+        assertThat(lead.getLeadPrice()).isEqualTo(Lead.DEFAULT_LEAD_PRICE);
+    }
+
+    @Test
+    @DisplayName("requirements are trimmed, de-duplicated, and preferred values drop duplicates")
+    void normalizeRequirements() {
+        Lead lead = Lead.builder()
+                .workMode(Lead.WorkMode.REMOTE)
+                .requiredCapabilities(java.util.List.of(" Payments ", "payments"))
+                .preferredCapabilities(java.util.List.of("PAYMENTS", " Branding ", "branding"))
+                .build();
+
+        lead.normalizeRequirements();
+
+        assertThat(lead.getRequiredCapabilities()).containsExactly("Payments");
+        assertThat(lead.getPreferredCapabilities()).containsExactly("Branding");
+    }
+
+    @Test
+    @DisplayName("requirements cannot be normalized without a work mode")
+    void normalizeRequirementsRequiresWorkMode() {
+        Lead lead = Lead.builder().build();
+
+        assertThatThrownBy(lead::normalizeRequirements)
+                .isInstanceOf(ro.marketplace.domain.exception.ValidationException.class)
+                .hasMessageContaining("modul de lucru");
+    }
 }

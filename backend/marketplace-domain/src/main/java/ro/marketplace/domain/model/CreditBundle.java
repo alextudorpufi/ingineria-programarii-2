@@ -10,7 +10,13 @@ public record CreditBundle(
         String currency,
         boolean popular
 ) {
+    public CreditBundle {
+        if (credits < 0 || bonusCredits < 0) {
+            throw new IllegalArgumentException("Bundle credits must not be negative");
+        }
+    }
+
     public int totalCredits() {
-        return credits + bonusCredits;
+        return Math.addExact(credits, bonusCredits);
     }
 }
