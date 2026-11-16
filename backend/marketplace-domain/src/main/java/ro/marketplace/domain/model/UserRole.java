@@ -1,8 +1,5 @@
 package ro.marketplace.domain.model;
 
-import java.util.Arrays;
-import java.util.Objects;
-
 /**
  * Account roles. The database stores the lower-case {@link #getDbValue()}.
  * Centralising the allowed values keeps authorisation checks from drifting into
@@ -36,13 +33,7 @@ public enum UserRole {
     }
 
     public static UserRole fromDbValue(String value) {
-        Objects.requireNonNull(value, "role must not be null");
-        String normalized = value.trim();
-        return Arrays.stream(values())
-                .filter(role -> role.dbValue.equalsIgnoreCase(normalized)
-                        || role.name().equalsIgnoreCase(normalized))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown user role: " + value));
+        return DbEnumValue.parse(value, "user role", values(), UserRole::getDbValue);
     }
 
     /**

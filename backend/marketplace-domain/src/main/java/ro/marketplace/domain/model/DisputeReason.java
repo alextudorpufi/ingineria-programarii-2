@@ -1,8 +1,5 @@
 package ro.marketplace.domain.model;
 
-import java.util.Arrays;
-import java.util.Objects;
-
 /**
  * Catalog of valid dispute reasons. The database stores the lower-case
  * {@link #getDbValue()}.
@@ -24,12 +21,6 @@ public enum DisputeReason {
     }
 
     public static DisputeReason fromDbValue(String value) {
-        Objects.requireNonNull(value, "reason must not be null");
-        String normalized = value.trim();
-        return Arrays.stream(values())
-                .filter(reason -> reason.dbValue.equalsIgnoreCase(normalized)
-                        || reason.name().equalsIgnoreCase(normalized))
-                .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("Unknown dispute reason: " + value));
+        return DbEnumValue.parse(value, "dispute reason", values(), DisputeReason::getDbValue);
     }
 }
