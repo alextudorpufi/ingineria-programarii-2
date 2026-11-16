@@ -11,6 +11,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class UserTest {
 
     @Test
+    @DisplayName("new users default to the least-privileged role")
+    void defaultRoleIsClient() {
+        assertThat(User.builder().build().getRole()).isEqualTo(UserRole.CLIENT);
+    }
+
+    @Test
     @DisplayName("compatibility profile getters expose immutable snapshots")
     void profileGettersAreImmutable() {
         User user = User.builder()

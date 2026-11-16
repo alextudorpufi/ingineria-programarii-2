@@ -20,7 +20,8 @@ public class User {
     private UUID id;
     private String email;
     private String passwordHash;
-    private UserRole role;
+    @Builder.Default
+    private UserRole role = UserRole.CLIENT;
     private String name;
     private String companyName;
     private String title;

@@ -58,12 +58,14 @@ public class Lead {
     // record of what the professional purchased, even if the client profile changes later.
     private UUID clientId;
     private String clientName;
-    private String clientPhone;
+    @Builder.Default
+    private String clientPhone = "";
     private String clientEmail;
     private String clientCity;
     private boolean clientIsVerified;
 
-    private LeadStatus status;
+    @Builder.Default
+    private LeadStatus status = LeadStatus.VALIDAT;
 
     /** Number of reserved professional slots; the authoritative capacity counter. */
     private int currentPros;

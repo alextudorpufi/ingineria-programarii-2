@@ -179,6 +179,15 @@ class LeadTest {
     }
 
     @Test
+    @DisplayName("non-null persistence fields have neutral defaults")
+    void nonNullFieldDefaults() {
+        Lead lead = Lead.builder().build();
+
+        assertThat(lead.getClientPhone()).isEmpty();
+        assertThat(lead.getStatus()).isEqualTo(LeadStatus.VALIDAT);
+    }
+
+    @Test
     @DisplayName("collection getters expose immutable snapshots")
     void collectionsAreImmutable() {
         Lead lead = Lead.builder()
