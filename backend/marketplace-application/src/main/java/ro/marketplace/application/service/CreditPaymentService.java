@@ -146,8 +146,7 @@ public class CreditPaymentService {
 
             WalletTransaction transaction = walletService.topUpCredits(
                     purchase.userId(), purchase.credits(), "Stripe credit purchase " + purchase.bundleId());
-            creditPurchaseRepository.save(purchase.withStatus(
-                    CreditPurchaseStatus.PAID, transaction.getId(), LocalDateTime.now(clock)));
+            creditPurchaseRepository.save(purchase.markPaid(transaction.getId(), LocalDateTime.now(clock)));
             return null;
         });
     }
@@ -190,9 +189,16 @@ public class CreditPaymentService {
     }
 
     private void updatePendingStatus(CreditPurchase purchase, CreditPurchaseStatus status) {
-        if (purchase.status() == CreditPurchaseStatus.PENDING) {
-            creditPurchaseRepository.save(purchase.withStatus(status, null, LocalDateTime.now(clock)));
+        if (purchase.status() != CreditPurchaseStatus.PENDING) {
+            return;
         }
+        LocalDateTime updated = LocalDateTime.now(clock);
+        CreditPurchase transitioned = switch (status) {
+            case FAILED -> purchase.markFailed(updated);
+            case EXPIRED -> purchase.markExpired(updated);
+            default -> throw new IllegalArgumentException("Unsupported pending transition: " + status);
+        };
+        creditPurchaseRepository.save(transitioned);
     }
 
     private void markFailed(CreditPurchase purchase) {
