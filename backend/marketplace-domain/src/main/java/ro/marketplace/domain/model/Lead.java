@@ -91,6 +91,30 @@ public class Lead {
     @Builder.Default
     private List<LeadClaim> claimedPros = new ArrayList<>();
 
+    public List<String> getRequiredCapabilities() {
+        return requiredCapabilities == null ? List.of() : List.copyOf(requiredCapabilities);
+    }
+
+    public void setRequiredCapabilities(List<String> requiredCapabilities) {
+        this.requiredCapabilities = requiredCapabilities == null ? List.of() : List.copyOf(requiredCapabilities);
+    }
+
+    public List<String> getPreferredCapabilities() {
+        return preferredCapabilities == null ? List.of() : List.copyOf(preferredCapabilities);
+    }
+
+    public void setPreferredCapabilities(List<String> preferredCapabilities) {
+        this.preferredCapabilities = preferredCapabilities == null ? List.of() : List.copyOf(preferredCapabilities);
+    }
+
+    public List<LeadClaim> getClaimedPros() {
+        return claimedPros == null ? List.of() : List.copyOf(claimedPros);
+    }
+
+    public void setClaimedPros(List<LeadClaim> claimedPros) {
+        this.claimedPros = claimedPros == null ? List.of() : List.copyOf(claimedPros);
+    }
+
     /**
      * Validates the client-supplied part of a lead before it is priced and
      * persisted. Unknown categories are checked by the application because they

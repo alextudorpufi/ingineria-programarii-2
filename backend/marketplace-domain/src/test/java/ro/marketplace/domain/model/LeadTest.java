@@ -177,4 +177,27 @@ class LeadTest {
                 .isInstanceOf(ro.marketplace.domain.exception.ValidationException.class)
                 .hasMessageContaining("modul de lucru");
     }
+
+    @Test
+    @DisplayName("collection getters expose immutable snapshots")
+    void collectionsAreImmutable() {
+        Lead lead = Lead.builder()
+                .requiredCapabilities(java.util.List.of("Payments"))
+                .preferredCapabilities(java.util.List.of("Branding"))
+                .build();
+        LeadClaim claim = LeadClaim.builder().proName("Pro").build();
+        java.util.List<LeadClaim> claims = new java.util.ArrayList<>();
+        claims.add(claim);
+        lead.setClaimedPros(claims);
+
+        assertThatThrownBy(() -> lead.getRequiredCapabilities().add("Hacking"))
+                .isInstanceOf(UnsupportedOperationException.class);
+        assertThatThrownBy(() -> lead.getClaimedPros().clear())
+                .isInstanceOf(UnsupportedOperationException.class);
+
+        claims.add(LeadClaim.builder().proName("Other").build());
+        lead.setRequiredCapabilities(java.util.List.of("Payments"));
+        assertThat(lead.getClaimedPros()).hasSize(1);
+        assertThat(lead.getRequiredCapabilities()).containsExactly("Payments");
+    }
 }
