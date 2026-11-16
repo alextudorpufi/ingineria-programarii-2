@@ -126,4 +126,31 @@ class WalletServiceImplTest {
         verify(auditService).recordEvent(eq("User"), eq(userId.toString()), eq(AuditAction.REFUND_APPROVED),
                 eq("admin"), any());
     }
+
+    @Test
+    @DisplayName("grantBonusCredits writes a bonus ledger entry so balances stay reconcilable")
+    void grantBonusCredits_Success() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(0).build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(30));
+        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WalletTransaction tx = walletService.grantBonusCredits(userId, 30, "Welcome credits", "admin-1");
+
+        assertThat(tx.getAmount()).isEqualTo(30);
+        assertThat(tx.getBalanceAfter()).isEqualTo(30);
+        assertThat(tx.getType()).isEqualTo(WalletTransactionType.BONUS);
+        verify(auditService).recordEvent(eq("User"), eq(userId.toString()), eq(AuditAction.CREDIT_BONUS),
+                eq("admin-1"), any());
+    }
+
+    @Test
+    @DisplayName("grantBonusCredits rejects a non-positive amount before touching the balance")
+    void grantBonusCredits_RejectsNonPositiveAmount() {
+        assertThatThrownBy(() -> walletService.grantBonusCredits(UUID.randomUUID(), 0, "Bonus", "admin-1"))
+                .isInstanceOf(ro.marketplace.domain.exception.ValidationException.class);
+        verify(walletTransactionRepository, never()).save(any());
+    }
 }

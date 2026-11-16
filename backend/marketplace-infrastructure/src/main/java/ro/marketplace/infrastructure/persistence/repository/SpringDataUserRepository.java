@@ -43,8 +43,8 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
     int resetLoginState(@Param("userId") UUID userId);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "UPDATE users SET pro_verified = TRUE, credits_balance = credits_balance + :amount, "
+    @Query(value = "UPDATE users SET pro_verified = TRUE, "
             + "version = version + 1, updated_at = now() "
-            + "WHERE id = :userId AND role IN ('pro', 'admin') AND pro_verified = FALSE", nativeQuery = true)
-    int verifyProAndAddCredits(@Param("userId") UUID userId, @Param("amount") int amount);
+            + "WHERE id = :userId AND role = 'pro' AND pro_verified = FALSE", nativeQuery = true)
+    int verifyPro(@Param("userId") UUID userId);
 }

@@ -152,6 +152,40 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    public WalletTransaction grantBonusCredits(UUID userId, int credits, String description, String actor) {
+        validateAmount(credits, "Bonus credits");
+        return unitOfWork.executeInTransaction(() -> {
+            User user = getUser(userId);
+            OptionalInt newBalance = userRepository.addCredits(userId, credits);
+            if (newBalance.isEmpty()) {
+                throw new ResourceNotFoundException("User not found with id: " + userId);
+            }
+            int balanceAfter = newBalance.getAsInt();
+            int balanceBefore = balanceAfter - credits;
+
+            WalletTransaction tx = WalletTransaction.builder()
+                    .id(UUID.randomUUID())
+                    .userId(userId)
+                    .type(WalletTransactionType.BONUS)
+                    .amount(credits)
+                    .description(description != null ? description : "Bonus " + credits + " credits")
+                    .balanceAfter(balanceAfter)
+                    .createdAt(LocalDateTime.now(clock))
+                    .build();
+
+            WalletTransaction savedTx = walletTransactionRepository.save(tx);
+            auditService.recordEvent("User", userId.toString(), AuditAction.CREDIT_BONUS,
+                    actor != null && !actor.isBlank() ? actor : "system",
+                    AuditDetails.of(
+                            "amount", credits,
+                            "balanceBefore", balanceBefore,
+                            "balanceAfter", balanceAfter,
+                            "transactionId", savedTx.getId()));
+            return savedTx;
+        });
+    }
+
+    @Override
     public List<WalletTransaction> getUserTransactions(UUID userId) {
         return walletTransactionRepository.findByUserId(userId);
     }

@@ -46,18 +46,21 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final CreditGrantRepository creditGrantRepository;
+    private final WalletService walletService;
     private final PasswordHasher passwordHasher;
     private final UnitOfWork unitOfWork;
     private final Clock clock;
 
     public AuthServiceImpl(UserRepository userRepository,
                            CreditGrantRepository creditGrantRepository,
+                           WalletService walletService,
                            PasswordHasher passwordHasher,
                            UnitOfWork unitOfWork,
                            Clock clock) {
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
         this.creditGrantRepository = Objects.requireNonNull(creditGrantRepository,
                 "creditGrantRepository must not be null");
+        this.walletService = Objects.requireNonNull(walletService, "walletService must not be null");
         this.passwordHasher = Objects.requireNonNull(passwordHasher, "passwordHasher must not be null");
         this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -200,7 +203,7 @@ public class AuthServiceImpl implements AuthService {
             if (alreadyGranted + credits > MAX_LIFETIME_FREE_CREDITS) {
                 throw new ValidationException("The lifetime free-credit limit for this account would be exceeded.");
             }
-            if (!userRepository.verifyProAndAddCredits(userId, credits)) {
+            if (!userRepository.verifyPro(userId)) {
                 throw new ConflictException("The professional account is already verified.");
             }
 
@@ -211,6 +214,11 @@ public class AuthServiceImpl implements AuthService {
                     adminId,
                     LocalDateTime.now(clock)
             ));
+
+            // The welcome credit must reach the balance through the wallet so a
+            // 'bonus' ledger entry keeps ledger and balance consistent.
+            walletService.grantBonusCredits(userId, credits,
+                    "Welcome credits (" + credits + ")", adminId.toString());
 
             return userRepository.findById(userId).orElse(user);
         });

@@ -43,14 +43,17 @@ class AuthServiceImplTest {
     private CreditGrantRepository creditGrantRepository;
 
     @Mock
+    private WalletService walletService;
+
+    @Mock
     private PasswordHasher passwordHasher;
 
     private AuthServiceImpl authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthServiceImpl(userRepository, creditGrantRepository, passwordHasher,
-                new DirectUnitOfWork(), CLOCK);
+        authService = new AuthServiceImpl(userRepository, creditGrantRepository, walletService,
+                passwordHasher, new DirectUnitOfWork(), CLOCK);
     }
 
     @Test
@@ -167,7 +170,7 @@ class AuthServiceImplTest {
                 .build();
         when(userRepository.findById(userId)).thenReturn(Optional.of(unverified), Optional.of(verified));
         when(creditGrantRepository.sumAmountByUserId(userId)).thenReturn(0L);
-        when(userRepository.verifyProAndAddCredits(userId, 30)).thenReturn(true);
+        when(userRepository.verifyPro(userId)).thenReturn(true);
         when(creditGrantRepository.save(any(CreditGrant.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -181,6 +184,9 @@ class AuthServiceImplTest {
         assertThat(captor.getValue().userId()).isEqualTo(userId);
         assertThat(captor.getValue().adminId()).isEqualTo(adminId);
         assertThat(captor.getValue().amount()).isEqualTo(30);
+
+        // The balance change must be recorded through the wallet, never by a direct SQL update.
+        verify(walletService).grantBonusCredits(eq(userId), eq(30), anyString(), eq(adminId.toString()));
     }
 
     @Test
@@ -200,6 +206,29 @@ class AuthServiceImplTest {
                 .isInstanceOf(ConflictException.class);
 
         verify(creditGrantRepository, never()).save(any());
-        verify(userRepository, never()).verifyProAndAddCredits(any(), anyInt());
+        verify(userRepository, never()).verifyPro(any());
+        verify(walletService, never()).grantBonusCredits(any(), anyInt(), any(), any());
+    }
+
+    @Test
+    @DisplayName("a rejected verification never grants bonus credits")
+    void verifyProfessionalRejectedByRepositoryDoesNotGrantCredits() {
+        UUID userId = UUID.randomUUID();
+        User unverified = User.builder()
+                .id(userId)
+                .email("pro@example.com")
+                .role("pro")
+                .proVerified(false)
+                .creditsBalance(0)
+                .build();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(unverified));
+        when(creditGrantRepository.sumAmountByUserId(userId)).thenReturn(0L);
+        when(userRepository.verifyPro(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.verifyProfessionalAndGrantCredits(userId, 30, UUID.randomUUID()))
+                .isInstanceOf(ConflictException.class);
+
+        verify(creditGrantRepository, never()).save(any());
+        verify(walletService, never()).grantBonusCredits(any(), anyInt(), any(), any());
     }
 }

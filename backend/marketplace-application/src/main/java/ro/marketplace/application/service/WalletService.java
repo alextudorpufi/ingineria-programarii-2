@@ -19,6 +19,14 @@ public interface WalletService {
      */
     WalletTransaction refundCredits(UUID userId, int credits, String description, UUID leadId, String actor);
 
+    /**
+     * Grants platform bonus credits (for example the one-time welcome grant) and
+     * records a {@code bonus} ledger entry so the balance is always reconcilable.
+     *
+     * @param actor the administrator or system component that authorised the grant
+     */
+    WalletTransaction grantBonusCredits(UUID userId, int credits, String description, String actor);
+
     List<WalletTransaction> getUserTransactions(UUID userId);
 
     int getBalance(UUID userId);

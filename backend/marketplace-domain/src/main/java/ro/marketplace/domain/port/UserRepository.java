@@ -53,9 +53,12 @@ public interface UserRepository {
     boolean resetLoginState(UUID userId);
 
     /**
-     * Atomically marks a professional as verified and credits the balance.
-     * Returns {@code false} when the user is missing, is not a professional,
-     * or has already been verified.
+     * Atomically flips the professional-verification flag without touching the
+     * balance. Credits are granted separately through the wallet so that every
+     * balance change is backed by a ledger entry.
+     *
+     * @return {@code false} when the user is missing, is not a professional,
+     *         or has already been verified
      */
-    boolean verifyProAndAddCredits(UUID userId, int amount);
+    boolean verifyPro(UUID userId);
 }

@@ -149,8 +149,8 @@ public class UserRepositoryAdapter implements UserRepository {
 
     @Override
     @Transactional
-    public boolean verifyProAndAddCredits(UUID userId, int amount) {
+    public boolean verifyPro(UUID userId) {
         Objects.requireNonNull(userId, "userId must not be null");
-        return springDataUserRepository.verifyProAndAddCredits(userId, amount) == 1;
+        return springDataUserRepository.verifyPro(userId) == 1;
     }
 }
