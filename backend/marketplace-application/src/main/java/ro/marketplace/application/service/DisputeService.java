@@ -7,7 +7,7 @@ import java.util.UUID;
 
 public interface DisputeService {
 
-    Dispute raiseDispute(UUID leadId, String leadTitle, UUID proId, String proName, String reason, String details, int creditsRequested);
+    Dispute raiseDispute(UUID leadId, UUID proId, String proName, String reason, String details, int creditsRequested);
 
     Dispute resolveDispute(UUID disputeId, boolean approved, String adminDecisionNote, String adminUsername);
 

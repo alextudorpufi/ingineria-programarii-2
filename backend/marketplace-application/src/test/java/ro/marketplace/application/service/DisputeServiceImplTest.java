@@ -94,7 +94,7 @@ class DisputeServiceImplTest {
         when(leadRepository.updateStatus(leadId, LeadStatus.VALIDAT, LeadStatus.DISPUTAT)).thenReturn(true);
         when(disputeRepository.save(any(Dispute.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Dispute dispute = disputeService.raiseDispute(leadId, "Lead", proId, "Pro",
+        Dispute dispute = disputeService.raiseDispute(leadId, proId, "Pro",
                 "unreachable_contact", "details", 30);
 
         assertThat(dispute.getStatus()).isEqualTo(DisputeStatus.IN_ANALIZA);
@@ -108,7 +108,7 @@ class DisputeServiceImplTest {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, "Lead", proId, "Pro",
+        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, proId, "Pro",
                 "made_up_reason", "details", 30))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("nu este valid");
@@ -131,7 +131,7 @@ class DisputeServiceImplTest {
                 WalletTransaction.builder().type(WalletTransactionType.LEAD_PURCHASE).amount(-30).build(),
                 WalletTransaction.builder().type(WalletTransactionType.REFUND).amount(10).build()));
 
-        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, "Lead", proId, "Pro",
+        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, proId, "Pro",
                 "unreachable_contact", "details", 30))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("refundable amount (20)");

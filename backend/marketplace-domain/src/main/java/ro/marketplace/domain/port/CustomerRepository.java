@@ -14,8 +14,6 @@ public interface CustomerRepository {
 
     PageResult<Customer> findPage(int page, int size);
 
-    Optional<Customer> findByEmail(String email);
-
     boolean existsByEmail(String email);
 
     void deleteById(UUID id);

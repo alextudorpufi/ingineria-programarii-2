@@ -73,7 +73,6 @@ public class DisputeController {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         Dispute dispute = disputeService.raiseDispute(
                 request.leadId(),
-                request.leadTitle(),
                 user.id(),
                 user.displayName(),
                 request.reason(),

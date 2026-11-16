@@ -54,13 +54,6 @@ public class CustomerRepositoryAdapter implements CustomerRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Customer> findByEmail(String email) {
-        Objects.requireNonNull(email, "email must not be null");
-        return springDataRepository.findByEmail(email).map(EntityMapper::toDomain);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
     public boolean existsByEmail(String email) {
         Objects.requireNonNull(email, "email must not be null");
         return springDataRepository.existsByEmail(email);

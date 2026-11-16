@@ -58,7 +58,7 @@ public class DisputeServiceImpl implements DisputeService {
     }
 
     @Override
-    public Dispute raiseDispute(UUID leadId, String leadTitle, UUID proId, String proName,
+    public Dispute raiseDispute(UUID leadId, UUID proId, String proName,
                                 String reason, String details, int creditsRequested) {
         Objects.requireNonNull(leadId, "leadId must not be null");
         Objects.requireNonNull(proId, "proId must not be null");
@@ -95,7 +95,7 @@ public class DisputeServiceImpl implements DisputeService {
                     .leadId(leadId)
                     .leadTitle(lead.getTitle() != null && !lead.getTitle().isBlank()
                             ? lead.getTitle()
-                            : (leadTitle != null ? leadTitle : "Solicitare Servicii"))
+                            : "Solicitare Servicii")
                     .proId(proId)
                     .proName(proName != null ? proName : "Professional")
                     .reason(normalizedReason)
