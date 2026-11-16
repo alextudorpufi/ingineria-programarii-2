@@ -282,8 +282,8 @@ class LeadServiceImplTest {
     }
 
     @Test
-    @DisplayName("getAllLeads loads all claims in one batch query")
-    void getAllLeads_LoadsClaimsInBatch() {
+    @DisplayName("getLeadsPage loads all claims in one batch query")
+    void getLeadsPage_LoadsClaimsInBatch() {
         UUID leadId1 = UUID.randomUUID();
         UUID leadId2 = UUID.randomUUID();
         Lead lead1 = Lead.builder().id(leadId1).title("L1").build();
@@ -291,10 +291,11 @@ class LeadServiceImplTest {
         LeadClaim claim = LeadClaim.builder().id(UUID.randomUUID()).leadId(leadId1)
                 .proId(UUID.randomUUID()).proName("Pro").build();
 
-        when(leadRepository.findAll()).thenReturn(List.of(lead1, lead2));
+        when(leadRepository.findPage(0, 20)).thenReturn(List.of(lead1, lead2));
+        when(leadRepository.countAll()).thenReturn(2L);
         when(leadRepository.findClaimsByLeadIds(List.of(leadId1, leadId2))).thenReturn(List.of(claim));
 
-        List<Lead> leads = leadService.getAllLeads();
+        List<Lead> leads = leadService.getLeadsPage(null, null, 0, 20).leads();
 
         assertThat(leads.get(0).getClaimedPros()).hasSize(1);
         assertThat(leads.get(1).getClaimedPros()).isEmpty();

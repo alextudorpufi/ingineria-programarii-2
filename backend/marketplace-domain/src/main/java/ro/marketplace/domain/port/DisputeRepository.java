@@ -1,8 +1,8 @@
 package ro.marketplace.domain.port;
 
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.PageResult;
 
-import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,11 +12,9 @@ public interface DisputeRepository {
 
     Optional<Dispute> findById(UUID id);
 
-    List<Dispute> findAll();
+    PageResult<Dispute> findPage(int page, int size);
 
-    List<Dispute> findByProId(UUID proId);
-
-    List<Dispute> findByStatus(String status);
+    PageResult<Dispute> findPageByProId(UUID proId, int page, int size);
 
     /**
      * @return {@code true} when the professional already has an unresolved dispute

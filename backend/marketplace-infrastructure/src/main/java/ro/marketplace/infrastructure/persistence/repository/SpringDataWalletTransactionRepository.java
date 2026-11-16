@@ -1,5 +1,6 @@
 package ro.marketplace.infrastructure.persistence.repository;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -11,7 +12,7 @@ import java.util.UUID;
 @Repository
 public interface SpringDataWalletTransactionRepository extends JpaRepository<WalletTransactionEntity, UUID> {
 
-    List<WalletTransactionEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    Page<WalletTransactionEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
 
     List<WalletTransactionEntity> findByUserIdAndLeadIdOrderByCreatedAtAsc(UUID userId, UUID leadId);
 }

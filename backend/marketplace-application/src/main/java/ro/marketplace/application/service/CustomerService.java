@@ -1,8 +1,8 @@
 package ro.marketplace.application.service;
 
 import ro.marketplace.domain.model.Customer;
+import ro.marketplace.domain.model.PageResult;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface CustomerService {
@@ -11,7 +11,7 @@ public interface CustomerService {
 
     Customer getCustomerById(UUID id);
 
-    List<Customer> getAllCustomers();
+    PageResult<Customer> getCustomers(int page, int size);
 
     Customer updateCustomer(UUID id, Customer customer);
 

@@ -10,6 +10,7 @@ import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadStatus;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.WalletTransaction;
@@ -200,13 +201,11 @@ public class DisputeServiceImpl implements DisputeService {
     }
 
     @Override
-    public List<Dispute> getAllDisputes() {
-        return disputeRepository.findAll();
-    }
-
-    @Override
-    public List<Dispute> getDisputesByProId(UUID proId) {
-        Objects.requireNonNull(proId, "proId must not be null");
-        return disputeRepository.findByProId(proId);
+    public PageResult<Dispute> getDisputes(UUID proId, int page, int size) {
+        int safePage = Math.max(page, 0);
+        int safeSize = Math.max(size, 1);
+        return proId == null
+                ? disputeRepository.findPage(safePage, safeSize)
+                : disputeRepository.findPageByProId(proId, safePage, safeSize);
     }
 }

@@ -5,6 +5,7 @@ import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.AuditAction;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
@@ -14,7 +15,6 @@ import ro.marketplace.domain.port.WalletTransactionRepository;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -149,8 +149,9 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
-    public List<WalletTransaction> getUserTransactions(UUID userId) {
-        return walletTransactionRepository.findByUserId(userId);
+    public PageResult<WalletTransaction> getUserTransactions(UUID userId, int page, int size) {
+        Objects.requireNonNull(userId, "userId must not be null");
+        return walletTransactionRepository.findPageByUserId(userId, Math.max(page, 0), Math.max(size, 1));
     }
 
     @Override

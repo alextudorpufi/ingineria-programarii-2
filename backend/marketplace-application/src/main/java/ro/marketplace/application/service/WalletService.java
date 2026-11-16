@@ -1,8 +1,8 @@
 package ro.marketplace.application.service;
 
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.WalletTransaction;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface WalletService {
@@ -27,7 +27,7 @@ public interface WalletService {
      */
     WalletTransaction grantBonusCredits(UUID userId, int credits, String description, String actor);
 
-    List<WalletTransaction> getUserTransactions(UUID userId);
+    PageResult<WalletTransaction> getUserTransactions(UUID userId, int page, int size);
 
     int getBalance(UUID userId);
 }

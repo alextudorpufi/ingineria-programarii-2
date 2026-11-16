@@ -5,7 +5,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.port.AuditLogRepository;
-import ro.marketplace.infrastructure.persistence.PersistenceLimits;
 import ro.marketplace.infrastructure.persistence.entity.AuditLogEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataAuditLogRepository;
@@ -34,11 +33,12 @@ public class AuditLogRepositoryAdapter implements AuditLogRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<AuditLog> findByEntityNameAndEntityId(String entityName, String entityId) {
+    public List<AuditLog> findRecentByEntityNameAndEntityId(String entityName, String entityId, int limit) {
         Objects.requireNonNull(entityName, "entityName must not be null");
         Objects.requireNonNull(entityId, "entityId must not be null");
+        int safeLimit = limit > 0 ? Math.min(limit, 200) : 50;
         return springDataAuditLogRepository.findByEntityNameAndEntityIdOrderByCreatedAtDesc(
-                        entityName, entityId, PersistenceLimits.firstPage()).stream()
+                        entityName, entityId, PageRequest.of(0, safeLimit)).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
     }

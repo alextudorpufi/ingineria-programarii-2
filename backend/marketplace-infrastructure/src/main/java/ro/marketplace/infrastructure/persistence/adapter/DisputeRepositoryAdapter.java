@@ -1,16 +1,18 @@
 package ro.marketplace.infrastructure.persistence.adapter;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.port.DisputeRepository;
-import ro.marketplace.infrastructure.persistence.PersistenceLimits;
 import ro.marketplace.infrastructure.persistence.entity.DisputeEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataDisputeRepository;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,28 +52,31 @@ public class DisputeRepositoryAdapter implements DisputeRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public List<Dispute> findAll() {
-        return springDataDisputeRepository.findAll(PersistenceLimits.firstPage()).stream()
-                .map(EntityMapper::toDomain)
-                .toList();
+    public PageResult<Dispute> findPage(int page, int size) {
+        Page<DisputeEntity> result = springDataDisputeRepository.findAll(pageRequest(page, size));
+        return toPage(result);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<Dispute> findByProId(UUID proId) {
+    public PageResult<Dispute> findPageByProId(UUID proId, int page, int size) {
         Objects.requireNonNull(proId, "proId must not be null");
-        return springDataDisputeRepository.findByProIdOrderByCreatedAtDesc(proId, PersistenceLimits.firstPage()).stream()
-                .map(EntityMapper::toDomain)
-                .toList();
+        Page<DisputeEntity> result = springDataDisputeRepository
+                .findByProIdOrderByCreatedAtDesc(proId, pageRequest(page, size));
+        return toPage(result);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Dispute> findByStatus(String status) {
-        Objects.requireNonNull(status, "status must not be null");
-        return springDataDisputeRepository.findByStatus(status, PersistenceLimits.firstPage()).stream()
-                .map(EntityMapper::toDomain)
-                .toList();
+    private static PageRequest pageRequest(int page, int size) {
+        return PageRequest.of(Math.max(page, 0), Math.max(size, 1),
+                Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
+    }
+
+    private static PageResult<Dispute> toPage(Page<DisputeEntity> result) {
+        return new PageResult<>(
+                result.getContent().stream().map(EntityMapper::toDomain).toList(),
+                result.getTotalElements(),
+                result.getNumber(),
+                result.getSize());
     }
 
     @Override

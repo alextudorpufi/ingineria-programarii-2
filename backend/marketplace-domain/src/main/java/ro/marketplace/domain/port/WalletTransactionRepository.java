@@ -1,5 +1,6 @@
 package ro.marketplace.domain.port;
 
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.WalletTransaction;
 
 import java.util.List;
@@ -12,7 +13,7 @@ public interface WalletTransactionRepository {
 
     Optional<WalletTransaction> findById(UUID id);
 
-    List<WalletTransaction> findByUserId(UUID userId);
+    PageResult<WalletTransaction> findPageByUserId(UUID userId, int page, int size);
 
     /**
      * Ledger entries for one professional and one lead, oldest first. Used to

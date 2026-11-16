@@ -6,7 +6,6 @@ import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.port.LeadRepository;
-import ro.marketplace.infrastructure.persistence.PersistenceLimits;
 import ro.marketplace.infrastructure.persistence.entity.LeadClaimEntity;
 import ro.marketplace.infrastructure.persistence.entity.LeadEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
@@ -47,32 +46,6 @@ public class LeadRepositoryAdapter implements LeadRepository {
     public Optional<Lead> findById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
         return springDataLeadRepository.findById(id).map(EntityMapper::toDomain);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Lead> findAll() {
-        return springDataLeadRepository.findAll(PersistenceLimits.firstPage()).stream()
-                .map(EntityMapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Lead> findByStatus(LeadStatus status) {
-        Objects.requireNonNull(status, "status must not be null");
-        return springDataLeadRepository.findByStatus(status.getDbValue(), PersistenceLimits.firstPage()).stream()
-                .map(EntityMapper::toDomain)
-                .toList();
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public List<Lead> findByCategoryId(String categoryId) {
-        Objects.requireNonNull(categoryId, "categoryId must not be null");
-        return springDataLeadRepository.findByCategoryId(categoryId, PersistenceLimits.firstPage()).stream()
-                .map(EntityMapper::toDomain)
-                .toList();
     }
 
     @Override

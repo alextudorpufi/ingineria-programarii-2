@@ -4,12 +4,12 @@ import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.Customer;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.port.CustomerRepository;
 import ro.marketplace.domain.port.UnitOfWork;
 
 import java.time.Clock;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
@@ -52,8 +52,8 @@ public class CustomerServiceImpl implements CustomerService {
     }
 
     @Override
-    public List<Customer> getAllCustomers() {
-        return customerRepository.findAll();
+    public PageResult<Customer> getCustomers(int page, int size) {
+        return customerRepository.findPage(Math.max(page, 0), Math.max(size, 1));
     }
 
     @Override

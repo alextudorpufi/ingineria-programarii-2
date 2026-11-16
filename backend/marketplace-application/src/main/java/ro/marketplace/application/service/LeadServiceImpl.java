@@ -104,29 +104,6 @@ public class LeadServiceImpl implements LeadService {
     }
 
     @Override
-    public List<Lead> getAllLeads() {
-        List<Lead> leads = leadRepository.findAll();
-        attachClaims(leads);
-        return leads;
-    }
-
-    @Override
-    public List<Lead> getLeadsByCategory(String categoryId) {
-        Objects.requireNonNull(categoryId, "categoryId must not be null");
-        List<Lead> leads = leadRepository.findByCategoryId(categoryId);
-        attachClaims(leads);
-        return leads;
-    }
-
-    @Override
-    public List<Lead> getLeadsByStatus(LeadStatus status) {
-        Objects.requireNonNull(status, "status must not be null");
-        List<Lead> leads = leadRepository.findByStatus(status);
-        attachClaims(leads);
-        return leads;
-    }
-
-    @Override
     public LeadPage getLeadsPage(String categoryId, LeadStatus status, int page, int size) {
         int safePage = Math.max(page, 0);
         int safeSize = Math.min(Math.max(size, 1), 100);

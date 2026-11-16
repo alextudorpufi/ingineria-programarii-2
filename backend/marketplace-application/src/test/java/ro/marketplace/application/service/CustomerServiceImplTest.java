@@ -10,6 +10,7 @@ import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.Customer;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.port.CustomerRepository;
 
 import java.time.Clock;
@@ -100,14 +101,16 @@ class CustomerServiceImplTest {
     }
 
     @Test
-    @DisplayName("getAllCustomers returns list of customers")
-    void getAllCustomers_Success() {
+    @DisplayName("getCustomers returns a page with its total")
+    void getCustomers_Success() {
         Customer c1 = Customer.builder().id(UUID.randomUUID()).name("C1").build();
         Customer c2 = Customer.builder().id(UUID.randomUUID()).name("C2").build();
-        when(customerRepository.findAll()).thenReturn(List.of(c1, c2));
+        when(customerRepository.findPage(0, 20))
+                .thenReturn(new PageResult<>(List.of(c1, c2), 2, 0, 20));
 
-        List<Customer> all = customerService.getAllCustomers();
-        assertThat(all).hasSize(2);
+        PageResult<Customer> page = customerService.getCustomers(0, 20);
+        assertThat(page.content()).hasSize(2);
+        assertThat(page.totalElements()).isEqualTo(2);
     }
 
     @Test

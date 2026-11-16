@@ -15,12 +15,6 @@ public interface LeadRepository {
 
     Optional<Lead> findById(UUID id);
 
-    List<Lead> findAll();
-
-    List<Lead> findByStatus(LeadStatus status);
-
-    List<Lead> findByCategoryId(String categoryId);
-
     List<Lead> findPage(int page, int size);
 
     List<Lead> findPageByCategoryId(String categoryId, int page, int size);

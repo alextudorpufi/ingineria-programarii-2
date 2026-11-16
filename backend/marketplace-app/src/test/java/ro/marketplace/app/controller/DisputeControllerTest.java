@@ -16,6 +16,7 @@ import ro.marketplace.application.service.DisputeService;
 import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
+import ro.marketplace.domain.model.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -30,6 +31,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -60,10 +62,12 @@ class DisputeControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(disputeService.getAllDisputes()).thenReturn(List.of(dispute));
+        when(disputeService.getDisputes(null, 0, 500))
+                .thenReturn(new PageResult<>(List.of(dispute), 1, 0, 500));
 
         mockMvc.perform(get("/api/disputes").with(token("ADMIN")))
                 .andExpect(status().isOk())
+                .andExpect(header().string(PageHeaders.TOTAL_COUNT, "1"))
                 .andExpect(jsonPath("$[0].id").value(id.toString()))
                 .andExpect(jsonPath("$[0].reason").value("unreachable_contact"))
                 .andExpect(jsonPath("$[0].creditsRequested").value(25))
@@ -111,12 +115,13 @@ class DisputeControllerTest {
     void getAllDisputesScopesProfessionalToOwnId() throws Exception {
         UUID proId = UUID.randomUUID();
         UUID otherProId = UUID.randomUUID();
-        when(disputeService.getDisputesByProId(proId)).thenReturn(List.of());
+        when(disputeService.getDisputes(proId, 0, 500))
+                .thenReturn(new PageResult<>(List.of(), 0, 0, 500));
 
         mockMvc.perform(get("/api/disputes?proId=" + otherProId).with(tokenFor(proId, "PRO")))
                 .andExpect(status().isOk());
 
-        verify(disputeService).getDisputesByProId(proId);
+        verify(disputeService).getDisputes(proId, 0, 500);
     }
 
     private static RequestPostProcessor token(String... roles) {
