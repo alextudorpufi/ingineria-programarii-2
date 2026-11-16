@@ -6,6 +6,7 @@ import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.port.CreditGrantRepository;
 import ro.marketplace.domain.port.PasswordHasher;
 import ro.marketplace.domain.port.UnitOfWork;
@@ -24,8 +25,6 @@ import java.util.regex.Pattern;
 
 public class AuthServiceImpl implements AuthService {
 
-    private static final String ROLE_CLIENT = "client";
-    private static final String ROLE_PRO = "pro";
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
     private static final Duration LOCKOUT_DURATION = Duration.ofMinutes(30);
     private static final int MAX_LIFETIME_FREE_CREDITS = 30;
@@ -128,8 +127,13 @@ public class AuthServiceImpl implements AuthService {
             throw new ValidationException("Password must not exceed 72 bytes when UTF-8 encoded.");
         }
 
-        String normalizedRole = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
-        if (!ROLE_CLIENT.equals(normalizedRole) && !ROLE_PRO.equals(normalizedRole)) {
+        UserRole requestedRole;
+        if (role == null || role.isBlank()) {
+            throw new ValidationException("Public registration allows only the 'client' or 'pro' roles.");
+        }
+        try {
+            requestedRole = UserRole.fromRegistrationRole(role);
+        } catch (IllegalArgumentException ex) {
             throw new ValidationException("Public registration allows only the 'client' or 'pro' roles.");
         }
 
@@ -146,7 +150,7 @@ public class AuthServiceImpl implements AuthService {
                     .id(UUID.randomUUID())
                     .email(normalizedEmail)
                     .passwordHash(passwordHash)
-                    .role(normalizedRole)
+                    .role(requestedRole)
                     .name(normalizedName)
                     .companyName(companyName)
                     .phone(phone)
@@ -160,7 +164,7 @@ public class AuthServiceImpl implements AuthService {
                     .reviewCount(0)
                     .completedJobs(0)
                     .trustScore(BigDecimal.ZERO.setScale(2))
-                    .professionalProfile(ROLE_PRO.equals(normalizedRole) ? ProfessionalProfile.builder().build() : null)
+                    .professionalProfile(requestedRole.isPro() ? ProfessionalProfile.builder().build() : null)
                     .build();
 
             return userRepository.save(newUser);
@@ -192,8 +196,7 @@ public class AuthServiceImpl implements AuthService {
         return unitOfWork.executeInTransaction(() -> {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-            String role = user.getRole() == null ? "" : user.getRole().trim().toLowerCase(Locale.ROOT);
-            if (!ROLE_PRO.equals(role)) {
+            if (user.getRole() != UserRole.PRO) {
                 throw new ValidationException("Only professional accounts can be verified.");
             }
             if (user.isProVerified()) {

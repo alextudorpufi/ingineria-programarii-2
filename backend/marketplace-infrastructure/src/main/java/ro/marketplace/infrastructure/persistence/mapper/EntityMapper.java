@@ -10,6 +10,7 @@ import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
 import ro.marketplace.infrastructure.persistence.entity.AuditLogEntity;
@@ -60,7 +61,7 @@ public final class EntityMapper {
                 .id(entity.getId())
                 .email(entity.getEmail())
                 .passwordHash(entity.getPasswordHash())
-                .role(entity.getRole())
+                .role(entity.getRole() == null ? null : UserRole.fromDbValue(entity.getRole()))
                 .name(entity.getName())
                 .companyName(entity.getCompanyName())
                 .title(entity.getTitle())
@@ -90,7 +91,7 @@ public final class EntityMapper {
                 .id(domain.getId())
                 .email(domain.getEmail())
                 .passwordHash(domain.getPasswordHash())
-                .role(domain.getRole())
+                .role(domain.getRole() == null ? null : domain.getRole().getDbValue())
                 .name(domain.getName())
                 .companyName(domain.getCompanyName())
                 .title(domain.getTitle())

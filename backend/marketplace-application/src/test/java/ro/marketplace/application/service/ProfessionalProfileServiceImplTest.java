@@ -3,6 +3,7 @@ package ro.marketplace.application.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.RomanianCounty;
 import ro.marketplace.domain.model.User;
@@ -29,7 +30,7 @@ class ProfessionalProfileServiceImplTest {
 
     @BeforeEach
     void setup() {
-        when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role("pro")
+        when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role(UserRole.PRO)
                 .name("Pro").creditsBalance(120).verifiedBadge(false).build()));
         when(users.updateProfessionalProfile(any(), anyLong())).thenAnswer(call -> call.getArgument(0));
         when(categories.existsById("it-software")).thenReturn(true);
@@ -47,7 +48,7 @@ class ProfessionalProfileServiceImplTest {
         assertThat(updated.getName()).isEqualTo("Updated Pro");
         assertThat(updated.getCreditsBalance()).isEqualTo(120);
         assertThat(updated.isVerifiedBadge()).isFalse();
-        assertThat(updated.getRole()).isEqualTo("pro");
+        assertThat(updated.getRole()).isEqualTo(UserRole.PRO);
     }
 
     @Test
@@ -103,7 +104,7 @@ class ProfessionalProfileServiceImplTest {
 
     @Test
     void professionalRoleComparisonIsCaseInsensitive() {
-        when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role(" PRO ").build()));
+        when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role(UserRole.PRO).build()));
         assertThat(service.get(userId).getId()).isEqualTo(userId);
     }
 
@@ -121,7 +122,7 @@ class ProfessionalProfileServiceImplTest {
                 .servicesOffered(List.of("Web")).onboardingStatus(ProfessionalProfile.OnboardingStatus.COMPLETE).build();
         assertThatThrownBy(() -> service.update(userId, update(profile)))
                 .isInstanceOf(ValidationException.class).hasMessageContaining("mod de lucru");
-        when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role("client").build()));
+        when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role(UserRole.CLIENT).build()));
         assertThatThrownBy(() -> service.get(userId)).isInstanceOf(ValidationException.class);
     }
 

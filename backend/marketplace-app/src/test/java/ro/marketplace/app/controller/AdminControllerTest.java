@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.AuditService;
 import ro.marketplace.application.service.AuthService;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.User;
 
 import java.math.BigDecimal;
@@ -60,7 +61,7 @@ class AdminControllerTest {
         User verified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .name("Pro")
                 .proVerified(true)
                 .creditsBalance(30)

@@ -10,6 +10,7 @@ import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
 import ro.marketplace.domain.port.DisputeRepository;
@@ -72,7 +73,7 @@ public class DisputeServiceImpl implements DisputeService {
         return unitOfWork.executeInTransaction(() -> {
             User pro = userRepository.findById(proId)
                     .orElseThrow(() -> new ResourceNotFoundException("Professional not found with id: " + proId));
-            if (pro.getRole() == null || !"pro".equalsIgnoreCase(pro.getRole().trim())) {
+            if (pro.getRole() != UserRole.PRO) {
                 throw new ValidationException("Only professional accounts can raise a dispute.");
             }
             if (!pro.isProVerified()) {

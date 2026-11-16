@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
@@ -68,7 +69,7 @@ class LeadServiceImplTest {
     private static User verifiedPro(UUID proId) {
         return User.builder()
                 .id(proId)
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
                 .build();
     }
@@ -223,7 +224,7 @@ class LeadServiceImplTest {
                 .thenReturn(java.util.OptionalInt.of(35));
         when(userRepository.findById(clientId)).thenReturn(Optional.of(User.builder()
                 .id(clientId)
-                .role("client")
+                .role(UserRole.CLIENT)
                 .name("Real Client")
                 .email("client@example.com")
                 .phone("+40700000000")

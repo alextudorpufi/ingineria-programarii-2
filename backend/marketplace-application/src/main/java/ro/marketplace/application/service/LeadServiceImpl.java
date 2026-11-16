@@ -9,6 +9,7 @@ import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.port.LeadRepository;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.domain.port.UnitOfWork;
@@ -18,7 +19,6 @@ import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -89,8 +89,7 @@ public class LeadServiceImpl implements LeadService {
             // can no longer publish somebody else's name, email, or phone number.
             User client = userRepository.findById(lead.getClientId())
                     .orElseThrow(() -> new ValidationException("Unknown client account."));
-            String role = client.getRole() == null ? "" : client.getRole().trim().toLowerCase(Locale.ROOT);
-            if (!"client".equals(role) && !"admin".equals(role)) {
+            if (client.getRole() != UserRole.CLIENT && client.getRole() != UserRole.ADMIN) {
                 throw new ValidationException("Only client accounts can publish leads.");
             }
             lead.setClientName(client.getName());

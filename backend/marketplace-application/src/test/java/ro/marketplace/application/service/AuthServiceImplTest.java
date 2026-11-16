@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.CreditGrantRepository;
@@ -91,7 +92,7 @@ class AuthServiceImplTest {
                 .id(userId)
                 .email("pro@example.com")
                 .passwordHash("stored-hash")
-                .role("pro")
+                .role(UserRole.PRO)
                 .loginAttemptsCount(9)
                 .build();
         when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
@@ -109,7 +110,7 @@ class AuthServiceImplTest {
                 .id(UUID.randomUUID())
                 .email("pro@example.com")
                 .passwordHash("stored-hash")
-                .role("pro")
+                .role(UserRole.PRO)
                 .lockoutUntil(CLOCK.instant().atZone(ZoneOffset.UTC).toLocalDateTime().plusMinutes(10))
                 .build();
         when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
@@ -137,7 +138,7 @@ class AuthServiceImplTest {
                 .id(userId)
                 .email("pro@example.com")
                 .passwordHash("stored-hash")
-                .role("pro")
+                .role(UserRole.PRO)
                 .loginAttemptsCount(10)
                 .lockoutUntil(CLOCK.instant().atZone(ZoneOffset.UTC).toLocalDateTime().minusMinutes(1))
                 .build();
@@ -157,14 +158,14 @@ class AuthServiceImplTest {
         User unverified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(false)
                 .creditsBalance(0)
                 .build();
         User verified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
                 .creditsBalance(30)
                 .build();
@@ -196,7 +197,7 @@ class AuthServiceImplTest {
         User verified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
                 .creditsBalance(30)
                 .build();
@@ -217,7 +218,7 @@ class AuthServiceImplTest {
         User unverified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(false)
                 .creditsBalance(0)
                 .build();

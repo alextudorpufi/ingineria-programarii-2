@@ -2,6 +2,7 @@ package ro.marketplace.infrastructure.persistence.mapper;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.model.Dispute;
@@ -81,7 +82,7 @@ class EntityMapperTest {
         User user = User.builder()
                 .id(UUID.randomUUID())
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .name("Pro")
                 .companyName("Company")
                 .title("Title")

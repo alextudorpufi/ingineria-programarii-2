@@ -8,6 +8,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
@@ -77,7 +78,7 @@ class DisputeServiceImplTest {
         UUID proId = UUID.randomUUID();
         when(userRepository.findById(proId)).thenReturn(Optional.of(User.builder()
                 .id(proId)
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
                 .build()));
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(Lead.builder()
@@ -121,7 +122,7 @@ class DisputeServiceImplTest {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
         when(userRepository.findById(proId)).thenReturn(Optional.of(User.builder()
-                .id(proId).role("pro").proVerified(true).build()));
+                .id(proId).role(UserRole.PRO).proVerified(true).build()));
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(Lead.builder()
                 .id(leadId).title("Lead").leadPrice(30).build()));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(true);

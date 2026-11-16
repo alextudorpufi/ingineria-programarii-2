@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.UserRepository;
@@ -60,7 +61,7 @@ class ProfessionalProfileIntegrationTest {
         assertThat(loaded.getProfessionalProfile().isAcceptingLeads()).isTrue();
         assertThat(loaded.getCreditsBalance()).isEqualTo(120);
         assertThat(loaded.getPasswordHash()).isEqualTo("preserved-password-hash");
-        assertThat(loaded.getRole()).isEqualTo("pro");
+        assertThat(loaded.getRole()).isEqualTo(UserRole.PRO);
         assertThatThrownBy(() -> profiles.update(user.getId(), update)).isInstanceOf(ConflictException.class);
         assertThat(users.findById(user.getId()).orElseThrow().getProfessionalProfile().getVersion()).isEqualTo(1);
     }
@@ -101,7 +102,7 @@ class ProfessionalProfileIntegrationTest {
 
     private User account(String role) {
         UUID id = UUID.randomUUID();
-        return User.builder().id(id).email(id + "@example.com").role(role).name("Test")
+        return User.builder().id(id).email(id + "@example.com").role(UserRole.fromDbValue(role)).name("Test")
                 .rating(BigDecimal.ZERO).trustScore(BigDecimal.ZERO).build();
     }
 }

@@ -5,12 +5,12 @@ import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.RomanianCounty;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
 
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -31,8 +31,7 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
         Objects.requireNonNull(userId, "userId must not be null");
         User user = users.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profilul nu a fost găsit."));
-        String role = user.getRole() == null ? "" : user.getRole().trim().toLowerCase(Locale.ROOT);
-        if (!"pro".equals(role)) {
+        if (user.getRole() != UserRole.PRO) {
             throw new ValidationException("Doar profesioniștii pot modifica acest profil.");
         }
         return user;

@@ -18,7 +18,7 @@ public final class UserDtoMapper {
         return new UserProfileDto(
                 user.getId(),
                 user.getEmail(),
-                user.getRole(),
+                user.getRole() == null ? null : user.getRole().getDbValue(),
                 user.getName(),
                 user.getCompanyName(),
                 user.getTitle(),

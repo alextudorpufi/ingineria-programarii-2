@@ -10,6 +10,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import ro.marketplace.application.service.LeadService;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
@@ -136,7 +137,7 @@ class ClaimLeadIntegrationTest {
         User user = User.builder()
                 .id(id)
                 .email(email)
-                .role(role)
+                .role(UserRole.fromDbValue(role))
                 .name("User " + id)
                 .proVerified("pro".equalsIgnoreCase(role))
                 .rating(BigDecimal.valueOf(5))
