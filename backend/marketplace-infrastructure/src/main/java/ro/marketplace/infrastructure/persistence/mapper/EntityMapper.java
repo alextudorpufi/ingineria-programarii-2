@@ -325,7 +325,7 @@ public final class EntityMapper {
                 .id(entity.getId())
                 .entityName(entity.getEntityName())
                 .entityId(entity.getEntityId())
-                .action(entity.getAction() != null ? AuditAction.valueOf(entity.getAction()) : null)
+                .action(entity.getAction() != null ? AuditAction.fromDbValue(entity.getAction()) : null)
                 .changedBy(entity.getChangedBy())
                 .details(entity.getDetails())
                 .createdAt(entity.getCreatedAt())
