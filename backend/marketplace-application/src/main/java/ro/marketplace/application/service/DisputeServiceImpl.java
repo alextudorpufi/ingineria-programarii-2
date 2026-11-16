@@ -6,6 +6,7 @@ import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadStatus;
@@ -22,18 +23,10 @@ import ro.marketplace.domain.port.WalletTransactionRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
-import java.util.Set;
 import java.util.UUID;
 
 public class DisputeServiceImpl implements DisputeService {
-
-    private static final Set<String> ALLOWED_REASONS = Set.of(
-            "unreachable_contact",
-            "wrong_category",
-            "incompatible_budget",
-            "duplicate_or_fake");
 
     private final DisputeRepository disputeRepository;
     private final LeadRepository leadRepository;
@@ -68,7 +61,7 @@ public class DisputeServiceImpl implements DisputeService {
                                 String reason, String details, int creditsRequested) {
         Objects.requireNonNull(leadId, "leadId must not be null");
         Objects.requireNonNull(proId, "proId must not be null");
-        String normalizedReason = normalizeReason(reason);
+        DisputeReason normalizedReason = normalizeReason(reason);
 
         return unitOfWork.executeInTransaction(() -> {
             User pro = userRepository.findById(proId)
@@ -122,18 +115,21 @@ public class DisputeServiceImpl implements DisputeService {
                     AuditDetails.of(
                             "leadId", leadId,
                             "proId", proId,
-                            "reason", dispute.getReason(),
+                            "reason", dispute.getReason().getDbValue(),
                             "creditsRequested", dispute.getCreditsRequested()));
             return saved;
         });
     }
 
-    private static String normalizeReason(String reason) {
-        String normalized = reason == null ? "" : reason.trim().toLowerCase(Locale.ROOT);
-        if (!ALLOWED_REASONS.contains(normalized)) {
+    private static DisputeReason normalizeReason(String reason) {
+        if (reason == null || reason.isBlank()) {
             throw new ValidationException("Motivul sesizării nu este valid. Alege unul dintre motivele disponibile.");
         }
-        return normalized;
+        try {
+            return DisputeReason.fromDbValue(reason);
+        } catch (IllegalArgumentException ex) {
+            throw new ValidationException("Motivul sesizării nu este valid. Alege unul dintre motivele disponibile.");
+        }
     }
 
     /**

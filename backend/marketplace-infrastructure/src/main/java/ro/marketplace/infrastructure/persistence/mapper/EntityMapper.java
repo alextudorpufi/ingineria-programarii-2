@@ -5,6 +5,7 @@ import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.Customer;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
@@ -270,7 +271,7 @@ public final class EntityMapper {
                 .leadTitle(entity.getLeadTitle())
                 .proId(entity.getProId())
                 .proName(entity.getProName())
-                .reason(entity.getReason())
+                .reason(entity.getReason() == null ? null : DisputeReason.fromDbValue(entity.getReason()))
                 .details(entity.getDetails())
                 .creditsRequested(entity.getCreditsRequested())
                 .status(entity.getStatus() != null ? DisputeStatus.fromDbValue(entity.getStatus()) : null)
@@ -288,7 +289,7 @@ public final class EntityMapper {
                 .leadTitle(domain.getLeadTitle())
                 .proId(domain.getProId())
                 .proName(domain.getProName())
-                .reason(domain.getReason())
+                .reason(domain.getReason() == null ? null : domain.getReason().getDbValue())
                 .details(domain.getDetails())
                 .creditsRequested(domain.getCreditsRequested())
                 .status(domain.getStatus() != null ? domain.getStatus().getDbValue() : null)
@@ -308,7 +309,7 @@ public final class EntityMapper {
         entity.setLeadTitle(domain.getLeadTitle());
         entity.setProId(domain.getProId());
         entity.setProName(domain.getProName());
-        entity.setReason(domain.getReason());
+        entity.setReason(domain.getReason() == null ? null : domain.getReason().getDbValue());
         entity.setDetails(domain.getDetails());
         entity.setCreditsRequested(domain.getCreditsRequested());
         entity.setStatus(domain.getStatus() != null ? domain.getStatus().getDbValue() : null);

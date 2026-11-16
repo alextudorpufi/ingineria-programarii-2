@@ -6,6 +6,7 @@ import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
@@ -121,7 +122,7 @@ class EntityMapperTest {
                 .leadTitle("Title")
                 .proId(UUID.randomUUID())
                 .proName("Pro")
-                .reason("reason")
+                .reason(DisputeReason.WRONG_CATEGORY)
                 .details("details")
                 .creditsRequested(30)
                 .status(DisputeStatus.APROBAT)

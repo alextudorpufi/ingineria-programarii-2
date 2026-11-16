@@ -16,7 +16,7 @@ public final class DisputeDtoMapper {
                 domain.getLeadTitle(),
                 domain.getProId(),
                 domain.getProName(),
-                domain.getReason(),
+                domain.getReason() == null ? null : domain.getReason().getDbValue(),
                 domain.getDetails(),
                 domain.getCreditsRequested(),
                 domain.getStatus() != null ? domain.getStatus().getDbValue() : null,

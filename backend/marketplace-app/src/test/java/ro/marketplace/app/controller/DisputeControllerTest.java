@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.DisputeService;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
 
 import java.time.LocalDateTime;
@@ -52,7 +53,7 @@ class DisputeControllerTest {
                 .leadTitle("Reparație centrală")
                 .proId(UUID.randomUUID())
                 .proName("Alexandru Munteanu")
-                .reason("unreachable_contact")
+                .reason(DisputeReason.UNREACHABLE_CONTACT)
                 .details("Număr de telefon nefuncțional")
                 .creditsRequested(25)
                 .status(DisputeStatus.IN_ANALIZA)

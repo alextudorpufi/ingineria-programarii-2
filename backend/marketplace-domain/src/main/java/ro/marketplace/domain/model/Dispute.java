@@ -21,7 +21,7 @@ public class Dispute {
     private UUID proId;
     /** Snapshot of the professional's display name at dispute creation time. */
     private String proName;
-    private String reason; // 'wrong_category', 'unreachable_contact', 'incompatible_budget', 'duplicate_or_fake'
+    private DisputeReason reason;
     private String details;
     private int creditsRequested;
     private DisputeStatus status;
