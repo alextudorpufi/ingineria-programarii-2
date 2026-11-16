@@ -3,6 +3,7 @@ package ro.marketplace.application.service;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
@@ -157,7 +158,7 @@ public class AuthServiceImpl implements AuthService {
                     .verifiedBadge(false)
                     // Welcome credits are granted only after administrator verification.
                     .proVerified(false)
-                    .creditsBalance(0)
+                    .creditsBalance(Credits.ZERO)
                     // No reviews and no completed jobs yet: a perfect score would be
                     // fabricated trust. The columns are NOT NULL, so use zero.
                     .rating(BigDecimal.ZERO.setScale(2))

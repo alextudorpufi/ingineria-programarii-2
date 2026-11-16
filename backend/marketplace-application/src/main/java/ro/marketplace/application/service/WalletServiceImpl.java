@@ -53,17 +53,8 @@ public class WalletServiceImpl implements WalletService {
             int balanceAfter = newBalance.getAsInt();
             int balanceBefore = balanceAfter - credits;
 
-            WalletTransaction tx = WalletTransaction.builder()
-                    .id(UUID.randomUUID())
-                    .userId(userId)
-                    .type(WalletTransactionType.TOP_UP)
-                    .amount(credits)
-                    .description(description != null ? description : "Top-up " + credits + " credits")
-                    .balanceAfter(balanceAfter)
-                    .createdAt(LocalDateTime.now(clock))
-                    .build();
-
-            WalletTransaction savedTx = walletTransactionRepository.save(tx);
+            WalletTransaction savedTx = recordLedgerEntry(userId, null, WalletTransactionType.TOP_UP,
+                    credits, description != null ? description : "Top-up " + credits + " credits", balanceAfter);
             auditService.recordEvent("User", userId.toString(), AuditAction.CREDIT_TOP_UP, user.getEmail(),
                     AuditDetails.of(
                             "amount", credits,
@@ -82,23 +73,14 @@ public class WalletServiceImpl implements WalletService {
             OptionalInt newBalance = userRepository.deductCredits(userId, credits);
             if (newBalance.isEmpty()) {
                 throw new ConflictException("Insufficient credit balance for user " + userId
-                        + ": current " + user.getCreditsBalance() + ", required " + credits);
+                        + ": current " + user.getCreditsBalance().asInt() + ", required " + credits);
             }
             int balanceAfter = newBalance.getAsInt();
             int balanceBefore = balanceAfter + credits;
 
-            WalletTransaction tx = WalletTransaction.builder()
-                    .id(UUID.randomUUID())
-                    .userId(userId)
-                    .leadId(leadId)
-                    .type(WalletTransactionType.LEAD_PURCHASE)
-                    .amount(-credits)
-                    .description(description != null ? description : "Purchased lead with " + credits + " credits")
-                    .balanceAfter(balanceAfter)
-                    .createdAt(LocalDateTime.now(clock))
-                    .build();
-
-            WalletTransaction savedTx = walletTransactionRepository.save(tx);
+            WalletTransaction savedTx = recordLedgerEntry(userId, leadId, WalletTransactionType.LEAD_PURCHASE,
+                    -credits, description != null ? description : "Purchased lead with " + credits + " credits",
+                    balanceAfter);
             auditService.recordEvent("User", userId.toString(), AuditAction.CREDIT_DEDUCTION, user.getEmail(),
                     AuditDetails.of(
                             "amount", credits,
@@ -127,18 +109,8 @@ public class WalletServiceImpl implements WalletService {
             int balanceAfter = newBalance.getAsInt();
             int balanceBefore = balanceAfter - credits;
 
-            WalletTransaction tx = WalletTransaction.builder()
-                    .id(UUID.randomUUID())
-                    .userId(userId)
-                    .leadId(leadId)
-                    .type(WalletTransactionType.REFUND)
-                    .amount(credits)
-                    .description(description != null ? description : "Refund " + credits + " credits")
-                    .balanceAfter(balanceAfter)
-                    .createdAt(LocalDateTime.now(clock))
-                    .build();
-
-            WalletTransaction savedTx = walletTransactionRepository.save(tx);
+            WalletTransaction savedTx = recordLedgerEntry(userId, leadId, WalletTransactionType.REFUND,
+                    credits, description != null ? description : "Refund " + credits + " credits", balanceAfter);
             auditService.recordEvent("User", userId.toString(), AuditAction.REFUND_APPROVED,
                     actor != null && !actor.isBlank() ? actor : "admin",
                     AuditDetails.of(
@@ -163,17 +135,8 @@ public class WalletServiceImpl implements WalletService {
             int balanceAfter = newBalance.getAsInt();
             int balanceBefore = balanceAfter - credits;
 
-            WalletTransaction tx = WalletTransaction.builder()
-                    .id(UUID.randomUUID())
-                    .userId(userId)
-                    .type(WalletTransactionType.BONUS)
-                    .amount(credits)
-                    .description(description != null ? description : "Bonus " + credits + " credits")
-                    .balanceAfter(balanceAfter)
-                    .createdAt(LocalDateTime.now(clock))
-                    .build();
-
-            WalletTransaction savedTx = walletTransactionRepository.save(tx);
+            WalletTransaction savedTx = recordLedgerEntry(userId, null, WalletTransactionType.BONUS,
+                    credits, description != null ? description : "Bonus " + credits + " credits", balanceAfter);
             auditService.recordEvent("User", userId.toString(), AuditAction.CREDIT_BONUS,
                     actor != null && !actor.isBlank() ? actor : "system",
                     AuditDetails.of(
@@ -192,7 +155,22 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     public int getBalance(UUID userId) {
-        return getUser(userId).getCreditsBalance();
+        return getUser(userId).getCreditsBalance().asInt();
+    }
+
+    private WalletTransaction recordLedgerEntry(UUID userId, UUID leadId, WalletTransactionType type,
+                                                int amount, String description, int balanceAfter) {
+        WalletTransaction transaction = WalletTransaction.builder()
+                .id(UUID.randomUUID())
+                .userId(userId)
+                .leadId(leadId)
+                .type(type)
+                .amount(amount)
+                .description(description)
+                .balanceAfter(balanceAfter)
+                .createdAt(LocalDateTime.now(clock))
+                .build();
+        return walletTransactionRepository.save(transaction.validate());
     }
 
     private void validateAmount(int credits, String label) {

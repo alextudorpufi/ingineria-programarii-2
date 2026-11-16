@@ -1,5 +1,6 @@
 package ro.marketplace.infrastructure.persistence.mapper;
 
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.model.CreditGrant;
@@ -72,7 +73,7 @@ public final class EntityMapper {
                 .verifiedBadge(entity.isVerifiedBadge())
                 .rating(entity.getRating())
                 .reviewCount(entity.getReviewCount())
-                .creditsBalance(entity.getCreditsBalance())
+                .creditsBalance(Credits.of(entity.getCreditsBalance()))
                 .hourlyRate(entity.getHourlyRate())
                 .clientBudget(entity.getClientBudget())
                 .responseTime(entity.getResponseTime())
@@ -102,7 +103,7 @@ public final class EntityMapper {
                 .verifiedBadge(domain.isVerifiedBadge())
                 .rating(domain.getRating())
                 .reviewCount(domain.getReviewCount())
-                .creditsBalance(domain.getCreditsBalance())
+                .creditsBalance(domain.getCreditsBalance() == null ? 0 : domain.getCreditsBalance().asInt())
                 .hourlyRate(domain.getHourlyRate())
                 .clientBudget(domain.getClientBudget())
                 .responseTime(domain.getResponseTime())

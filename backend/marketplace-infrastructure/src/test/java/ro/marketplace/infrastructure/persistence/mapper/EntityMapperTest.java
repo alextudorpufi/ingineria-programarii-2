@@ -2,6 +2,7 @@ package ro.marketplace.infrastructure.persistence.mapper;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.AuditLog;
@@ -93,7 +94,7 @@ class EntityMapperTest {
                 .verifiedBadge(true)
                 .rating(BigDecimal.valueOf(4.9))
                 .reviewCount(10)
-                .creditsBalance(100)
+                .creditsBalance(Credits.of(100))
                 .hourlyRate(BigDecimal.valueOf(150))
                 .clientBudget(BigDecimal.valueOf(5000))
                 .responseTime("< 15 min")

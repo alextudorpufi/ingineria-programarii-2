@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.WalletTransaction;
@@ -55,8 +56,8 @@ class WalletServiceImplTest {
     @DisplayName("topUpCredits atomically adds credits and creates a ledger entry")
     void topUpCredits_Success() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(50).build();
-        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(150).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(50)).build();
+        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(150)).build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.addCredits(userId, 100)).thenReturn(OptionalInt.of(150));
@@ -76,8 +77,8 @@ class WalletServiceImplTest {
     void deductCredits_Success() {
         UUID userId = UUID.randomUUID();
         UUID leadId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(50).build();
-        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(20).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(50)).build();
+        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(20)).build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.deductCredits(userId, 30)).thenReturn(OptionalInt.of(20));
@@ -96,7 +97,7 @@ class WalletServiceImplTest {
     @DisplayName("deductCredits throws ConflictException when the atomic update refuses")
     void deductCredits_InsufficientBalance_ThrowsConflict() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(10).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(10)).build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.deductCredits(userId, 30)).thenReturn(OptionalInt.empty());
@@ -112,8 +113,8 @@ class WalletServiceImplTest {
     @DisplayName("refundCredits adds credits and records a refund ledger entry")
     void refundCredits_Success() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(10).build();
-        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(40).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(10)).build();
+        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(40)).build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(40));
@@ -131,7 +132,7 @@ class WalletServiceImplTest {
     @DisplayName("grantBonusCredits writes a bonus ledger entry so balances stay reconcilable")
     void grantBonusCredits_Success() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(0).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.ZERO).build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(30));

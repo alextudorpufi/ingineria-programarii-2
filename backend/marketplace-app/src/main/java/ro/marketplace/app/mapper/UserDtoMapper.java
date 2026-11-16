@@ -29,7 +29,7 @@ public final class UserDtoMapper {
                 user.isProVerified(),
                 user.getRating(),
                 user.getReviewCount(),
-                user.getCreditsBalance(),
+                user.getCreditsBalance() == null ? 0 : user.getCreditsBalance().asInt(),
                 user.getHourlyRate(),
                 user.getClientBudget(),
                 user.getResponseTime(),

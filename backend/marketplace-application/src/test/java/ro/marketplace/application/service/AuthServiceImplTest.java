@@ -9,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.User;
@@ -66,7 +67,7 @@ class AuthServiceImplTest {
 
         User registered = authService.register("pro@example.com", "Secret123!", "Pro", "pro", null, null);
 
-        assertThat(registered.getCreditsBalance()).isZero();
+        assertThat(registered.getCreditsBalance().asInt()).isZero();
         assertThat(registered.isProVerified()).isFalse();
         assertThat(registered.getRating()).isEqualByComparingTo("0.00");
         assertThat(registered.getTrustScore()).isEqualByComparingTo("0.00");
@@ -160,14 +161,14 @@ class AuthServiceImplTest {
                 .email("pro@example.com")
                 .role(UserRole.PRO)
                 .proVerified(false)
-                .creditsBalance(0)
+                .creditsBalance(Credits.ZERO)
                 .build();
         User verified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
                 .role(UserRole.PRO)
                 .proVerified(true)
-                .creditsBalance(30)
+                .creditsBalance(Credits.of(30))
                 .build();
         when(userRepository.findById(userId)).thenReturn(Optional.of(unverified), Optional.of(verified));
         when(creditGrantRepository.sumAmountByUserId(userId)).thenReturn(0L);
@@ -178,7 +179,7 @@ class AuthServiceImplTest {
         User result = authService.verifyProfessionalAndGrantCredits(userId, 30, adminId);
 
         assertThat(result.isProVerified()).isTrue();
-        assertThat(result.getCreditsBalance()).isEqualTo(30);
+        assertThat(result.getCreditsBalance().asInt()).isEqualTo(30);
 
         ArgumentCaptor<CreditGrant> captor = ArgumentCaptor.forClass(CreditGrant.class);
         verify(creditGrantRepository).save(captor.capture());
@@ -199,7 +200,7 @@ class AuthServiceImplTest {
                 .email("pro@example.com")
                 .role(UserRole.PRO)
                 .proVerified(true)
-                .creditsBalance(30)
+                .creditsBalance(Credits.of(30))
                 .build();
         when(userRepository.findById(userId)).thenReturn(Optional.of(verified));
 
@@ -220,7 +221,7 @@ class AuthServiceImplTest {
                 .email("pro@example.com")
                 .role(UserRole.PRO)
                 .proVerified(false)
-                .creditsBalance(0)
+                .creditsBalance(Credits.ZERO)
                 .build();
         when(userRepository.findById(userId)).thenReturn(Optional.of(unverified));
         when(creditGrantRepository.sumAmountByUserId(userId)).thenReturn(0L);

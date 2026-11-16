@@ -23,4 +23,27 @@ public class WalletTransaction {
     private String description;
     private int balanceAfter;
     private LocalDateTime createdAt;
+
+    /**
+     * Enforces the ledger invariants: every balance change must have the sign
+     * dictated by its type, and the resulting balance can never be negative.
+     */
+    public WalletTransaction validate() {
+        if (type == null) {
+            throw new IllegalArgumentException("Wallet transaction type is required");
+        }
+        switch (type) {
+            case LEAD_PURCHASE -> require(amount < 0, "Lead purchases must debit credits");
+            case REFUND, TOP_UP, BONUS -> require(amount > 0, type + " must credit credits");
+        }
+        require(balanceAfter >= 0, "Balance after a transaction must not be negative");
+        require(description != null && !description.isBlank(), "Wallet transaction description is required");
+        return this;
+    }
+
+    private static void require(boolean condition, String message) {
+        if (!condition) {
+            throw new IllegalArgumentException(message);
+        }
+    }
 }

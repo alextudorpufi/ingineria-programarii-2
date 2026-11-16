@@ -30,7 +30,8 @@ public class User {
     private boolean verifiedBadge;
     private BigDecimal rating;
     private int reviewCount;
-    private int creditsBalance;
+    @Builder.Default
+    private Credits creditsBalance = Credits.ZERO;
     private BigDecimal hourlyRate;
     private BigDecimal clientBudget;
     private String responseTime;

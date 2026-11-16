@@ -14,6 +14,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.AuditService;
 import ro.marketplace.application.service.AuthService;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.User;
 
@@ -64,7 +65,7 @@ class AdminControllerTest {
                 .role(UserRole.PRO)
                 .name("Pro")
                 .proVerified(true)
-                .creditsBalance(30)
+                .creditsBalance(Credits.of(30))
                 .rating(BigDecimal.valueOf(5))
                 .trustScore(BigDecimal.valueOf(100))
                 .build();

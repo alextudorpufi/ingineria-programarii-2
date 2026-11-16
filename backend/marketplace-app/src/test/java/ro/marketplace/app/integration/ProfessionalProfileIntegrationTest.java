@@ -9,6 +9,7 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
 import ro.marketplace.domain.model.UserRole;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.UserRepository;
@@ -39,7 +40,7 @@ class ProfessionalProfileIntegrationTest {
     @Test
     void editingPersistsWithoutOverwritingAccountDataAndRejectsStaleEdits() {
         User user = account("pro");
-        user.setCreditsBalance(120);
+        user.setCreditsBalance(Credits.of(120));
         user.setPasswordHash("preserved-password-hash");
         users.save(user);
         var profile = ProfessionalProfile.builder().categories(List.of("it-software"))
@@ -59,7 +60,7 @@ class ProfessionalProfileIntegrationTest {
                 String.class, user.getId())).contains("RO-IS", "RO-B");
         assertThat(loaded.getProfessionalProfile().getYearsExperience()).isEqualTo(4);
         assertThat(loaded.getProfessionalProfile().isAcceptingLeads()).isTrue();
-        assertThat(loaded.getCreditsBalance()).isEqualTo(120);
+        assertThat(loaded.getCreditsBalance().asInt()).isEqualTo(120);
         assertThat(loaded.getPasswordHash()).isEqualTo("preserved-password-hash");
         assertThat(loaded.getRole()).isEqualTo(UserRole.PRO);
         assertThatThrownBy(() -> profiles.update(user.getId(), update)).isInstanceOf(ConflictException.class);

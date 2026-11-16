@@ -3,6 +3,7 @@ package ro.marketplace.application.service;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.RomanianCounty;
@@ -31,7 +32,7 @@ class ProfessionalProfileServiceImplTest {
     @BeforeEach
     void setup() {
         when(users.findById(userId)).thenReturn(Optional.of(User.builder().id(userId).role(UserRole.PRO)
-                .name("Pro").creditsBalance(120).verifiedBadge(false).build()));
+                .name("Pro").creditsBalance(Credits.of(120)).verifiedBadge(false).build()));
         when(users.updateProfessionalProfile(any(), anyLong())).thenAnswer(call -> call.getArgument(0));
         when(categories.existsById("it-software")).thenReturn(true);
     }
@@ -46,7 +47,7 @@ class ProfessionalProfileServiceImplTest {
         assertThat(updated.getProfessionalProfile().getSupportsRemote()).isNull();
         assertThat(updated.getProfessionalProfile().getYearsExperience()).isNull();
         assertThat(updated.getName()).isEqualTo("Updated Pro");
-        assertThat(updated.getCreditsBalance()).isEqualTo(120);
+        assertThat(updated.getCreditsBalance().asInt()).isEqualTo(120);
         assertThat(updated.isVerifiedBadge()).isFalse();
         assertThat(updated.getRole()).isEqualTo(UserRole.PRO);
     }
