@@ -14,6 +14,8 @@ import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataLeadClaimRepository;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataLeadRepository;
 
+import java.time.Clock;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
@@ -29,13 +31,16 @@ public class LeadRepositoryAdapter implements LeadRepository {
     private final SpringDataLeadRepository springDataLeadRepository;
     private final SpringDataLeadClaimRepository springDataLeadClaimRepository;
     private final CurrentActorProvider currentActorProvider;
+    private final Clock clock;
 
     public LeadRepositoryAdapter(SpringDataLeadRepository springDataLeadRepository,
                                  SpringDataLeadClaimRepository springDataLeadClaimRepository,
-                                 CurrentActorProvider currentActorProvider) {
+                                 CurrentActorProvider currentActorProvider,
+                                 Clock clock) {
         this.springDataLeadRepository = Objects.requireNonNull(springDataLeadRepository, "springDataLeadRepository must not be null");
         this.springDataLeadClaimRepository = Objects.requireNonNull(springDataLeadClaimRepository, "springDataLeadClaimRepository must not be null");
         this.currentActorProvider = Objects.requireNonNull(currentActorProvider, "currentActorProvider must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
     @Override
@@ -153,7 +158,8 @@ public class LeadRepositoryAdapter implements LeadRepository {
                 leadId,
                 LeadStatus.VALIDAT.getDbValue(),
                 LeadStatus.IN_ASTEPTARE.getDbValue(),
-                AuditActor.resolve(currentActorProvider)) == 1;
+                AuditActor.resolve(currentActorProvider),
+                LocalDateTime.now(clock)) == 1;
     }
 
     @Override
@@ -165,7 +171,8 @@ public class LeadRepositoryAdapter implements LeadRepository {
                 LeadStatus.ATRIBUIT.getDbValue(),
                 LeadStatus.VALIDAT.getDbValue(),
                 LeadStatus.IN_ASTEPTARE.getDbValue(),
-                AuditActor.resolve(currentActorProvider));
+                AuditActor.resolve(currentActorProvider),
+                LocalDateTime.now(clock));
     }
 
     @Override
@@ -178,6 +185,7 @@ public class LeadRepositoryAdapter implements LeadRepository {
                 leadId,
                 expectedStatus.getDbValue(),
                 newStatus.getDbValue(),
-                AuditActor.resolve(currentActorProvider)) == 1;
+                AuditActor.resolve(currentActorProvider),
+                LocalDateTime.now(clock)) == 1;
     }
 }

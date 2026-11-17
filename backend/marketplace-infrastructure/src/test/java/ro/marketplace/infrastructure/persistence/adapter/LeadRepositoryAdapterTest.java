@@ -15,6 +15,10 @@ import ro.marketplace.infrastructure.persistence.entity.LeadEntity;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataLeadClaimRepository;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataLeadRepository;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,6 +29,10 @@ import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class LeadRepositoryAdapterTest {
+
+    private static final LocalDateTime UPDATED_AT = LocalDateTime.of(2026, 1, 1, 10, 0);
+    private static final Clock CLOCK =
+            Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneOffset.UTC);
 
     @Mock
     private SpringDataLeadRepository leadRepository;
@@ -39,7 +47,7 @@ class LeadRepositoryAdapterTest {
 
     @BeforeEach
     void setUp() {
-        adapter = new LeadRepositoryAdapter(leadRepository, claimRepository, currentActorProvider);
+        adapter = new LeadRepositoryAdapter(leadRepository, claimRepository, currentActorProvider, CLOCK);
     }
 
     @Test
@@ -79,12 +87,13 @@ class LeadRepositoryAdapterTest {
     void reserveSlotUsesDomainValues() {
         UUID leadId = UUID.randomUUID();
         when(currentActorProvider.currentActor()).thenReturn(Optional.of("pro@example.com"));
-        when(leadRepository.reserveSlot(leadId, "validat", "in_asteptare", "pro@example.com"))
+        when(leadRepository.reserveSlot(leadId, "validat", "in_asteptare", "pro@example.com", UPDATED_AT))
                 .thenReturn(1);
 
         assertThat(adapter.reserveSlot(leadId)).isTrue();
 
-        verify(leadRepository).reserveSlot(leadId, "validat", "in_asteptare", "pro@example.com");
+        verify(leadRepository).reserveSlot(
+                leadId, "validat", "in_asteptare", "pro@example.com", UPDATED_AT);
     }
 
     @Test
@@ -96,6 +105,6 @@ class LeadRepositoryAdapterTest {
         adapter.markAssignedIfFull(leadId);
 
         verify(leadRepository).markAssignedIfFull(
-                leadId, "atribuit", "validat", "in_asteptare", "system");
+                leadId, "atribuit", "validat", "in_asteptare", "system", UPDATED_AT);
     }
 }

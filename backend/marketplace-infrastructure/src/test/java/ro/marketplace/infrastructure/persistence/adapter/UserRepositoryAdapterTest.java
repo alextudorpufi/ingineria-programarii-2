@@ -10,7 +10,10 @@ import ro.marketplace.domain.port.CurrentActorProvider;
 import ro.marketplace.infrastructure.persistence.entity.UserEntity;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataUserRepository;
 
+import java.time.Clock;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
@@ -24,6 +27,10 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class UserRepositoryAdapterTest {
 
+    private static final LocalDateTime UPDATED_AT = LocalDateTime.of(2026, 1, 1, 10, 0);
+    private static final Clock CLOCK =
+            Clock.fixed(Instant.parse("2026-01-01T10:00:00Z"), ZoneOffset.UTC);
+
     @Mock
     private SpringDataUserRepository repository;
 
@@ -34,7 +41,7 @@ class UserRepositoryAdapterTest {
 
     @BeforeEach
     void setUp() {
-        adapter = new UserRepositoryAdapter(repository, currentActorProvider);
+        adapter = new UserRepositoryAdapter(repository, currentActorProvider, CLOCK);
     }
 
     @Test
@@ -42,11 +49,11 @@ class UserRepositoryAdapterTest {
     void verifyProUsesDomainRole() {
         UUID userId = UUID.randomUUID();
         when(currentActorProvider.currentActor()).thenReturn(Optional.of("admin@example.com"));
-        when(repository.verifyPro(userId, "pro", "admin@example.com")).thenReturn(1);
+        when(repository.verifyPro(userId, "pro", "admin@example.com", UPDATED_AT)).thenReturn(1);
 
         assertThat(adapter.verifyPro(userId)).isTrue();
 
-        verify(repository).verifyPro(userId, "pro", "admin@example.com");
+        verify(repository).verifyPro(userId, "pro", "admin@example.com", UPDATED_AT);
     }
 
     @Test
@@ -55,11 +62,11 @@ class UserRepositoryAdapterTest {
         UUID userId = UUID.randomUUID();
         LocalDateTime lockoutUntil = LocalDateTime.of(2026, 1, 1, 10, 0);
         when(currentActorProvider.currentActor()).thenReturn(Optional.empty());
-        when(repository.registerFailedLogin(userId, 5, lockoutUntil, "system")).thenReturn(1);
+        when(repository.registerFailedLogin(userId, 5, lockoutUntil, "system", UPDATED_AT)).thenReturn(1);
 
         assertThat(adapter.registerFailedLogin(userId, 5, lockoutUntil)).isTrue();
 
-        verify(repository).registerFailedLogin(userId, 5, lockoutUntil, "system");
+        verify(repository).registerFailedLogin(userId, 5, lockoutUntil, "system", UPDATED_AT);
     }
 
     @Test

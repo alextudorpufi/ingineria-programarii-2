@@ -28,22 +28,28 @@ public interface SpringDataUserRepository extends JpaRepository<UserEntity, UUID
     @Query(value = "UPDATE users SET login_attempts_count = login_attempts_count + 1, "
             + "lockout_until = CASE WHEN login_attempts_count + 1 >= :maxAttempts "
             + "THEN :lockoutUntil ELSE lockout_until END, "
-            + "version = version + 1, updated_at = now(), updated_by = :actor "
+            + "version = version + 1, updated_at = :updatedAt, updated_by = :actor "
             + "WHERE id = :userId", nativeQuery = true)
     int registerFailedLogin(@Param("userId") UUID userId,
                             @Param("maxAttempts") int maxAttempts,
                             @Param("lockoutUntil") LocalDateTime lockoutUntil,
-                            @Param("actor") String actor);
+                            @Param("actor") String actor,
+                            @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "UPDATE users SET login_attempts_count = 0, lockout_until = NULL, "
-            + "version = version + 1, updated_at = now(), updated_by = :actor "
+            + "version = version + 1, updated_at = :updatedAt, updated_by = :actor "
             + "WHERE id = :userId", nativeQuery = true)
-    int resetLoginState(@Param("userId") UUID userId, @Param("actor") String actor);
+    int resetLoginState(@Param("userId") UUID userId,
+                        @Param("actor") String actor,
+                        @Param("updatedAt") LocalDateTime updatedAt);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "UPDATE users SET pro_verified = TRUE, "
-            + "version = version + 1, updated_at = now(), updated_by = :actor "
+            + "version = version + 1, updated_at = :updatedAt, updated_by = :actor "
             + "WHERE id = :userId AND role = :proRole AND pro_verified = FALSE", nativeQuery = true)
-    int verifyPro(@Param("userId") UUID userId, @Param("proRole") String proRole, @Param("actor") String actor);
+    int verifyPro(@Param("userId") UUID userId,
+                  @Param("proRole") String proRole,
+                  @Param("actor") String actor,
+                  @Param("updatedAt") LocalDateTime updatedAt);
 }

@@ -15,6 +15,7 @@ import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.mapper.ProfessionalProfileMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataUserRepository;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -26,11 +27,14 @@ public class UserRepositoryAdapter implements UserRepository {
 
     private final SpringDataUserRepository springDataUserRepository;
     private final CurrentActorProvider currentActorProvider;
+    private final Clock clock;
 
     public UserRepositoryAdapter(SpringDataUserRepository springDataUserRepository,
-                                 CurrentActorProvider currentActorProvider) {
+                                 CurrentActorProvider currentActorProvider,
+                                 Clock clock) {
         this.springDataUserRepository = Objects.requireNonNull(springDataUserRepository, "springDataUserRepository must not be null");
         this.currentActorProvider = Objects.requireNonNull(currentActorProvider, "currentActorProvider must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
     @Override
@@ -58,7 +62,7 @@ public class UserRepositoryAdapter implements UserRepository {
         entity.setBio(user.getBio());
         ProfessionalProfileMapper.updateEntity(user.getProfessionalProfile(), profile);
         // Touch every save, including identity-only edits, so @Version protects the whole form.
-        profile.setUpdatedAt(LocalDateTime.now());
+        profile.setUpdatedAt(LocalDateTime.now(clock));
         springDataUserRepository.flush();
         return EntityMapper.toDomain(entity);
     }
@@ -133,7 +137,8 @@ public class UserRepositoryAdapter implements UserRepository {
         Objects.requireNonNull(userId, "userId must not be null");
         Objects.requireNonNull(lockoutUntil, "lockoutUntil must not be null");
         return springDataUserRepository.registerFailedLogin(
-                userId, maxAttempts, lockoutUntil, AuditActor.resolve(currentActorProvider)) == 1;
+                userId, maxAttempts, lockoutUntil,
+                AuditActor.resolve(currentActorProvider), LocalDateTime.now(clock)) == 1;
     }
 
     @Override
@@ -141,7 +146,7 @@ public class UserRepositoryAdapter implements UserRepository {
     public boolean resetLoginState(UUID userId) {
         Objects.requireNonNull(userId, "userId must not be null");
         return springDataUserRepository.resetLoginState(
-                userId, AuditActor.resolve(currentActorProvider)) == 1;
+                userId, AuditActor.resolve(currentActorProvider), LocalDateTime.now(clock)) == 1;
     }
 
     @Override
@@ -149,6 +154,7 @@ public class UserRepositoryAdapter implements UserRepository {
     public boolean verifyPro(UUID userId) {
         Objects.requireNonNull(userId, "userId must not be null");
         return springDataUserRepository.verifyPro(
-                userId, UserRole.PRO.getDbValue(), AuditActor.resolve(currentActorProvider)) == 1;
+                userId, UserRole.PRO.getDbValue(),
+                AuditActor.resolve(currentActorProvider), LocalDateTime.now(clock)) == 1;
     }
 }
