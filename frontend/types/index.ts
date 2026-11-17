@@ -3,7 +3,7 @@
  * Grounded in the project proposal "Ingineria Programării 2"
  */
 
-export type UserRole = 'client' | 'pro' | 'admin';
+export type { AuthRole as UserRole } from '@/services/api/authService';
 export type WorkMode = 'ONSITE' | 'REMOTE';
 
 export interface EditableProfessionalProfile {

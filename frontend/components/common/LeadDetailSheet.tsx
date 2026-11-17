@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { LeadModel } from '@/models/LeadModel';
 import { useApp } from '@/context/AppContext';
+import { useAuth } from '@/context/AuthContext';
 import { LeadPassportCard } from '@/components/common/LeadPassportCard';
 import { ExplainableMatchCard } from '@/components/common/ExplainableMatchCard';
 import { Button } from '@/components/ui/Button';
@@ -12,7 +13,7 @@ import { X, Unlock, Phone, Mail, MessageSquare, CheckCircle2 } from 'lucide-reac
 interface LeadDetailSheetProps {
   lead: LeadModel | null;
   onClose: () => void;
-  onOpenChat: (leadId: string) => void;
+  onOpenChat?: (leadId: string) => void;
 }
 
 export const LeadDetailSheet: React.FC<LeadDetailSheetProps> = ({
@@ -21,6 +22,7 @@ export const LeadDetailSheet: React.FC<LeadDetailSheetProps> = ({
   onOpenChat
 }) => {
   const { unlockLead, isLeadClaimedByMe } = useApp();
+  const { user } = useAuth();
   const [feedback, setFeedback] = useState<{ success: boolean; message: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -137,7 +139,7 @@ export const LeadDetailSheet: React.FC<LeadDetailSheetProps> = ({
 
         {/* Sticky Action Footer */}
         <div className="p-4 border-t border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shrink-0">
-          {isClaimed ? (
+          {isClaimed && onOpenChat ? (
             <Button
               variant="primary"
               size="lg"
@@ -148,9 +150,9 @@ export const LeadDetailSheet: React.FC<LeadDetailSheetProps> = ({
                 onOpenChat(lead.id);
               }}
             >
-              Deschide Chat în Timp Real
+              Deschide Conversația
             </Button>
-          ) : (
+          ) : user?.role === 'pro' && !isClaimed ? (
             <Button
               variant="success"
               size="lg"
@@ -162,7 +164,7 @@ export const LeadDetailSheet: React.FC<LeadDetailSheetProps> = ({
             >
               {isFull ? 'Limită maximă profesioniști atinsă' : `Cumpără Lead (${lead.leadPrice} Credite)`}
             </Button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

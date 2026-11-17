@@ -14,13 +14,15 @@ import { DisputesView } from '@/components/views/DisputesView';
 import { AnalyticsView } from '@/components/views/AnalyticsView';
 import { ProfileView } from '@/components/common/ProfileView';
 import { LeadDetailSheet } from '@/components/common/LeadDetailSheet';
+import { useAuth } from '@/context/AuthContext';
+import { canAccessTab, canUseHeaderAction, resolveWorkspaceTab } from '@/config/navigation';
 
 export const App: React.FC = () => {
   const {
     leads,
     activeLeadId,
     activeLead,
-    activeTab,
+    activeTab: requestedTab,
     setActiveTab,
     setActiveLeadId,
     isAuthModalOpen,
@@ -28,15 +30,20 @@ export const App: React.FC = () => {
   } = useApp();
   const [isLeadSheetOpen, setIsLeadSheetOpen] = useState(false);
   const [mobileLeadView, setMobileLeadView] = useState<'feed' | 'detail'>('feed');
+  const { user, isLoading } = useAuth();
+  const role = isLoading ? null : user?.role;
+  const activeTab = resolveWorkspaceTab(role, requestedTab);
 
   const sheetLead = leads.find(lead => lead.id === activeLeadId) || activeLead;
 
   const handleOpenChat = (leadId: string) => {
+    if (!canAccessTab(role, 'chat')) return;
     setActiveLeadId(leadId);
     setActiveTab('chat');
   };
 
   const handleOpenDispute = (leadId: string) => {
+    if (!canAccessTab(role, 'disputes')) return;
     setActiveLeadId(leadId);
     setActiveTab('disputes');
   };
@@ -45,6 +52,8 @@ export const App: React.FC = () => {
     setActiveLeadId(leadId);
     setIsLeadSheetOpen(true);
   };
+
+  if (!activeTab) return null;
 
   return (
     <div className="h-screen overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-950 bg-vibrant-mesh text-slate-900 dark:text-slate-100 transition-colors">
@@ -84,7 +93,7 @@ export const App: React.FC = () => {
                   <LeadDetail
                     onBackToFeed={() => setMobileLeadView('feed')}
                     onOpenChat={handleOpenChat}
-                    onOpenDispute={handleOpenDispute}
+                    onOpenDispute={canAccessTab(role, 'disputes') ? handleOpenDispute : undefined}
                   />
                 </div>
               </div>
@@ -102,7 +111,7 @@ export const App: React.FC = () => {
 
             {activeTab === 'chat' && (
               <div className="flex-1 min-h-0 h-full overflow-hidden">
-                <ChatView onOpenDispute={handleOpenDispute} />
+                <ChatView onOpenDispute={canAccessTab(role, 'disputes') ? handleOpenDispute : undefined} />
               </div>
             )}
 
@@ -128,7 +137,7 @@ export const App: React.FC = () => {
       </main>
 
       {/* Virtual Credit Wallet Modal */}
-      <WalletModal />
+      {canUseHeaderAction(role, 'wallet') && <WalletModal />}
 
       {/* Authentication dialog (login / register) */}
       <AuthModal isOpen={isAuthModalOpen} onClose={closeAuthModal} />
@@ -138,7 +147,7 @@ export const App: React.FC = () => {
         <LeadDetailSheet
           lead={sheetLead}
           onClose={() => setIsLeadSheetOpen(false)}
-          onOpenChat={handleOpenChat}
+          onOpenChat={canAccessTab(role, 'chat') ? handleOpenChat : undefined}
         />
       )}
     </div>

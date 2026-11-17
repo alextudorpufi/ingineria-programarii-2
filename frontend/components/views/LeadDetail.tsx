@@ -21,7 +21,6 @@ import {
   CheckCircle2,
   ShieldAlert,
   ShieldCheck,
-  Check,
   UserCheck,
   ArrowLeft
 } from 'lucide-react';
@@ -29,7 +28,7 @@ import {
 interface LeadDetailProps {
   onBackToFeed?: () => void;
   onOpenChat: (leadId: string) => void;
-  onOpenDispute: (leadId: string) => void;
+  onOpenDispute?: (leadId: string) => void;
 }
 
 export const LeadDetail: React.FC<LeadDetailProps> = ({
@@ -41,7 +40,6 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
   const { user } = useAuth();
   const [unlockFeedback, setUnlockFeedback] = useState<{ success: boolean; message: string } | null>(null);
   const [isUnlocking, setIsUnlocking] = useState(false);
-  const [adminStatusMessage, setAdminStatusMessage] = useState<string | null>(null);
 
   if (!activeLead) {
     return (
@@ -80,16 +78,6 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
     } finally {
       setIsUnlocking(false);
     }
-  };
-
-  const handleAdminApprove = () => {
-    setAdminStatusMessage('Lead auditat și marcat ca 100% Validat în baza de date.');
-    setTimeout(() => setAdminStatusMessage(null), 3000);
-  };
-
-  const handleAdminRefundAll = () => {
-    setAdminStatusMessage(`Rambursare forțată: creditele au fost returnate celor ${activeLead.claimedPros.length} profesioniști.`);
-    setTimeout(() => setAdminStatusMessage(null), 4000);
   };
 
   return (
@@ -267,14 +255,14 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
             <span className="text-slate-500">
               Bugetul tău este garantat prin sistemul de escrow Skillink.
             </span>
-            <Button
+            {onOpenDispute && <Button
               variant="outline"
               size="sm"
               icon={<AlertTriangle className="w-3.5 h-3.5 text-amber-500" />}
               onClick={() => onOpenDispute(activeLead.id)}
             >
               Semnalează Problemă
-            </Button>
+            </Button>}
           </div>
         </div>
       )}
@@ -317,12 +305,9 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
             </div>
           </div>
 
-          {adminStatusMessage && (
-            <div className="p-3 rounded-xl bg-purple-100 dark:bg-purple-900/80 text-purple-900 dark:text-purple-100 text-xs font-semibold flex items-center gap-2">
-              <Check className="w-4 h-4 text-purple-700 dark:text-purple-300" />
-              <span>{adminStatusMessage}</span>
-            </div>
-          )}
+          <p className="text-xs text-purple-900 dark:text-purple-200">
+            Validarea manuală și rambursarea în masă nu sunt disponibile încă. Pentru sesizări, folosește Centrul Arbitraj.
+          </p>
 
           {/* Admin Override Action Buttons */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
@@ -330,7 +315,7 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
               variant="primary"
               size="sm"
               icon={<ShieldCheck className="w-3.5 h-3.5" />}
-              onClick={handleAdminApprove}
+              disabled
             >
               Confirmă Validare & Calitate
             </Button>
@@ -338,7 +323,7 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
               variant="outline"
               size="sm"
               icon={<ShieldAlert className="w-3.5 h-3.5 text-rose-500" />}
-              onClick={handleAdminRefundAll}
+              disabled
             >
               Forțează Rambursare Credite ({activeLead.claimedPros.length} Pros)
             </Button>
@@ -431,7 +416,7 @@ export const LeadDetail: React.FC<LeadDetailProps> = ({
                 <Button
                   variant="outline"
                   icon={<AlertTriangle className="w-4 h-4 text-amber-500" />}
-                  onClick={() => onOpenDispute(activeLead.id)}
+                  onClick={() => onOpenDispute?.(activeLead.id)}
                 >
                   Contestă Lead (Sesizare)
                 </Button>
