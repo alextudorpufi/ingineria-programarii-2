@@ -8,5 +8,6 @@ public record CustomerResponse(
         String name,
         String email,
         String phone,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        Long version
 ) {}

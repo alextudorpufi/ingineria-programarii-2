@@ -124,6 +124,23 @@ class CustomerServiceImplTest {
     }
 
     @Test
+    @DisplayName("updateCustomer rejects a stale client version before saving")
+    void updateCustomer_StaleVersion_ThrowsConflict() {
+        UUID id = UUID.randomUUID();
+        Customer existing = Customer.builder()
+                .id(id).name("Ion").email("ion@example.com").version(2L).build();
+        when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+
+        Customer stale = Customer.builder()
+                .name("Ion Updated").email("ion@example.com").version(1L).build();
+
+        assertThatThrownBy(() -> customerService.updateCustomer(id, stale))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("concurrently");
+        verify(customerRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("deleteCustomer removes an existing customer")
     void deleteCustomer_Success() {
         UUID id = UUID.randomUUID();

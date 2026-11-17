@@ -95,7 +95,7 @@ class LeadServiceImplTest {
         when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(false);
         when(leadRepository.reserveSlot(leadId)).thenReturn(true);
-        when(leadRepository.saveClaim(any(LeadClaim.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(leadRepository.createClaim(any(LeadClaim.class))).thenAnswer(inv -> inv.getArgument(0));
 
         LeadClaim claim = leadService.claimLead(leadId, proId, "DevCraft Studio");
 
@@ -154,7 +154,7 @@ class LeadServiceImplTest {
         when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(false);
         when(leadRepository.reserveSlot(leadId)).thenReturn(true);
-        when(leadRepository.saveClaim(any(LeadClaim.class))).thenThrow(new IllegalStateException("db failure"));
+        when(leadRepository.createClaim(any(LeadClaim.class))).thenThrow(new IllegalStateException("db failure"));
 
         assertThatThrownBy(() -> leadService.claimLead(leadId, proId, "DevCraft Studio"))
                 .isInstanceOf(IllegalStateException.class)
@@ -200,7 +200,7 @@ class LeadServiceImplTest {
         assertThatThrownBy(() -> leadService.createLead(lead))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("Unknown service category");
-        verify(leadRepository, never()).save(any());
+        verify(leadRepository, never()).create(any());
     }
 
     @Test
@@ -229,7 +229,7 @@ class LeadServiceImplTest {
                 .email("client@example.com")
                 .phone("+40700000000")
                 .build()));
-        when(leadRepository.save(any(Lead.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(leadRepository.create(any(Lead.class))).thenAnswer(inv -> inv.getArgument(0));
 
         Lead created = leadService.createLead(lead);
 
@@ -262,7 +262,7 @@ class LeadServiceImplTest {
             assertThatThrownBy(() -> leadService.createLead(lead)).isInstanceOf(ValidationException.class)
                     .hasMessageContaining("50 de competențe");
         }
-        verify(leadRepository, never()).save(any());
+        verify(leadRepository, never()).create(any());
     }
 
     @Test

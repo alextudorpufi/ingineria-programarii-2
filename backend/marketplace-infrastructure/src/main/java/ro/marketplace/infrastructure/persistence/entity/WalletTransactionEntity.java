@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -20,7 +21,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class WalletTransactionEntity {
+public class WalletTransactionEntity implements Persistable<UUID> {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -49,4 +50,13 @@ public class WalletTransactionEntity {
 
     @Column(name = "created_by", length = 100)
     private String createdBy;
+
+    /**
+     * Append-only/create-only entity: a repeated id must fail instead of
+     * silently turning the save into an UPDATE.
+     */
+    @Override
+    public boolean isNew() {
+        return true;
+    }
 }

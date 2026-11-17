@@ -10,6 +10,7 @@ import ro.marketplace.infrastructure.persistence.entity.StripeWebhookEventEntity
 import ro.marketplace.infrastructure.persistence.repository.SpringDataCreditPurchaseRepository;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataStripeWebhookEventRepository;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -20,11 +21,14 @@ public class CreditPurchaseRepositoryAdapter implements CreditPurchaseRepository
 
     private final SpringDataCreditPurchaseRepository purchaseRepository;
     private final SpringDataStripeWebhookEventRepository webhookEventRepository;
+    private final Clock clock;
 
     public CreditPurchaseRepositoryAdapter(SpringDataCreditPurchaseRepository purchaseRepository,
-                                           SpringDataStripeWebhookEventRepository webhookEventRepository) {
+                                           SpringDataStripeWebhookEventRepository webhookEventRepository,
+                                           Clock clock) {
         this.purchaseRepository = Objects.requireNonNull(purchaseRepository, "purchaseRepository must not be null");
         this.webhookEventRepository = Objects.requireNonNull(webhookEventRepository, "webhookEventRepository must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
     @Override
@@ -61,7 +65,8 @@ public class CreditPurchaseRepositoryAdapter implements CreditPurchaseRepository
     @Override
     @Transactional
     public void recordWebhookEvent(String eventId, String eventType) {
-        webhookEventRepository.save(new StripeWebhookEventEntity(eventId, eventType, LocalDateTime.now()));
+        webhookEventRepository.save(new StripeWebhookEventEntity(
+                eventId, eventType, LocalDateTime.now(clock)));
     }
 
     private static CreditPurchaseEntity toEntity(CreditPurchase purchase) {

@@ -39,7 +39,9 @@ public class ApplicationServiceConfig {
 
     @Bean
     public Clock clock() {
-        return Clock.systemDefaultZone();
+        // One clock for the application and JPA auditing, pinned to UTC so the
+        // written timestamps do not depend on the JVM's default zone.
+        return Clock.systemUTC();
     }
 
     @Bean

@@ -2,15 +2,20 @@ package ro.marketplace.infrastructure.persistence.adapter;
 
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
+import ro.marketplace.domain.port.CurrentActorProvider;
 import ro.marketplace.domain.port.UserRepository;
+import ro.marketplace.infrastructure.persistence.audit.AuditActor;
 import ro.marketplace.infrastructure.persistence.entity.UserEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.mapper.ProfessionalProfileMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataUserRepository;
 
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,9 +26,15 @@ import java.util.UUID;
 public class UserRepositoryAdapter implements UserRepository {
 
     private final SpringDataUserRepository springDataUserRepository;
+    private final CurrentActorProvider currentActorProvider;
+    private final Clock clock;
 
-    public UserRepositoryAdapter(SpringDataUserRepository springDataUserRepository) {
+    public UserRepositoryAdapter(SpringDataUserRepository springDataUserRepository,
+                                 CurrentActorProvider currentActorProvider,
+                                 Clock clock) {
         this.springDataUserRepository = Objects.requireNonNull(springDataUserRepository, "springDataUserRepository must not be null");
+        this.currentActorProvider = Objects.requireNonNull(currentActorProvider, "currentActorProvider must not be null");
+        this.clock = Objects.requireNonNull(clock, "clock must not be null");
     }
 
     @Override
@@ -51,7 +62,7 @@ public class UserRepositoryAdapter implements UserRepository {
         entity.setBio(user.getBio());
         ProfessionalProfileMapper.updateEntity(user.getProfessionalProfile(), profile);
         // Touch every save, including identity-only edits, so @Version protects the whole form.
-        profile.setUpdatedAt(LocalDateTime.now());
+        profile.setUpdatedAt(LocalDateTime.now(clock));
         springDataUserRepository.flush();
         return EntityMapper.toDomain(entity);
     }
@@ -81,11 +92,15 @@ public class UserRepositoryAdapter implements UserRepository {
     @Transactional
     public OptionalInt addCredits(UUID userId, int amount) {
         Objects.requireNonNull(userId, "userId must not be null");
+        Credits delta = positiveAmount(amount);
         return springDataUserRepository.findByIdForUpdate(userId)
                 .map(user -> {
-                    user.setCreditsBalance(user.getCreditsBalance() + amount);
+                    // Overflow-checked domain arithmetic: a corrupted balance fails here
+                    // instead of wrapping around into a valid-looking number.
+                    Credits updated = Credits.of(user.getCreditsBalance()).plus(delta);
+                    user.setCreditsBalance(updated.asInt());
                     springDataUserRepository.flush();
-                    return OptionalInt.of(user.getCreditsBalance());
+                    return OptionalInt.of(updated.asInt());
                 })
                 .orElseGet(OptionalInt::empty);
     }
@@ -94,16 +109,26 @@ public class UserRepositoryAdapter implements UserRepository {
     @Transactional
     public OptionalInt deductCredits(UUID userId, int amount) {
         Objects.requireNonNull(userId, "userId must not be null");
+        Credits delta = positiveAmount(amount);
         return springDataUserRepository.findByIdForUpdate(userId)
                 .map(user -> {
-                    if (user.getCreditsBalance() < amount) {
+                    Credits balance = Credits.of(user.getCreditsBalance());
+                    if (!balance.isAtLeast(delta)) {
                         return OptionalInt.empty();
                     }
-                    user.setCreditsBalance(user.getCreditsBalance() - amount);
+                    Credits updated = balance.minus(delta);
+                    user.setCreditsBalance(updated.asInt());
                     springDataUserRepository.flush();
-                    return OptionalInt.of(user.getCreditsBalance());
+                    return OptionalInt.of(updated.asInt());
                 })
                 .orElseGet(OptionalInt::empty);
+    }
+
+    private static Credits positiveAmount(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Credit amount must be positive: " + amount);
+        }
+        return Credits.of(amount);
     }
 
     @Override
@@ -111,20 +136,25 @@ public class UserRepositoryAdapter implements UserRepository {
     public boolean registerFailedLogin(UUID userId, int maxAttempts, LocalDateTime lockoutUntil) {
         Objects.requireNonNull(userId, "userId must not be null");
         Objects.requireNonNull(lockoutUntil, "lockoutUntil must not be null");
-        return springDataUserRepository.registerFailedLogin(userId, maxAttempts, lockoutUntil) == 1;
+        return springDataUserRepository.registerFailedLogin(
+                userId, maxAttempts, lockoutUntil,
+                AuditActor.resolve(currentActorProvider), LocalDateTime.now(clock)) == 1;
     }
 
     @Override
     @Transactional
     public boolean resetLoginState(UUID userId) {
         Objects.requireNonNull(userId, "userId must not be null");
-        return springDataUserRepository.resetLoginState(userId) == 1;
+        return springDataUserRepository.resetLoginState(
+                userId, AuditActor.resolve(currentActorProvider), LocalDateTime.now(clock)) == 1;
     }
 
     @Override
     @Transactional
     public boolean verifyPro(UUID userId) {
         Objects.requireNonNull(userId, "userId must not be null");
-        return springDataUserRepository.verifyPro(userId) == 1;
+        return springDataUserRepository.verifyPro(
+                userId, UserRole.PRO.getDbValue(),
+                AuditActor.resolve(currentActorProvider), LocalDateTime.now(clock)) == 1;
     }
 }

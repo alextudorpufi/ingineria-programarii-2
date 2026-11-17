@@ -1,12 +1,14 @@
 package ro.marketplace.infrastructure.persistence.adapter;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.model.Customer;
 import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.port.CustomerRepository;
+import ro.marketplace.infrastructure.persistence.PageRequests;
 import ro.marketplace.infrastructure.persistence.entity.CustomerEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataCustomerRepository;
@@ -24,11 +26,28 @@ public class CustomerRepositoryAdapter implements CustomerRepository {
         this.springDataRepository = Objects.requireNonNull(springDataRepository, "springDataRepository must not be null");
     }
 
+    /**
+     * Inserts a new customer or updates an existing one under optimistic locking.
+     *
+     * <p>Updates copy onto the managed row instead of rebuilding it, so the
+     * {@code @Version} value that Hibernate checked is the one it writes.</p>
+     */
     @Override
     @Transactional
     public Customer save(Customer customer) {
         Objects.requireNonNull(customer, "customer must not be null");
-        CustomerEntity entity = EntityMapper.toEntity(customer);
+        CustomerEntity entity;
+        if (customer.getId() == null || customer.getVersion() == null) {
+            entity = EntityMapper.toEntity(customer);
+        } else {
+            entity = springDataRepository.findById(customer.getId())
+                    .map(existing -> {
+                        EntityMapper.updateEntity(customer, existing);
+                        return existing;
+                    })
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Customer not found with id: " + customer.getId()));
+        }
         CustomerEntity saved = springDataRepository.save(entity);
         return EntityMapper.toDomain(saved);
     }
@@ -44,7 +63,8 @@ public class CustomerRepositoryAdapter implements CustomerRepository {
     @Transactional(readOnly = true)
     public PageResult<Customer> findPage(int page, int size) {
         Page<CustomerEntity> result = springDataRepository.findAll(
-                PageRequest.of(Math.max(page, 0), Math.max(size, 1)));
+                PageRequests.of(page, size,
+                        Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
         return new PageResult<>(
                 result.getContent().stream().map(EntityMapper::toDomain).toList(),
                 result.getTotalElements(),

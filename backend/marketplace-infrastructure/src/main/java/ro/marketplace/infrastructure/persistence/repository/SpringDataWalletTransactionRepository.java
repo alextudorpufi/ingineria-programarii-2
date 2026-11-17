@@ -12,7 +12,8 @@ import java.util.UUID;
 @Repository
 public interface SpringDataWalletTransactionRepository extends JpaRepository<WalletTransactionEntity, UUID> {
 
-    Page<WalletTransactionEntity> findByUserIdOrderByCreatedAtDesc(UUID userId, Pageable pageable);
+    /** Sorting is supplied by the caller so paging always carries an id tie-breaker. */
+    Page<WalletTransactionEntity> findByUserId(UUID userId, Pageable pageable);
 
-    List<WalletTransactionEntity> findByUserIdAndLeadIdOrderByCreatedAtAsc(UUID userId, UUID leadId);
+    List<WalletTransactionEntity> findByUserIdAndLeadIdOrderByCreatedAtAscIdAsc(UUID userId, UUID leadId);
 }

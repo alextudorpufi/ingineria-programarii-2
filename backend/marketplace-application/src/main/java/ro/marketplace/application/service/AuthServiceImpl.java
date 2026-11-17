@@ -211,7 +211,7 @@ public class AuthServiceImpl implements AuthService {
                 throw new ConflictException("The professional account is already verified.");
             }
 
-            creditGrantRepository.save(new CreditGrant(
+            creditGrantRepository.append(new CreditGrant(
                     UUID.randomUUID(),
                     userId,
                     credits,

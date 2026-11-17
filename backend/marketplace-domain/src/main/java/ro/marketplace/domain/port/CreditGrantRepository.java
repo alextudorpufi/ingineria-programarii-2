@@ -6,7 +6,7 @@ import java.util.UUID;
 
 public interface CreditGrantRepository {
 
-    CreditGrant save(CreditGrant grant);
+    CreditGrant append(CreditGrant grant);
 
     /**
      * Total free credits ever granted to the user, used to enforce the lifetime cap.

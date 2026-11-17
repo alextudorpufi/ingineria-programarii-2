@@ -40,7 +40,7 @@ class AuditServiceImplTest {
     @Test
     @DisplayName("recordEvent saves audit log with a typed action")
     void recordEvent_Success() {
-        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(auditLogRepository.append(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
 
         AuditLog log = auditService.recordEvent("Lead", "lead-123", AuditAction.CREATE,
                 "alex@marketplace.ro", "Created lead");
@@ -50,13 +50,13 @@ class AuditServiceImplTest {
         assertThat(log.getAction()).isEqualTo(AuditAction.CREATE);
         assertThat(log.getChangedBy()).isEqualTo("alex@marketplace.ro");
         assertThat(log.getCreatedAt()).isEqualTo(java.time.LocalDateTime.of(2026, 1, 1, 10, 0));
-        verify(auditLogRepository).save(any(AuditLog.class));
+        verify(auditLogRepository).append(any(AuditLog.class));
     }
 
     @Test
     @DisplayName("recordEvent prefers the authenticated actor over caller-supplied text")
     void recordEvent_PrefersAuthenticatedActor() {
-        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(auditLogRepository.append(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
         AuditServiceImpl authenticated = new AuditServiceImpl(auditLogRepository, CLOCK,
                 () -> Optional.of("jwt-user@marketplace.ro"));
 
@@ -69,7 +69,7 @@ class AuditServiceImplTest {
     @Test
     @DisplayName("recordEvent truncates long values without splitting surrogate pairs")
     void recordEvent_TruncatesOnCodePointBoundary() {
-        when(auditLogRepository.save(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(auditLogRepository.append(any(AuditLog.class))).thenAnswer(inv -> inv.getArgument(0));
         String value = "a".repeat(99) + "😀" + "tail";
 
         AuditLog log = auditService.recordEvent("Lead", value, AuditAction.CREATE, "actor", "{}");

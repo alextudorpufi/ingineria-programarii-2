@@ -65,6 +65,12 @@ public class CustomerServiceImpl implements CustomerService {
         return unitOfWork.executeInTransaction(() -> {
             Customer existing = getCustomerById(id);
 
+            if (updatedData.getVersion() != null
+                    && !updatedData.getVersion().equals(existing.getVersion())) {
+                throw new ConflictException(
+                        "Customer was modified concurrently. Reload the customer and retry.");
+            }
+
             if (updatedData.getEmail() != null
                     && !updatedData.getEmail().equalsIgnoreCase(existing.getEmail())
                     && customerRepository.existsByEmail(updatedData.getEmail())) {

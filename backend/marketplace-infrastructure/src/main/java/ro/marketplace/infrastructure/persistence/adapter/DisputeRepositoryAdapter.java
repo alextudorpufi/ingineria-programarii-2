@@ -9,6 +9,7 @@ import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.port.DisputeRepository;
+import ro.marketplace.infrastructure.persistence.PageRequests;
 import ro.marketplace.infrastructure.persistence.entity.DisputeEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataDisputeRepository;
@@ -62,12 +63,12 @@ public class DisputeRepositoryAdapter implements DisputeRepository {
     public PageResult<Dispute> findPageByProId(UUID proId, int page, int size) {
         Objects.requireNonNull(proId, "proId must not be null");
         Page<DisputeEntity> result = springDataDisputeRepository
-                .findByProIdOrderByCreatedAtDesc(proId, pageRequest(page, size));
+                .findByProId(proId, pageRequest(page, size));
         return toPage(result);
     }
 
     private static PageRequest pageRequest(int page, int size) {
-        return PageRequest.of(Math.max(page, 0), Math.max(size, 1),
+        return PageRequests.of(page, size,
                 Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id")));
     }
 

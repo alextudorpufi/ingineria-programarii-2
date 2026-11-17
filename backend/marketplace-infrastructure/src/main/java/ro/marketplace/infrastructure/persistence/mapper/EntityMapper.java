@@ -42,6 +42,7 @@ public final class EntityMapper {
                 .email(entity.getEmail())
                 .phone(entity.getPhone())
                 .createdAt(entity.getCreatedAt())
+                .version(entity.getVersion())
                 .build();
     }
 
@@ -53,7 +54,20 @@ public final class EntityMapper {
                 .email(domain.getEmail())
                 .phone(domain.getPhone())
                 .createdAt(domain.getCreatedAt())
+                .version(domain.getVersion())
                 .build();
+    }
+
+    /**
+     * Copies mutable customer fields onto a managed entity. Version and
+     * {@code createdAt} stay owned by JPA so optimistic locking is not bypassed.
+     */
+    public static void updateEntity(Customer domain, CustomerEntity entity) {
+        Objects.requireNonNull(domain, "domain must not be null");
+        Objects.requireNonNull(entity, "entity must not be null");
+        entity.setName(domain.getName());
+        entity.setEmail(domain.getEmail());
+        entity.setPhone(domain.getPhone());
     }
 
     // User
@@ -167,6 +181,8 @@ public final class EntityMapper {
 
     public static LeadEntity toEntity(Lead domain) {
         if (domain == null) return null;
+        // createdAt/updatedAt/createdBy/updatedBy are owned by JPA auditing, which
+        // uses the shared application clock; copying them here would be overwritten.
         return LeadEntity.builder()
                 .id(domain.getId())
                 .title(domain.getTitle())
@@ -284,6 +300,7 @@ public final class EntityMapper {
 
     public static DisputeEntity toEntity(Dispute domain) {
         if (domain == null) return null;
+        // createdAt/updatedAt and the actor columns are owned by JPA auditing.
         return DisputeEntity.builder()
                 .id(domain.getId())
                 .leadId(domain.getLeadId())

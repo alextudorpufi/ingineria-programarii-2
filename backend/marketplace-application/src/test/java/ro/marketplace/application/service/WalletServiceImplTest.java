@@ -61,7 +61,7 @@ class WalletServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.addCredits(userId, 100)).thenReturn(OptionalInt.of(150));
-        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.topUpCredits(userId, 100, "Reîncărcare pachet");
 
@@ -82,7 +82,7 @@ class WalletServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.deductCredits(userId, 30)).thenReturn(OptionalInt.of(20));
-        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.deductCredits(userId, 30, "Achiziție lead", leadId);
 
@@ -105,7 +105,7 @@ class WalletServiceImplTest {
         assertThatThrownBy(() -> walletService.deductCredits(userId, 30, "Achiziție lead", UUID.randomUUID()))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("Insufficient credit balance");
-        verify(walletTransactionRepository, never()).save(any());
+        verify(walletTransactionRepository, never()).append(any());
         verify(auditService, never()).recordEvent(any(), any(), any(), any(), any());
     }
 
@@ -118,7 +118,7 @@ class WalletServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(40));
-        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.refundCredits(userId, 30, "Rambursare", UUID.randomUUID());
 
@@ -136,7 +136,7 @@ class WalletServiceImplTest {
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
         when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(30));
-        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.grantBonusCredits(userId, 30, "Welcome credits", "admin-1");
 
@@ -152,6 +152,6 @@ class WalletServiceImplTest {
     void grantBonusCredits_RejectsNonPositiveAmount() {
         assertThatThrownBy(() -> walletService.grantBonusCredits(UUID.randomUUID(), 0, "Bonus", "admin-1"))
                 .isInstanceOf(ro.marketplace.domain.exception.ValidationException.class);
-        verify(walletTransactionRepository, never()).save(any());
+        verify(walletTransactionRepository, never()).append(any());
     }
 }
