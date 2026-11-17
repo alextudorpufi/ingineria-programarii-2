@@ -133,6 +133,22 @@ class ClaimLeadIntegrationTest {
         assertThat(userRepository.findById(pro.getId()).orElseThrow().getCreditsBalance().asInt()).isEqualTo(70);
     }
 
+    @Test
+    @DisplayName("A completed lead is never moved back to assigned by the capacity guard")
+    void markAssignedDoesNotResurrectClosedLead() {
+        User client = createUser("client4@example.com", 0, "client");
+        Lead lead = createLead(client, 1, 30);
+
+        assertThat(leadRepository.reserveSlot(lead.getId())).isTrue();
+        assertThat(leadRepository.updateStatus(
+                lead.getId(), LeadStatus.VALIDAT, LeadStatus.FINALIZAT)).isTrue();
+
+        leadRepository.markAssignedIfFull(lead.getId());
+
+        Lead reloaded = leadRepository.findById(lead.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(LeadStatus.FINALIZAT);
+    }
+
     private User createUser(String email, int credits, String role) {
         UUID id = UUID.randomUUID();
         User user = User.builder()

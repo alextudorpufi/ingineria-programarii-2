@@ -167,6 +167,8 @@ public final class EntityMapper {
 
     public static LeadEntity toEntity(Lead domain) {
         if (domain == null) return null;
+        // createdAt/updatedAt/createdBy/updatedBy are owned by JPA auditing, which
+        // uses the shared application clock; copying them here would be overwritten.
         return LeadEntity.builder()
                 .id(domain.getId())
                 .title(domain.getTitle())
@@ -284,6 +286,7 @@ public final class EntityMapper {
 
     public static DisputeEntity toEntity(Dispute domain) {
         if (domain == null) return null;
+        // createdAt/updatedAt and the actor columns are owned by JPA auditing.
         return DisputeEntity.builder()
                 .id(domain.getId())
                 .leadId(domain.getLeadId())

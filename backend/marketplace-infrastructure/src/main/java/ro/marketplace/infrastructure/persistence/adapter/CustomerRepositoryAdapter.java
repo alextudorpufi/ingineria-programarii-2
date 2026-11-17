@@ -25,6 +25,11 @@ public class CustomerRepositoryAdapter implements CustomerRepository {
         this.springDataRepository = Objects.requireNonNull(springDataRepository, "springDataRepository must not be null");
     }
 
+    /**
+     * Upserts a customer. The table has no {@code @Version}, so concurrent edits
+     * are last-write-wins; callers that need conflict detection must add
+     * optimistic locking along with a migration.
+     */
     @Override
     @Transactional
     public Customer save(Customer customer) {
