@@ -173,7 +173,7 @@ class AuthServiceImplTest {
         when(userRepository.findById(userId)).thenReturn(Optional.of(unverified), Optional.of(verified));
         when(creditGrantRepository.sumAmountByUserId(userId)).thenReturn(0L);
         when(userRepository.verifyPro(userId)).thenReturn(true);
-        when(creditGrantRepository.save(any(CreditGrant.class)))
+        when(creditGrantRepository.append(any(CreditGrant.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         User result = authService.verifyProfessionalAndGrantCredits(userId, 30, adminId);
@@ -182,7 +182,7 @@ class AuthServiceImplTest {
         assertThat(result.getCreditsBalance().asInt()).isEqualTo(30);
 
         ArgumentCaptor<CreditGrant> captor = ArgumentCaptor.forClass(CreditGrant.class);
-        verify(creditGrantRepository).save(captor.capture());
+        verify(creditGrantRepository).append(captor.capture());
         assertThat(captor.getValue().userId()).isEqualTo(userId);
         assertThat(captor.getValue().adminId()).isEqualTo(adminId);
         assertThat(captor.getValue().amount()).isEqualTo(30);
@@ -207,7 +207,7 @@ class AuthServiceImplTest {
         assertThatThrownBy(() -> authService.verifyProfessionalAndGrantCredits(userId, 30, UUID.randomUUID()))
                 .isInstanceOf(ConflictException.class);
 
-        verify(creditGrantRepository, never()).save(any());
+        verify(creditGrantRepository, never()).append(any());
         verify(userRepository, never()).verifyPro(any());
         verify(walletService, never()).grantBonusCredits(any(), anyInt(), any(), any());
     }
@@ -230,7 +230,7 @@ class AuthServiceImplTest {
         assertThatThrownBy(() -> authService.verifyProfessionalAndGrantCredits(userId, 30, UUID.randomUUID()))
                 .isInstanceOf(ConflictException.class);
 
-        verify(creditGrantRepository, never()).save(any());
+        verify(creditGrantRepository, never()).append(any());
         verify(walletService, never()).grantBonusCredits(any(), anyInt(), any(), any());
     }
 }

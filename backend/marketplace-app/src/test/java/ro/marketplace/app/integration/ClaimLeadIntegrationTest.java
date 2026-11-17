@@ -199,6 +199,6 @@ class ClaimLeadIntegrationTest {
                 .passportExtractedByAi(true)
                 .passportDuplicateRisk("Low")
                 .build();
-        return leadRepository.save(lead);
+        return leadRepository.create(lead);
     }
 }

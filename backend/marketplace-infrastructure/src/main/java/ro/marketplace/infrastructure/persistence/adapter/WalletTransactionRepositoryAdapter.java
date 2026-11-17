@@ -13,7 +13,6 @@ import ro.marketplace.infrastructure.persistence.repository.SpringDataWalletTran
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.UUID;
 
 @Repository
@@ -27,18 +26,12 @@ public class WalletTransactionRepositoryAdapter implements WalletTransactionRepo
 
     @Override
     @Transactional
-    public WalletTransaction save(WalletTransaction transaction) {
+    public WalletTransaction append(WalletTransaction transaction) {
         Objects.requireNonNull(transaction, "transaction must not be null");
         WalletTransactionEntity entity = EntityMapper.toEntity(transaction);
-        WalletTransactionEntity saved = springDataWalletTransactionRepository.save(entity);
-        return EntityMapper.toDomain(saved);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public Optional<WalletTransaction> findById(UUID id) {
-        Objects.requireNonNull(id, "id must not be null");
-        return springDataWalletTransactionRepository.findById(id).map(EntityMapper::toDomain);
+        // The ledger is append-only: persist never turns a repeated id into an UPDATE.
+        springDataWalletTransactionRepository.save(entity);
+        return EntityMapper.toDomain(entity);
     }
 
     @Override

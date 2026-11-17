@@ -83,7 +83,7 @@ public class LeadServiceImpl implements LeadService {
             }
             lead.snapshotClient(client);
 
-            Lead saved = leadRepository.save(lead);
+            Lead saved = leadRepository.create(lead);
             auditService.recordEvent("Lead", saved.getId().toString(), AuditAction.CREATE, saved.getClientEmail(),
                     AuditDetails.of(
                             "categoryId", saved.getCategoryId(),
@@ -169,7 +169,7 @@ public class LeadServiceImpl implements LeadService {
                     .claimedAt(LocalDateTime.now(clock))
                     .build();
 
-            LeadClaim savedClaim = leadRepository.saveClaim(claim);
+            LeadClaim savedClaim = leadRepository.createClaim(claim);
             leadRepository.markAssignedIfFull(leadId);
 
             auditService.recordEvent("Lead", leadId.toString(), AuditAction.CLAIM_LEAD, claim.getProName(),

@@ -171,7 +171,7 @@ public class WalletServiceImpl implements WalletService {
                 .balanceAfter(balanceAfter)
                 .createdAt(LocalDateTime.now(clock))
                 .build();
-        return walletTransactionRepository.save(transaction.validate());
+        return walletTransactionRepository.append(transaction.validate());
     }
 
     private void validateAmount(int credits, String label) {

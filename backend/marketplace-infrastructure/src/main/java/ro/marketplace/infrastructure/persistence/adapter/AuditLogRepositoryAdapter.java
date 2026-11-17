@@ -24,11 +24,12 @@ public class AuditLogRepositoryAdapter implements AuditLogRepository {
 
     @Override
     @Transactional
-    public AuditLog save(AuditLog auditLog) {
+    public AuditLog append(AuditLog auditLog) {
         Objects.requireNonNull(auditLog, "auditLog must not be null");
         AuditLogEntity entity = EntityMapper.toEntity(auditLog);
-        AuditLogEntity saved = springDataAuditLogRepository.save(entity);
-        return EntityMapper.toDomain(saved);
+        // Audit history is append-only: persist never turns a repeated id into an UPDATE.
+        springDataAuditLogRepository.save(entity);
+        return EntityMapper.toDomain(entity);
     }
 
     @Override

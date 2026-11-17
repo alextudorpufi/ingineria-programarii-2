@@ -49,7 +49,7 @@ public class AuditServiceImpl implements AuditService {
                 .createdAt(LocalDateTime.now(clock))
                 .build();
 
-        return auditLogRepository.save(log);
+        return auditLogRepository.append(log);
     }
 
     /**

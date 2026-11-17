@@ -11,7 +11,11 @@ import java.util.UUID;
 
 public interface LeadRepository {
 
-    Lead save(Lead lead);
+    /**
+     * Persists a new lead. Existing leads change only through the focused
+     * lifecycle methods below, so an update can never be mistaken for an insert.
+     */
+    Lead create(Lead lead);
 
     Optional<Lead> findById(UUID id);
 
@@ -27,9 +31,8 @@ public interface LeadRepository {
 
     long countByStatus(LeadStatus status);
 
-    void deleteById(UUID id);
-
-    LeadClaim saveClaim(LeadClaim claim);
+    /** Appends a claim. Claims are immutable history and are never updated. */
+    LeadClaim createClaim(LeadClaim claim);
 
     List<LeadClaim> findClaimsByLeadId(UUID leadId);
 

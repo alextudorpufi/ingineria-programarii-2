@@ -4,14 +4,15 @@ import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.WalletTransaction;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 public interface WalletTransactionRepository {
 
-    WalletTransaction save(WalletTransaction transaction);
-
-    Optional<WalletTransaction> findById(UUID id);
+    /**
+     * Appends an immutable ledger entry. Reusing an existing id must fail instead
+     * of rewriting history.
+     */
+    WalletTransaction append(WalletTransaction transaction);
 
     PageResult<WalletTransaction> findPageByUserId(UUID userId, int page, int size);
 

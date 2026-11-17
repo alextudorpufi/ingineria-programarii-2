@@ -5,7 +5,9 @@ import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
+import ro.marketplace.domain.port.CurrentActorProvider;
 import ro.marketplace.domain.port.LeadRepository;
+import ro.marketplace.infrastructure.persistence.audit.AuditActor;
 import ro.marketplace.infrastructure.persistence.entity.LeadClaimEntity;
 import ro.marketplace.infrastructure.persistence.entity.LeadEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
@@ -25,20 +27,25 @@ public class LeadRepositoryAdapter implements LeadRepository {
 
     private final SpringDataLeadRepository springDataLeadRepository;
     private final SpringDataLeadClaimRepository springDataLeadClaimRepository;
+    private final CurrentActorProvider currentActorProvider;
 
     public LeadRepositoryAdapter(SpringDataLeadRepository springDataLeadRepository,
-                                 SpringDataLeadClaimRepository springDataLeadClaimRepository) {
+                                 SpringDataLeadClaimRepository springDataLeadClaimRepository,
+                                 CurrentActorProvider currentActorProvider) {
         this.springDataLeadRepository = Objects.requireNonNull(springDataLeadRepository, "springDataLeadRepository must not be null");
         this.springDataLeadClaimRepository = Objects.requireNonNull(springDataLeadClaimRepository, "springDataLeadClaimRepository must not be null");
+        this.currentActorProvider = Objects.requireNonNull(currentActorProvider, "currentActorProvider must not be null");
     }
 
     @Override
     @Transactional
-    public Lead save(Lead lead) {
+    public Lead create(Lead lead) {
         Objects.requireNonNull(lead, "lead must not be null");
         LeadEntity entity = EntityMapper.toEntity(lead);
-        LeadEntity saved = springDataLeadRepository.save(entity);
-        return EntityMapper.toDomain(saved);
+        // Insert-only: rebuilding the entity loses @Version, so a merge would treat
+        // an existing lead as new. Lifecycle changes go through the guarded updates below.
+        springDataLeadRepository.save(entity);
+        return EntityMapper.toDomain(entity);
     }
 
     @Override
@@ -101,18 +108,11 @@ public class LeadRepositoryAdapter implements LeadRepository {
 
     @Override
     @Transactional
-    public void deleteById(UUID id) {
-        Objects.requireNonNull(id, "id must not be null");
-        springDataLeadRepository.deleteById(id);
-    }
-
-    @Override
-    @Transactional
-    public LeadClaim saveClaim(LeadClaim claim) {
+    public LeadClaim createClaim(LeadClaim claim) {
         Objects.requireNonNull(claim, "claim must not be null");
         LeadClaimEntity entity = EntityMapper.toEntity(claim);
-        LeadClaimEntity saved = springDataLeadClaimRepository.save(entity);
-        return EntityMapper.toDomain(saved);
+        springDataLeadClaimRepository.save(entity);
+        return EntityMapper.toDomain(entity);
     }
 
     @Override
@@ -148,14 +148,23 @@ public class LeadRepositoryAdapter implements LeadRepository {
     @Transactional
     public boolean reserveSlot(UUID leadId) {
         Objects.requireNonNull(leadId, "leadId must not be null");
-        return springDataLeadRepository.reserveSlot(leadId) == 1;
+        return springDataLeadRepository.reserveSlot(
+                leadId,
+                LeadStatus.VALIDAT.getDbValue(),
+                LeadStatus.IN_ASTEPTARE.getDbValue(),
+                AuditActor.resolve(currentActorProvider)) == 1;
     }
 
     @Override
     @Transactional
     public void markAssignedIfFull(UUID leadId) {
         Objects.requireNonNull(leadId, "leadId must not be null");
-        springDataLeadRepository.markAssignedIfFull(leadId);
+        springDataLeadRepository.markAssignedIfFull(
+                leadId,
+                LeadStatus.ATRIBUIT.getDbValue(),
+                LeadStatus.VALIDAT.getDbValue(),
+                LeadStatus.IN_ASTEPTARE.getDbValue(),
+                AuditActor.resolve(currentActorProvider));
     }
 
     @Override
@@ -165,6 +174,9 @@ public class LeadRepositoryAdapter implements LeadRepository {
         Objects.requireNonNull(expectedStatus, "expectedStatus must not be null");
         Objects.requireNonNull(newStatus, "newStatus must not be null");
         return springDataLeadRepository.updateStatus(
-                leadId, expectedStatus.getDbValue(), newStatus.getDbValue()) == 1;
+                leadId,
+                expectedStatus.getDbValue(),
+                newStatus.getDbValue(),
+                AuditActor.resolve(currentActorProvider)) == 1;
     }
 }
