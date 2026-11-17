@@ -42,6 +42,7 @@ public final class EntityMapper {
                 .email(entity.getEmail())
                 .phone(entity.getPhone())
                 .createdAt(entity.getCreatedAt())
+                .version(entity.getVersion())
                 .build();
     }
 
@@ -53,7 +54,20 @@ public final class EntityMapper {
                 .email(domain.getEmail())
                 .phone(domain.getPhone())
                 .createdAt(domain.getCreatedAt())
+                .version(domain.getVersion())
                 .build();
+    }
+
+    /**
+     * Copies mutable customer fields onto a managed entity. Version and
+     * {@code createdAt} stay owned by JPA so optimistic locking is not bypassed.
+     */
+    public static void updateEntity(Customer domain, CustomerEntity entity) {
+        Objects.requireNonNull(domain, "domain must not be null");
+        Objects.requireNonNull(entity, "entity must not be null");
+        entity.setName(domain.getName());
+        entity.setEmail(domain.getEmail());
+        entity.setPhone(domain.getPhone());
     }
 
     // User

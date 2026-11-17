@@ -30,6 +30,7 @@ public final class CustomerDtoMapper {
                 .name(request.name())
                 .email(request.email())
                 .phone(request.phone())
+                .version(request.version())
                 .build();
     }
 
@@ -42,7 +43,8 @@ public final class CustomerDtoMapper {
                 domain.getName(),
                 domain.getEmail(),
                 domain.getPhone(),
-                domain.getCreatedAt()
+                domain.getCreatedAt(),
+                domain.getVersion()
         );
     }
 }
