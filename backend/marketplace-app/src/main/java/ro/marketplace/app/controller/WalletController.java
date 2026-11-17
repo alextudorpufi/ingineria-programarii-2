@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import ro.marketplace.app.dto.BalanceResponse;
 import ro.marketplace.app.dto.TopUpWalletRequest;
@@ -19,6 +20,7 @@ import ro.marketplace.app.dto.WalletTransactionResponse;
 import ro.marketplace.app.mapper.WalletDtoMapper;
 import ro.marketplace.app.security.AuthenticatedUser;
 import ro.marketplace.application.service.WalletService;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.WalletTransaction;
 
 import java.util.List;
@@ -46,13 +48,16 @@ public class WalletController {
     @GetMapping("/{userId}/transactions")
     public ResponseEntity<List<WalletTransactionResponse>> getUserTransactions(
             @PathVariable UUID userId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "500") int size,
             @AuthenticationPrincipal Jwt jwt) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         requireSelfOrAdmin(user, userId);
-        List<WalletTransactionResponse> txs = walletService.getUserTransactions(userId).stream()
+        PageResult<WalletTransaction> result = walletService.getUserTransactions(userId, page, size);
+        List<WalletTransactionResponse> txs = result.content().stream()
                 .map(WalletDtoMapper::toResponse)
                 .toList();
-        return ResponseEntity.ok(txs);
+        return ResponseEntity.ok().headers(PageHeaders.of(result)).body(txs);
     }
 
     @PostMapping("/{userId}/top-up")

@@ -2,9 +2,12 @@ package ro.marketplace.infrastructure.persistence.mapper;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import ro.marketplace.domain.model.Credits;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
@@ -81,7 +84,7 @@ class EntityMapperTest {
         User user = User.builder()
                 .id(UUID.randomUUID())
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .name("Pro")
                 .companyName("Company")
                 .title("Title")
@@ -91,7 +94,7 @@ class EntityMapperTest {
                 .verifiedBadge(true)
                 .rating(BigDecimal.valueOf(4.9))
                 .reviewCount(10)
-                .creditsBalance(100)
+                .creditsBalance(Credits.of(100))
                 .hourlyRate(BigDecimal.valueOf(150))
                 .clientBudget(BigDecimal.valueOf(5000))
                 .responseTime("< 15 min")
@@ -120,7 +123,7 @@ class EntityMapperTest {
                 .leadTitle("Title")
                 .proId(UUID.randomUUID())
                 .proName("Pro")
-                .reason("reason")
+                .reason(DisputeReason.WRONG_CATEGORY)
                 .details("details")
                 .creditsRequested(30)
                 .status(DisputeStatus.APROBAT)

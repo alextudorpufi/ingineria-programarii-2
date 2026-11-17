@@ -3,9 +3,11 @@ package ro.marketplace.application.service;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.port.CreditGrantRepository;
 import ro.marketplace.domain.port.PasswordHasher;
 import ro.marketplace.domain.port.UnitOfWork;
@@ -24,8 +26,6 @@ import java.util.regex.Pattern;
 
 public class AuthServiceImpl implements AuthService {
 
-    private static final String ROLE_CLIENT = "client";
-    private static final String ROLE_PRO = "pro";
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
     private static final Duration LOCKOUT_DURATION = Duration.ofMinutes(30);
     private static final int MAX_LIFETIME_FREE_CREDITS = 30;
@@ -46,18 +46,21 @@ public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
     private final CreditGrantRepository creditGrantRepository;
+    private final WalletService walletService;
     private final PasswordHasher passwordHasher;
     private final UnitOfWork unitOfWork;
     private final Clock clock;
 
     public AuthServiceImpl(UserRepository userRepository,
                            CreditGrantRepository creditGrantRepository,
+                           WalletService walletService,
                            PasswordHasher passwordHasher,
                            UnitOfWork unitOfWork,
                            Clock clock) {
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
         this.creditGrantRepository = Objects.requireNonNull(creditGrantRepository,
                 "creditGrantRepository must not be null");
+        this.walletService = Objects.requireNonNull(walletService, "walletService must not be null");
         this.passwordHasher = Objects.requireNonNull(passwordHasher, "passwordHasher must not be null");
         this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -125,8 +128,13 @@ public class AuthServiceImpl implements AuthService {
             throw new ValidationException("Password must not exceed 72 bytes when UTF-8 encoded.");
         }
 
-        String normalizedRole = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
-        if (!ROLE_CLIENT.equals(normalizedRole) && !ROLE_PRO.equals(normalizedRole)) {
+        UserRole requestedRole;
+        if (role == null || role.isBlank()) {
+            throw new ValidationException("Public registration allows only the 'client' or 'pro' roles.");
+        }
+        try {
+            requestedRole = UserRole.fromRegistrationRole(role);
+        } catch (IllegalArgumentException ex) {
             throw new ValidationException("Public registration allows only the 'client' or 'pro' roles.");
         }
 
@@ -143,24 +151,24 @@ public class AuthServiceImpl implements AuthService {
                     .id(UUID.randomUUID())
                     .email(normalizedEmail)
                     .passwordHash(passwordHash)
-                    .role(normalizedRole)
+                    .role(requestedRole)
                     .name(normalizedName)
                     .companyName(companyName)
                     .phone(phone)
                     .verifiedBadge(false)
                     // Welcome credits are granted only after administrator verification.
                     .proVerified(false)
-                    .creditsBalance(0)
+                    .creditsBalance(Credits.ZERO)
                     // No reviews and no completed jobs yet: a perfect score would be
                     // fabricated trust. The columns are NOT NULL, so use zero.
                     .rating(BigDecimal.ZERO.setScale(2))
                     .reviewCount(0)
                     .completedJobs(0)
                     .trustScore(BigDecimal.ZERO.setScale(2))
-                    .professionalProfile(ROLE_PRO.equals(normalizedRole) ? ProfessionalProfile.builder().build() : null)
+                    .professionalProfile(requestedRole.isPro() ? ProfessionalProfile.builder().build() : null)
                     .build();
 
-            return userRepository.save(newUser);
+            return userRepository.create(newUser);
         });
     }
 
@@ -189,8 +197,7 @@ public class AuthServiceImpl implements AuthService {
         return unitOfWork.executeInTransaction(() -> {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-            String role = user.getRole() == null ? "" : user.getRole().trim().toLowerCase(Locale.ROOT);
-            if (!ROLE_PRO.equals(role)) {
+            if (user.getRole() != UserRole.PRO) {
                 throw new ValidationException("Only professional accounts can be verified.");
             }
             if (user.isProVerified()) {
@@ -200,7 +207,7 @@ public class AuthServiceImpl implements AuthService {
             if (alreadyGranted + credits > MAX_LIFETIME_FREE_CREDITS) {
                 throw new ValidationException("The lifetime free-credit limit for this account would be exceeded.");
             }
-            if (!userRepository.verifyProAndAddCredits(userId, credits)) {
+            if (!userRepository.verifyPro(userId)) {
                 throw new ConflictException("The professional account is already verified.");
             }
 
@@ -211,6 +218,11 @@ public class AuthServiceImpl implements AuthService {
                     adminId,
                     LocalDateTime.now(clock)
             ));
+
+            // The welcome credit must reach the balance through the wallet so a
+            // 'bonus' ledger entry keeps ledger and balance consistent.
+            walletService.grantBonusCredits(userId, credits,
+                    "Welcome credits (" + credits + ")", adminId.toString());
 
             return userRepository.findById(userId).orElse(user);
         });

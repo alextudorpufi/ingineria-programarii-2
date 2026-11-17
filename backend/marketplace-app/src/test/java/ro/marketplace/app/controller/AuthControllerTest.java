@@ -14,6 +14,8 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.JwtTokenProvider;
 import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.AuthService;
+import ro.marketplace.domain.model.Credits;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.User;
 
 import java.math.BigDecimal;
@@ -110,9 +112,9 @@ class AuthControllerTest {
         return User.builder()
                 .id(id)
                 .email(email)
-                .role(role)
+                .role(UserRole.fromDbValue(role))
                 .name("Test User")
-                .creditsBalance(100)
+                .creditsBalance(Credits.of(100))
                 .rating(BigDecimal.valueOf(5.00))
                 .trustScore(BigDecimal.valueOf(100.00))
                 .build();

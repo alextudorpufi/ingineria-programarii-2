@@ -3,14 +3,14 @@ package ro.marketplace.domain.port;
 import ro.marketplace.domain.model.User;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.UUID;
 
 public interface UserRepository {
 
-    User save(User user);
+    /** Creates a new account. Existing accounts are updated through the focused methods below. */
+    User create(User user);
 
     /** Updates only editable profile fields, preserving credentials, roles and credits. */
     User updateProfessionalProfile(User user, long expectedProfileVersion);
@@ -19,13 +19,7 @@ public interface UserRepository {
 
     Optional<User> findByEmail(String email);
 
-    List<User> findAll();
-
-    List<User> findByRole(String role);
-
     boolean existsByEmail(String email);
-
-    void deleteById(UUID id);
 
     /**
      * Atomically adds credits under a row lock.
@@ -53,9 +47,12 @@ public interface UserRepository {
     boolean resetLoginState(UUID userId);
 
     /**
-     * Atomically marks a professional as verified and credits the balance.
-     * Returns {@code false} when the user is missing, is not a professional,
-     * or has already been verified.
+     * Atomically flips the professional-verification flag without touching the
+     * balance. Credits are granted separately through the wallet so that every
+     * balance change is backed by a ledger entry.
+     *
+     * @return {@code false} when the user is missing, is not a professional,
+     *         or has already been verified
      */
-    boolean verifyProAndAddCredits(UUID userId, int amount);
+    boolean verifyPro(UUID userId);
 }

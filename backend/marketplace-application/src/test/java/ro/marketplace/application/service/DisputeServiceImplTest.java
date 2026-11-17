@@ -8,10 +8,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Dispute;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
+import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
@@ -76,21 +78,23 @@ class DisputeServiceImplTest {
         UUID proId = UUID.randomUUID();
         when(userRepository.findById(proId)).thenReturn(Optional.of(User.builder()
                 .id(proId)
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
                 .build()));
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(Lead.builder()
                 .id(leadId)
                 .title("Lead")
                 .leadPrice(30)
+                .status(LeadStatus.VALIDAT)
                 .build()));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(true);
         when(disputeRepository.existsOpenDispute(leadId, proId)).thenReturn(false);
         when(walletTransactionRepository.findByUserIdAndLeadId(proId, leadId)).thenReturn(List.of(
                 WalletTransaction.builder().type(WalletTransactionType.LEAD_PURCHASE).amount(-30).build()));
+        when(leadRepository.updateStatus(leadId, LeadStatus.VALIDAT, LeadStatus.DISPUTAT)).thenReturn(true);
         when(disputeRepository.save(any(Dispute.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Dispute dispute = disputeService.raiseDispute(leadId, "Lead", proId, "Pro",
+        Dispute dispute = disputeService.raiseDispute(leadId, proId, "Pro",
                 "unreachable_contact", "details", 30);
 
         assertThat(dispute.getStatus()).isEqualTo(DisputeStatus.IN_ANALIZA);
@@ -104,7 +108,7 @@ class DisputeServiceImplTest {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
 
-        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, "Lead", proId, "Pro",
+        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, proId, "Pro",
                 "made_up_reason", "details", 30))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("nu este valid");
@@ -118,7 +122,7 @@ class DisputeServiceImplTest {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
         when(userRepository.findById(proId)).thenReturn(Optional.of(User.builder()
-                .id(proId).role("pro").proVerified(true).build()));
+                .id(proId).role(UserRole.PRO).proVerified(true).build()));
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(Lead.builder()
                 .id(leadId).title("Lead").leadPrice(30).build()));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(true);
@@ -127,7 +131,7 @@ class DisputeServiceImplTest {
                 WalletTransaction.builder().type(WalletTransactionType.LEAD_PURCHASE).amount(-30).build(),
                 WalletTransaction.builder().type(WalletTransactionType.REFUND).amount(10).build()));
 
-        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, "Lead", proId, "Pro",
+        assertThatThrownBy(() -> disputeService.raiseDispute(leadId, proId, "Pro",
                 "unreachable_contact", "details", 30))
                 .isInstanceOf(ValidationException.class)
                 .hasMessageContaining("refundable amount (20)");
@@ -195,5 +199,58 @@ class DisputeServiceImplTest {
 
         assertThat(resolved.getStatus()).isEqualTo(DisputeStatus.RESPINS);
         verify(walletService, never()).refundCredits(any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    @DisplayName("resolving the last open dispute reopens the lead")
+    void resolveDispute_LastOpenDispute_ReopensLead() {
+        UUID disputeId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        Dispute dispute = Dispute.builder()
+                .id(disputeId)
+                .leadId(leadId)
+                .proId(UUID.randomUUID())
+                .status(DisputeStatus.IN_ANALIZA)
+                .creditsRequested(30)
+                .build();
+        Lead lead = Lead.builder()
+                .id(leadId)
+                .status(LeadStatus.DISPUTAT)
+                .currentPros(2)
+                .maxPros(4)
+                .build();
+
+        when(disputeRepository.findById(disputeId)).thenReturn(Optional.of(dispute));
+        when(disputeRepository.save(any(Dispute.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
+        when(disputeRepository.existsOpenDisputeForLead(leadId)).thenReturn(false);
+
+        disputeService.resolveDispute(disputeId, false, "rejected", "admin");
+
+        verify(leadRepository).updateStatus(leadId, LeadStatus.DISPUTAT, LeadStatus.VALIDAT);
+    }
+
+    @Test
+    @DisplayName("resolving one of several open disputes keeps the lead disputed")
+    void resolveDispute_OtherOpenDispute_KeepsLeadDisputed() {
+        UUID disputeId = UUID.randomUUID();
+        UUID leadId = UUID.randomUUID();
+        Dispute dispute = Dispute.builder()
+                .id(disputeId)
+                .leadId(leadId)
+                .proId(UUID.randomUUID())
+                .status(DisputeStatus.IN_ANALIZA)
+                .creditsRequested(30)
+                .build();
+        Lead lead = Lead.builder().id(leadId).status(LeadStatus.DISPUTAT).build();
+
+        when(disputeRepository.findById(disputeId)).thenReturn(Optional.of(dispute));
+        when(disputeRepository.save(any(Dispute.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
+        when(disputeRepository.existsOpenDisputeForLead(leadId)).thenReturn(true);
+
+        disputeService.resolveDispute(disputeId, false, "rejected", "admin");
+
+        verify(leadRepository, never()).updateStatus(any(), any(), any());
     }
 }

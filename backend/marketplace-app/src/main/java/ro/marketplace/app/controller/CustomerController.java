@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import ro.marketplace.app.dto.CreateCustomerRequest;
@@ -19,6 +20,7 @@ import ro.marketplace.app.dto.UpdateCustomerRequest;
 import ro.marketplace.app.mapper.CustomerDtoMapper;
 import ro.marketplace.application.service.CustomerService;
 import ro.marketplace.domain.model.Customer;
+import ro.marketplace.domain.model.PageResult;
 
 import java.util.List;
 import java.util.Objects;
@@ -49,11 +51,14 @@ public class CustomerController {
     }
 
     @GetMapping
-    public ResponseEntity<List<CustomerResponse>> getAllCustomers() {
-        List<CustomerResponse> responses = customerService.getAllCustomers().stream()
+    public ResponseEntity<List<CustomerResponse>> getAllCustomers(
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "500") int size) {
+        PageResult<Customer> result = customerService.getCustomers(page, size);
+        List<CustomerResponse> responses = result.content().stream()
                 .map(CustomerDtoMapper::toResponse)
                 .toList();
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok().headers(PageHeaders.of(result)).body(responses);
     }
 
     @PutMapping("/{id}")

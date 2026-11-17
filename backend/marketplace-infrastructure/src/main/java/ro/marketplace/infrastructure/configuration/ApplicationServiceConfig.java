@@ -52,10 +52,12 @@ public class ApplicationServiceConfig {
     @Bean
     public AuthService authService(UserRepository userRepository,
                                    CreditGrantRepository creditGrantRepository,
+                                   WalletService walletService,
                                    PasswordHasher passwordHasher,
                                    UnitOfWork unitOfWork,
                                    Clock clock) {
-        return new AuthServiceImpl(userRepository, creditGrantRepository, passwordHasher, unitOfWork, clock);
+        return new AuthServiceImpl(userRepository, creditGrantRepository, walletService,
+                passwordHasher, unitOfWork, clock);
     }
 
     @Bean

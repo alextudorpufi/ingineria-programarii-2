@@ -21,6 +21,7 @@ import ro.marketplace.app.mapper.DisputeDtoMapper;
 import ro.marketplace.app.security.AuthenticatedUser;
 import ro.marketplace.application.service.DisputeService;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.PageResult;
 
 import java.util.List;
 import java.util.Objects;
@@ -40,18 +41,18 @@ public class DisputeController {
     @PreAuthorize("hasAnyRole('ADMIN','PRO')")
     public ResponseEntity<List<DisputeResponse>> getAllDisputes(
             @RequestParam(name = "proId", required = false) UUID proId,
+            @RequestParam(name = "page", defaultValue = "0") int page,
+            @RequestParam(name = "size", defaultValue = "500") int size,
             @AuthenticationPrincipal Jwt jwt) {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         // Administrators may inspect the whole queue or filter by professional;
         // professionals are always scoped to their own disputes, regardless of the query.
         UUID effectiveProId = user.isAdmin() ? proId : user.id();
-        List<Dispute> disputes = (effectiveProId != null)
-                ? disputeService.getDisputesByProId(effectiveProId)
-                : disputeService.getAllDisputes();
-        List<DisputeResponse> responses = disputes.stream()
+        PageResult<Dispute> result = disputeService.getDisputes(effectiveProId, page, size);
+        List<DisputeResponse> responses = result.content().stream()
                 .map(DisputeDtoMapper::toResponse)
                 .toList();
-        return ResponseEntity.ok(responses);
+        return ResponseEntity.ok().headers(PageHeaders.of(result)).body(responses);
     }
 
     @GetMapping("/{id}")
@@ -72,7 +73,6 @@ public class DisputeController {
         AuthenticatedUser user = AuthenticatedUser.from(jwt);
         Dispute dispute = disputeService.raiseDispute(
                 request.leadId(),
-                request.leadTitle(),
                 user.id(),
                 user.displayName(),
                 request.reason(),

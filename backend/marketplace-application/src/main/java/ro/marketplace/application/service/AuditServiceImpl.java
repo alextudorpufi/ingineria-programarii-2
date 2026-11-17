@@ -67,10 +67,10 @@ public class AuditServiceImpl implements AuditService {
     }
 
     @Override
-    public List<AuditLog> getEntityAuditTrail(String entityName, String entityId) {
+    public List<AuditLog> getEntityAuditTrail(String entityName, String entityId, int limit) {
         Objects.requireNonNull(entityName, "entityName must not be null");
         Objects.requireNonNull(entityId, "entityId must not be null");
-        return auditLogRepository.findByEntityNameAndEntityId(entityName, entityId);
+        return auditLogRepository.findRecentByEntityNameAndEntityId(entityName, entityId, limit);
     }
 
     @Override

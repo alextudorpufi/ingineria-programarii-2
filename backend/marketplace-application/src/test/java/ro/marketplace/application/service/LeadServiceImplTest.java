@@ -9,6 +9,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
@@ -68,7 +69,7 @@ class LeadServiceImplTest {
     private static User verifiedPro(UUID proId) {
         return User.builder()
                 .id(proId)
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
                 .build();
     }
@@ -85,6 +86,7 @@ class LeadServiceImplTest {
                 .categoryId("it-software")
                 .leadPrice(30)
                 .maxPros(4)
+                .status(LeadStatus.VALIDAT)
                 .budgetMin(BigDecimal.valueOf(5000))
                 .budgetMax(BigDecimal.valueOf(8000))
                 .build();
@@ -111,7 +113,7 @@ class LeadServiceImplTest {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
 
-        Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).build();
+        Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).status(LeadStatus.VALIDAT).build();
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
         when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(true);
@@ -129,7 +131,7 @@ class LeadServiceImplTest {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
 
-        Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).build();
+        Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).status(LeadStatus.VALIDAT).build();
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
         when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(false);
@@ -147,7 +149,7 @@ class LeadServiceImplTest {
         UUID leadId = UUID.randomUUID();
         UUID proId = UUID.randomUUID();
 
-        Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).build();
+        Lead lead = Lead.builder().id(leadId).leadPrice(30).maxPros(4).status(LeadStatus.VALIDAT).build();
         when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
         when(userRepository.findById(proId)).thenReturn(Optional.of(verifiedPro(proId)));
         when(leadRepository.existsClaimByLeadIdAndProId(leadId, proId)).thenReturn(false);
@@ -222,7 +224,7 @@ class LeadServiceImplTest {
                 .thenReturn(java.util.OptionalInt.of(35));
         when(userRepository.findById(clientId)).thenReturn(Optional.of(User.builder()
                 .id(clientId)
-                .role("client")
+                .role(UserRole.CLIENT)
                 .name("Real Client")
                 .email("client@example.com")
                 .phone("+40700000000")
@@ -280,8 +282,8 @@ class LeadServiceImplTest {
     }
 
     @Test
-    @DisplayName("getAllLeads loads all claims in one batch query")
-    void getAllLeads_LoadsClaimsInBatch() {
+    @DisplayName("getLeadsPage loads all claims in one batch query")
+    void getLeadsPage_LoadsClaimsInBatch() {
         UUID leadId1 = UUID.randomUUID();
         UUID leadId2 = UUID.randomUUID();
         Lead lead1 = Lead.builder().id(leadId1).title("L1").build();
@@ -289,13 +291,43 @@ class LeadServiceImplTest {
         LeadClaim claim = LeadClaim.builder().id(UUID.randomUUID()).leadId(leadId1)
                 .proId(UUID.randomUUID()).proName("Pro").build();
 
-        when(leadRepository.findAll()).thenReturn(List.of(lead1, lead2));
+        when(leadRepository.findPage(0, 20)).thenReturn(List.of(lead1, lead2));
+        when(leadRepository.countAll()).thenReturn(2L);
         when(leadRepository.findClaimsByLeadIds(List.of(leadId1, leadId2))).thenReturn(List.of(claim));
 
-        List<Lead> leads = leadService.getAllLeads();
+        List<Lead> leads = leadService.getLeadsPage(null, null, 0, 20).leads();
 
         assertThat(leads.get(0).getClaimedPros()).hasSize(1);
         assertThat(leads.get(1).getClaimedPros()).isEmpty();
         verify(leadRepository, never()).findClaimsByLeadId(any());
+    }
+
+    @Test
+    @DisplayName("closeLead finalizes an assigned lead and audits the transition")
+    void closeLead_Success() {
+        UUID leadId = UUID.randomUUID();
+        Lead lead = Lead.builder().id(leadId).status(LeadStatus.ATRIBUIT).currentPros(4).maxPros(4).build();
+        when(leadRepository.findById(leadId)).thenReturn(Optional.of(lead));
+        when(leadRepository.updateStatus(leadId, LeadStatus.ATRIBUIT, LeadStatus.FINALIZAT)).thenReturn(true);
+
+        Lead closed = leadService.closeLead(leadId, "admin@marketplace.ro");
+
+        assertThat(closed.getStatus()).isEqualTo(LeadStatus.FINALIZAT);
+        verify(leadRepository).updateStatus(leadId, LeadStatus.ATRIBUIT, LeadStatus.FINALIZAT);
+        verify(auditService).recordEvent(eq("Lead"), eq(leadId.toString()), eq(AuditAction.STATUS_CHANGE),
+                eq("admin@marketplace.ro"), anyString());
+    }
+
+    @Test
+    @DisplayName("closeLead refuses to close a disputed lead")
+    void closeLead_Disputed_ThrowsConflict() {
+        UUID leadId = UUID.randomUUID();
+        when(leadRepository.findById(leadId)).thenReturn(Optional.of(
+                Lead.builder().id(leadId).status(LeadStatus.DISPUTAT).build()));
+
+        assertThatThrownBy(() -> leadService.closeLead(leadId, "admin"))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("resolved");
+        verify(leadRepository, never()).updateStatus(any(), any(), any());
     }
 }

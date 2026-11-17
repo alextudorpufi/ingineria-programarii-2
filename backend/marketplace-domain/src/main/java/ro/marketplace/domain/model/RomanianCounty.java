@@ -1,6 +1,10 @@
 package ro.marketplace.domain.model;
 
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /** County-level coverage, including the municipality of București, using ISO 3166-2 codes. */
 public enum RomanianCounty {
@@ -12,6 +16,9 @@ public enum RomanianCounty {
     MM("Maramureș"), MH("Mehedinți"), MS("Mureș"), NT("Neamț"), OT("Olt"), PH("Prahova"),
     SM("Satu Mare"), SJ("Sălaj"), SB("Sibiu"), SV("Suceava"), TR("Teleorman"),
     TM("Timiș"), TL("Tulcea"), VS("Vaslui"), VL("Vâlcea"), VN("Vrancea");
+
+    private static final Map<String, RomanianCounty> BY_ID = Arrays.stream(values())
+            .collect(Collectors.toUnmodifiableMap(RomanianCounty::id, Function.identity()));
 
     private final String displayName;
 
@@ -27,7 +34,11 @@ public enum RomanianCounty {
         return displayName;
     }
 
+    public static Optional<RomanianCounty> fromId(String id) {
+        return id == null ? Optional.empty() : Optional.ofNullable(BY_ID.get(id));
+    }
+
     public static boolean isKnownId(String id) {
-        return Arrays.stream(values()).anyMatch(county -> county.id().equals(id));
+        return id != null && BY_ID.containsKey(id);
     }
 }

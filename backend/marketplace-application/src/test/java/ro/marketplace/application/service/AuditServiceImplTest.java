@@ -83,9 +83,10 @@ class AuditServiceImplTest {
     void getEntityAuditTrail_Success() {
         AuditLog l1 = AuditLog.builder().id(UUID.randomUUID()).entityName("Lead").entityId("lead-1")
                 .action(AuditAction.CREATE).build();
-        when(auditLogRepository.findByEntityNameAndEntityId("Lead", "lead-1")).thenReturn(List.of(l1));
+        when(auditLogRepository.findRecentByEntityNameAndEntityId("Lead", "lead-1", 200))
+                .thenReturn(List.of(l1));
 
-        List<AuditLog> trail = auditService.getEntityAuditTrail("Lead", "lead-1");
+        List<AuditLog> trail = auditService.getEntityAuditTrail("Lead", "lead-1", 200);
         assertThat(trail).hasSize(1);
     }
 }

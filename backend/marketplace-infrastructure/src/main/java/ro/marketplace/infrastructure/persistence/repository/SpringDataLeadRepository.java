@@ -35,4 +35,11 @@ public interface SpringDataLeadRepository extends JpaRepository<LeadEntity, UUID
     @Query(value = "UPDATE leads SET status = 'atribuit', version = version + 1, updated_at = now() "
             + "WHERE id = :leadId AND current_pros >= max_pros AND status <> 'atribuit'", nativeQuery = true)
     int markAssignedIfFull(@Param("leadId") UUID leadId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "UPDATE leads SET status = :newStatus, version = version + 1, updated_at = now() "
+            + "WHERE id = :leadId AND status = :expectedStatus", nativeQuery = true)
+    int updateStatus(@Param("leadId") UUID leadId,
+                     @Param("expectedStatus") String expectedStatus,
+                     @Param("newStatus") String newStatus);
 }

@@ -1,8 +1,8 @@
 package ro.marketplace.application.service;
 
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.WalletTransaction;
 
-import java.util.List;
 import java.util.UUID;
 
 public interface WalletService {
@@ -19,7 +19,15 @@ public interface WalletService {
      */
     WalletTransaction refundCredits(UUID userId, int credits, String description, UUID leadId, String actor);
 
-    List<WalletTransaction> getUserTransactions(UUID userId);
+    /**
+     * Grants platform bonus credits (for example the one-time welcome grant) and
+     * records a {@code bonus} ledger entry so the balance is always reconcilable.
+     *
+     * @param actor the administrator or system component that authorised the grant
+     */
+    WalletTransaction grantBonusCredits(UUID userId, int credits, String description, String actor);
+
+    PageResult<WalletTransaction> getUserTransactions(UUID userId, int page, int size);
 
     int getBalance(UUID userId);
 }

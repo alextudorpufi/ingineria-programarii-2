@@ -8,6 +8,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
+import ro.marketplace.domain.model.UserRole;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.UserRepository;
@@ -38,9 +40,9 @@ class ProfessionalProfileIntegrationTest {
     @Test
     void editingPersistsWithoutOverwritingAccountDataAndRejectsStaleEdits() {
         User user = account("pro");
-        user.setCreditsBalance(120);
+        user.setCreditsBalance(Credits.of(120));
         user.setPasswordHash("preserved-password-hash");
-        users.save(user);
+        users.create(user);
         var profile = ProfessionalProfile.builder().categories(List.of("it-software"))
                 .servicesOffered(List.of("Web development")).capabilities(List.of("Payments"))
                 .supportsRemote(true).supportsOnsite(true).coverageAreas(List.of("RO-IS", "RO-B"))
@@ -58,9 +60,9 @@ class ProfessionalProfileIntegrationTest {
                 String.class, user.getId())).contains("RO-IS", "RO-B");
         assertThat(loaded.getProfessionalProfile().getYearsExperience()).isEqualTo(4);
         assertThat(loaded.getProfessionalProfile().isAcceptingLeads()).isTrue();
-        assertThat(loaded.getCreditsBalance()).isEqualTo(120);
+        assertThat(loaded.getCreditsBalance().asInt()).isEqualTo(120);
         assertThat(loaded.getPasswordHash()).isEqualTo("preserved-password-hash");
-        assertThat(loaded.getRole()).isEqualTo("pro");
+        assertThat(loaded.getRole()).isEqualTo(UserRole.PRO);
         assertThatThrownBy(() -> profiles.update(user.getId(), update)).isInstanceOf(ConflictException.class);
         assertThat(users.findById(user.getId()).orElseThrow().getProfessionalProfile().getVersion()).isEqualTo(1);
     }
@@ -77,7 +79,7 @@ class ProfessionalProfileIntegrationTest {
                 .build();
         User pro = account("pro");
         pro.setProfessionalProfile(profile);
-        users.save(pro);
+        users.create(pro);
 
         User loaded = users.findById(pro.getId()).orElseThrow();
         assertThat(loaded.getProfessionalProfile()).usingRecursiveComparison().isEqualTo(profile);
@@ -88,8 +90,8 @@ class ProfessionalProfileIntegrationTest {
 
     @Test
     void newProfessionalsGetDraftProfilesAndClientsDoNot() {
-        User pro = users.save(account("pro"));
-        User client = users.save(account("client"));
+        User pro = users.create(account("pro"));
+        User client = users.create(account("client"));
         assertThat(pro.getProfessionalProfile().getOnboardingStatus())
                 .isEqualTo(ProfessionalProfile.OnboardingStatus.DRAFT);
         assertThat(pro.getProfessionalProfile().isAcceptingLeads()).isFalse();
@@ -101,7 +103,7 @@ class ProfessionalProfileIntegrationTest {
 
     private User account(String role) {
         UUID id = UUID.randomUUID();
-        return User.builder().id(id).email(id + "@example.com").role(role).name("Test")
+        return User.builder().id(id).email(id + "@example.com").role(UserRole.fromDbValue(role)).name("Test")
                 .rating(BigDecimal.ZERO).trustScore(BigDecimal.ZERO).build();
     }
 }

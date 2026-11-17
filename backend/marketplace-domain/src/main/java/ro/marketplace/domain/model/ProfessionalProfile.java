@@ -27,4 +27,20 @@ public class ProfessionalProfile {
     private long version = 0;
     @Builder.Default
     private OnboardingStatus onboardingStatus = OnboardingStatus.DRAFT;
+
+    public List<String> getCategories() {
+        return categories == null ? List.of() : List.copyOf(categories);
+    }
+
+    public List<String> getServicesOffered() {
+        return servicesOffered == null ? List.of() : List.copyOf(servicesOffered);
+    }
+
+    public List<String> getCoverageAreas() {
+        return coverageAreas == null ? List.of() : List.copyOf(coverageAreas);
+    }
+
+    public List<String> getCapabilities() {
+        return capabilities == null ? List.of() : List.copyOf(capabilities);
+    }
 }

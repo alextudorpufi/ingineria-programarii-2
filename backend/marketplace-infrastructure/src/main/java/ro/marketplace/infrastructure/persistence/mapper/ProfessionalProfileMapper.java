@@ -24,7 +24,7 @@ public final class ProfessionalProfileMapper {
     }
 
     static ProfessionalProfileEntity toEntity(ProfessionalProfile profile, UserEntity user) {
-        if (profile == null && !"pro".equals(user.getRole())) return null;
+        if (profile == null && !"pro".equalsIgnoreCase(user.getRole())) return null;
         ProfessionalProfile source = profile == null ? ProfessionalProfile.builder().build() : profile;
         ProfessionalProfileEntity entity = new ProfessionalProfileEntity();
         entity.setUserId(user.getId());

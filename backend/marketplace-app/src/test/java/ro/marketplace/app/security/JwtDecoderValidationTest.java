@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.User;
 import tools.jackson.databind.ObjectMapper;
 
@@ -93,7 +94,7 @@ class JwtDecoderValidationTest {
                 .id(UUID.randomUUID())
                 .email("pro@example.com")
                 .name("Pro User")
-                .role("pro")
+                .role(UserRole.PRO)
                 .build();
     }
 }
