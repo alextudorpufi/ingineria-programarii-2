@@ -1,12 +1,13 @@
 package ro.marketplace.infrastructure.persistence.adapter;
 
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.Customer;
 import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.port.CustomerRepository;
+import ro.marketplace.infrastructure.persistence.PageRequests;
 import ro.marketplace.infrastructure.persistence.entity.CustomerEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataCustomerRepository;
@@ -44,7 +45,8 @@ public class CustomerRepositoryAdapter implements CustomerRepository {
     @Transactional(readOnly = true)
     public PageResult<Customer> findPage(int page, int size) {
         Page<CustomerEntity> result = springDataRepository.findAll(
-                PageRequest.of(Math.max(page, 0), Math.max(size, 1)));
+                PageRequests.of(page, size,
+                        Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
         return new PageResult<>(
                 result.getContent().stream().map(EntityMapper::toDomain).toList(),
                 result.getTotalElements(),

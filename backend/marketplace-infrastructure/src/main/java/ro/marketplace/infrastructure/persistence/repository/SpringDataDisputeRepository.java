@@ -11,7 +11,8 @@ import java.util.UUID;
 @Repository
 public interface SpringDataDisputeRepository extends JpaRepository<DisputeEntity, UUID> {
 
-    Page<DisputeEntity> findByProIdOrderByCreatedAtDesc(UUID proId, Pageable pageable);
+    /** Sorting is supplied by the caller so paging always carries an id tie-breaker. */
+    Page<DisputeEntity> findByProId(UUID proId, Pageable pageable);
 
     boolean existsByLeadIdAndProIdAndStatus(UUID leadId, UUID proId, String status);
 

@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
+import ro.marketplace.infrastructure.persistence.PageRequests;
 
 @Repository
 public class LeadRepositoryAdapter implements LeadRepository {
@@ -85,7 +86,7 @@ public class LeadRepositoryAdapter implements LeadRepository {
      */
     private static PageRequest pageRequest(int page, int size) {
         Sort sort = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
-        return PageRequest.of(page, size, sort);
+        return PageRequests.of(page, size, sort);
     }
 
     @Override
