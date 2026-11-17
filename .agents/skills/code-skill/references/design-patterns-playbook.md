@@ -1,148 +1,172 @@
 # Approved Design Patterns Playbook
 
-This playbook provides architectural patterns, class diagrams, and guidelines tailored to the Intelligent Services Marketplace.
+Patterns are tools, not goals. Apply one only when the current requirement needs it. Each entry states whether it is already used in this repository or reserved for a future, concrete need.
 
 ---
 
-## 1. Strategy Pattern: Lead Matching Engine
+## 1. Ports & Adapters (in use)
 
-### Motivation
-Lead matching requires deterministic matching initially (category, geographic coverage, budget, availability) and will later incorporate semantic AI embeddings. The Strategy pattern decouples individual scoring rules from the distribution engine.
+**Requirement:** keep business rules independent of Spring, JPA, Stripe, and HTTP.
 
-### Implementation Blueprint
+```text
+Controller
+   ↓
+Application service  →  domain port (interface)
+                              ↓
+                     infrastructure adapter
+                              ↓
+                     Spring Data / Stripe SDK
+```
+
+**Real examples**
+- `ro.marketplace.domain.port.LeadRepository` → `LeadRepositoryAdapter`
+- `ro.marketplace.domain.port.UnitOfWork` → `SpringUnitOfWorkAdapter`
+- `ro.marketplace.domain.port.StripePaymentGateway` → `StripePaymentGatewayAdapter`
+- `ro.marketplace.domain.port.CurrentActorProvider` → security adapter
+
+**Rules**
+- Ports live only in `ro.marketplace.domain.port`.
+- Application services are plain classes registered by `ApplicationServiceConfig`.
+- Adapters own framework types; ports expose domain types only.
+- Do not create an adapter for an in-process helper that has no external boundary.
+
+---
+
+## 2. Repository + Explicit Write Semantics (in use)
+
+**Requirement:** persistence operations must say what they mean.
+
 ```java
-public interface MatchingStrategy {
-    int getOrder();
-    MatchEvaluation evaluate(Lead lead, ProfessionalProfile pro);
+public interface LeadRepository {
+    Lead create(Lead lead);                      // insert only
+    Optional<Lead> findById(UUID id);            // read
+    boolean reserveSlot(UUID leadId);            // guarded update
+    boolean updateStatus(UUID leadId, LeadStatus expected, LeadStatus next);
 }
 
-@Component
-@Order(1)
-public class CategoryFilterStrategy implements MatchingStrategy {
-    @Override
-    public MatchEvaluation evaluate(Lead lead, ProfessionalProfile pro) {
-        boolean match = pro.getCategories().contains(lead.getCategory());
-        return new MatchEvaluation(match, match ? 40 : 0, "Potrivire categorie: " + lead.getCategory());
+public interface WalletTransactionRepository {
+    WalletTransaction append(WalletTransaction transaction); // immutable history
+}
+```
+
+**Why not one `save()`:** a generic save hides insert vs update, loses `@Version` when the entity is rebuilt, and turns ledgers into mutable tables.
+
+---
+
+## 3. Value Object (in use)
+
+**Requirement:** a balance must never be negative or silently overflow.
+
+```java
+public record Credits(int value) {
+    public Credits {
+        if (value < 0) throw new IllegalArgumentException("Credits must not be negative");
     }
-}
-
-@Component
-@Order(2)
-public class GeographicCoverageStrategy implements MatchingStrategy {
-    @Override
-    public MatchEvaluation evaluate(Lead lead, ProfessionalProfile pro) {
-        boolean inArea = pro.getCoverageArea().contains(lead.getLocation().getCity());
-        return new MatchEvaluation(inArea, inArea ? 30 : 0, "În aria de acoperire");
+    public Credits plus(Credits other) { return of(Math.addExact(value, other.value)); }
+    public Credits minus(Credits other) {
+        if (value < other.value) throw new IllegalArgumentException("Insufficient credits");
+        return of(value - other.value);
     }
 }
 ```
 
----
-
-## 2. Adapter Pattern: LLM Integration
-
-### Motivation
-External AI models (OpenAI, Gemini, Anthropic) change API formats frequently. The Adapter pattern wraps the provider-specific SDK and translates unstructured prompt responses into the domain's strongly-typed `LeadDraftSpec`.
-
-### Implementation Blueprint
-```java
-public interface LlmAssistantAdapter {
-    LeadDraftSpec extractServiceRequest(String userMessage, ConversationHistory history);
-}
-
-@Component
-@RequiredArgsConstructor
-public class GeminiLlmAdapter implements LlmAssistantAdapter {
-    private final GeminiApiClient geminiClient;
-    private final ObjectMapper objectMapper;
-
-    @Override
-    public LeadDraftSpec extractServiceRequest(String userMessage, ConversationHistory history) {
-        String rawJson = geminiClient.generateStructuredOutput(userMessage, LEAD_SCHEMA);
-        return objectMapper.readValue(rawJson, LeadDraftSpec.class);
-    }
-}
-```
+Use value objects for validated scalars: `Credits`, IDs, money, phone numbers. Do not pass raw `int`/`String` through several layers when a type can carry the invariant.
 
 ---
 
-## 3. Builder Pattern: Validated Entity & DTO Creation
+## 4. Unit of Work (in use)
 
-### Motivation
-Service requests and lead models have numerous fields, constraints, and validation rules. The Builder pattern guarantees that instances are fully valid before being published.
+**Requirement:** a claim, wallet deduction, ledger row, and audit entry must commit atomically without Spring leaking into use cases.
 
-### Implementation Blueprint
 ```java
-public record CreateLeadCommand(
-    String title,
-    String category,
-    String subcategory,
-    String description,
-    String city,
-    BigDecimal minBudget,
-    BigDecimal maxBudget,
-    String timeline
-) {
-    public CreateLeadCommand {
-        Objects.requireNonNull(title, "Title cannot be null");
-        Objects.requireNonNull(category, "Category cannot be null");
-        if (minBudget != null && maxBudget != null && minBudget.compareTo(maxBudget) > 0) {
-            throw new IllegalArgumentException("Minimum budget cannot exceed maximum budget");
-        }
-    }
-}
+unitOfWork.executeInTransaction(() -> {
+    LeadClaim claim = leadRepository.createClaim(...);
+    walletService.deductCredits(...);
+    auditService.recordEvent(...);
+    return claim;
+});
 ```
+
+`SpringUnitOfWorkAdapter` runs `PROPAGATION_REQUIRED` + `READ_COMMITTED`, so nested use cases join the same transaction.
 
 ---
 
-## 4. Observer Pattern: Decoupled Domain Events
+## 5. Guarded Native Update (in use)
 
-### Motivation
-When a professional unlocks a lead, several independent actions must occur:
-1. Credit balance decreases
-2. Contact details unlock
-3. Client is notified via WebSocket / email
-4. PostHog analytics event is logged
+**Requirement:** exactly one concurrent transaction may take the last slot, and a closed lead must not reopen.
 
-Using Spring's `ApplicationEventPublisher` isolates these concerns.
+```sql
+UPDATE leads
+   SET current_pros = current_pros + 1,
+       version = version + 1,
+       updated_at = :updatedAt,
+       updated_by = :actor
+ WHERE id = :leadId
+   AND current_pros < max_pros
+   AND status IN (:validated, :waiting)
+```
 
-### Implementation Blueprint
+The affected-row count is the contract: `0` means the precondition no longer holds.
+
+---
+
+## 6. Builder / Factory (in use, sparingly)
+
+Domain models with many fields use Lombok builders (`Lead.builder()`, `Customer.builder()`), and records are used for immutable commands/results.
+
+Use a builder when construction is genuinely multi-field; do not add one to a two-field value object. Validate in the compact constructor or a `validate()` method, not in the controller.
+
+---
+
+## 7. Strategy (future — not implemented)
+
+**Reserved for:** a matching engine with multiple interchangeable scoring rules.
+
+There is no `MatchingStrategy` in the codebase today. Leads already carry `work_mode`, `required_capabilities`, and `preferred_capabilities`, but scoring is deterministic and not yet extracted. Do not introduce the interface until there are at least two real strategies and a caller that selects between them.
+
+When that happens:
+
 ```java
-// Event definition
-public record LeadPurchasedEvent(
-    UUID leadId,
-    UUID professionalId,
-    BigDecimal creditsPaid,
-    Instant timestamp
-) {}
-
-// Publisher
-@Service
-@RequiredArgsConstructor
-public class LeadPurchaseServiceImpl implements LeadPurchaseService {
-    private final ApplicationEventPublisher eventPublisher;
-
-    @Transactional
-    public void purchase(UUID leadId, UUID proId) {
-        // ... perform DB purchase ...
-        eventPublisher.publishEvent(new LeadPurchasedEvent(leadId, proId, amount, Instant.now()));
-    }
-}
-
-// Listeners
-@Component
-public class LeadNotificationListener {
-    @EventListener
-    public void onLeadPurchased(LeadPurchasedEvent event) {
-        // Send WebSocket notification to client
-    }
-}
-
-@Component
-public class LeadAnalyticsListener {
-    @EventListener
-    public void onLeadPurchased(LeadPurchasedEvent event) {
-        // Track PostHog conversion metric
-    }
+public interface MatchingRule {
+    boolean isApplicable(Lead lead, ProfessionalProfile pro);
+    MatchScore evaluate(Lead lead, ProfessionalProfile pro);
 }
 ```
+
+Register implementations behind the domain port; keep the rules free of Spring.
+
+---
+
+## 8. Observer / Domain Events (future — not implemented)
+
+**Reserved for:** decoupling notifications/analytics from the purchase transaction.
+
+No `ApplicationEventPublisher` is wired today. Do not add an event bus for a single listener. When two independent consumers exist (e.g. notification + analytics), publish after the transaction commits to avoid notifying on a rolled-back purchase.
+
+---
+
+## 9. External Adapter: Stripe (in use)
+
+`StripePaymentGatewayAdapter` isolates the SDK:
+- checkout session creation;
+- webhook signature verification;
+- mapping provider exceptions to `StripeProviderException` / `StripeWebhookVerificationException`.
+
+Application code never imports Stripe SDK types. Webhook handling is idempotent through `stripe_webhook_events` and the purchase's unique idempotency key.
+
+---
+
+## 10. Choosing a Pattern
+
+| Need | Pattern | Status |
+| :--- | :--- | :--- |
+| Isolate framework/SDK/HTTP | Ports & adapters | In use |
+| Explicit insert vs guarded update | Repository with intent methods | In use |
+| Enforce a scalar invariant | Value object | In use |
+| Multi-step atomic operation | Unit of Work | In use |
+| Concurrency-safe state transition | Guarded native update | In use |
+| Many interchangeable scoring rules | Strategy | Future |
+| Multiple independent side effects | Observer / events | Future |
+| Complex object construction | Builder | In use |
+
+If a pattern is not in the "in use" column, adding it requires a concrete requirement and a test — not a feeling that it might be useful.
