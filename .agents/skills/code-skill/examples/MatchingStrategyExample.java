@@ -5,8 +5,13 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Example demonstrating Strategy Pattern for Deterministic Lead Matching
- * Conforms to SOLID (SRP, OCP, DIP) and DRY principles.
+ * <strong>Future pattern — not implemented in the codebase.</strong>
+ *
+ * Matching today is deterministic and driven by the lead's stored work mode and
+ * capability arrays. Do not extract this strategy engine until at least two real
+ * algorithms and a caller that selects between them exist.
+ *
+ * <p>Conforms to SOLID (SRP, OCP, DIP) and DRY principles.</p>
  */
 public class MatchingStrategyExample {
 
@@ -14,7 +19,9 @@ public class MatchingStrategyExample {
         String id,
         String category,
         String city,
-        BigDecimal clientBudget
+        BigDecimal clientBudget,
+        String workMode,                 // 'ONSITE' | 'REMOTE' | null (unspecified)
+        Set<String> requiredCapabilities
     ) {}
 
     public record ProfessionalCandidate(
@@ -22,6 +29,8 @@ public class MatchingStrategyExample {
         String name,
         Set<String> categories,
         Set<String> coverageCities,
+        Set<String> capabilities,
+        Set<String> supportedWorkModes,
         BigDecimal minimumBudgetRequirement,
         int averageResponseMinutes
     ) {}
@@ -44,6 +53,34 @@ public class MatchingStrategyExample {
                 matches,
                 matches ? 40 : 0,
                 matches ? "Categorie compatibilă: " + lead.category() : "Categorie incompatibilă"
+            );
+        }
+    }
+
+    public static class WorkModeStrategy implements MatchingRuleStrategy {
+        @Override
+        public StrategyScore evaluate(LeadRequest lead, ProfessionalCandidate candidate) {
+            // null work mode means "unspecified": do not infer it from category or location.
+            if (lead.workMode() == null) {
+                return new StrategyScore(true, 0, "Mod de lucru nespecificat");
+            }
+            boolean matches = candidate.supportedWorkModes().contains(lead.workMode());
+            return new StrategyScore(
+                matches,
+                matches ? 20 : 0,
+                matches ? "Mod de lucru compatibil: " + lead.workMode() : "Mod de lucru incompatibil"
+            );
+        }
+    }
+
+    public static class CapabilityFitStrategy implements MatchingRuleStrategy {
+        @Override
+        public StrategyScore evaluate(LeadRequest lead, ProfessionalCandidate candidate) {
+            boolean fits = candidate.capabilities().containsAll(lead.requiredCapabilities());
+            return new StrategyScore(
+                fits,
+                fits ? 20 : 0,
+                fits ? "Toate capabilitățile obligatorii sunt acoperite" : "Capabilități obligatorii lipsă"
             );
         }
     }

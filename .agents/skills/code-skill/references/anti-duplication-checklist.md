@@ -1,48 +1,85 @@
 # Codebase Inspection & Anti-Duplication Guide
 
-To prevent code duplication across the Intelligent Services Marketplace codebase, adhere to this search-first workflow.
+Search before creating. This repository already has most of the primitives a feature needs; duplicate implementations drift and are rejected in review.
 
 ---
 
-## 1. Inspection Protocol Before Writing Code
+## 1. Inspection Protocol
 
-### Step 1: Identify What You Are About to Build
-Define the conceptual responsibility:
-- Is it a model/entity (e.g. `User`, `Lead`, `Transaction`)?
-- Is it a business calculation (e.g. fee calculation, credit check, matching score)?
-- Is it an API controller endpoint or route?
-- Is it a UI component or form control?
-- Is it a utility (e.g. date formatting, currency formatting, validation)?
+### Step 1: Classify the responsibility
 
-### Step 2: Query the Codebase
-Run targeted search queries before creating a new file:
+- Domain model, value object, or enum (`Lead`, `Credits`, `LeadStatus`)
+- Use case / orchestration (`LeadServiceImpl`, `WalletServiceImpl`)
+- Port (interface in `ro.marketplace.domain.port`)
+- Persistence adapter, JPA entity, or Spring Data repository
+- API controller, DTO, mapper, or exception mapping
+- Frontend route, component, hook, service, or shared type
+- Migration / schema change
+
+### Step 2: Query the real module paths
 
 ```bash
-# Check if a model, entity, or class exists:
-find backend/src -name "*Lead*" -o -name "*Transaction*"
-find frontend/app -name "*lead*" -o -name "*card*"
+# Backend: models, ports, services, adapters
+find backend/marketplace-domain/src/main -name "*Lead*" -o -name "*Credit*"
+find backend/marketplace-application/src/main -name "*Service*"
+find backend/marketplace-infrastructure/src/main -name "*Adapter*" -o -name "*Entity*"
+find backend/marketplace-app/src/main -name "*Controller*" -o -name "*Request*" -o -name "*Response*"
 
-# Search for existing methods or function signatures:
-git grep -i "calculateScore"
-git grep -i "deductCredits"
-git grep -i "formatCurrency"
+# Backend: concepts and helpers
+git grep -n "PageRequests" backend
+git grep -n "AuditActor" backend
+git grep -n "getDbValue" backend
+git grep -n "Clock" backend
+git grep -n "reserveSlot\|markAssignedIfFull" backend
 
-# Search frontend for existing components and models:
-find frontend -name "*Model*" -o -name "*Service*" -not -path "*/node_modules/*"
+# Frontend
+find frontend/components frontend/hooks -iname "*lead*" -o -iname "*card*"
+find frontend/services frontend/types frontend/models -type f
+git grep -n "formatCurrency\|formatDate" frontend
 ```
 
-### Step 3: Evaluate Existing Components
-1. **Exact Match**: If a class or function already handles the exact responsibility, import and call it directly.
-2. **Partial Match (80% fit)**: If an existing class or function accomplishes most of the goal, extend or overload it with backward-compatible parameters rather than creating a second version.
-3. **Cross-Layer Duplication**: Avoid having duplicate validation rules between frontend and backend. Ensure frontend types and validation schemas closely mirror backend DTO validation annotations.
+### Step 3: Evaluate
+
+1. **Exact match:** import and use it.
+2. **80% match:** extend or parameterize the existing abstraction with a backward-compatible change.
+3. **Genuinely new responsibility:** create one class with one reason to change, in the correct module.
 
 ---
 
-## 2. Common Duplication Traps to Avoid
+## 2. Duplication Traps in This Codebase
 
-| Pitfall | Wrong Approach | Clean / DRY Approach |
+| Concept | Do not create | Reuse instead |
 | :--- | :--- | :--- |
-| **Credit Balance Checks** | Writing balance deduction logic in multiple controllers/services. | Centralize in `CreditTransactionService.deductCredits(proId, leadId, amount)` with `@Transactional` protection. |
-| **Formatters** | Re-implementing Romanian currency (`RON`) and date formatting in every React page. | Create and reuse a single `formatters.ts` utility or hook. |
-| **Status Enums** | Hardcoding status strings (`'PENDING'`, `'MATCHED'`, `'UNLOCKED'`) in multiple places. | Define a single Java enum and TypeScript union type. |
-| **UI Inputs / Buttons** | Re-creating custom `<button>` or `<input>` tags in each page. | Import and use `<Button>` and `<Input>` governed by `ui-skill`. |
+| Credit balance arithmetic | Raw `int` math in a controller/service | `Credits` (`plus`, `minus`, `isAtLeast`) + `WalletService` |
+| Ledger entry | A second table or `UPDATE` on history | `wallet_transactions` via `WalletTransactionRepository.append` |
+| Lead claim check | `SELECT` then `INSERT` without a constraint | `lead_claims` with `uq_lead_claims_lead_pro` + `reserveSlot` |
+| Status strings | `"validat"`, `"pro"`, `"atribuit"` in Java | `LeadStatus.getDbValue()`, `UserRole.getDbValue()` |
+| Timestamps | `LocalDateTime.now()` | Injected `Clock` (`LocalDateTime.now(clock)`) |
+| Actor for audit columns | `"system"` hardcoded per call site | `AuditActor.resolve(CurrentActorProvider)` |
+| Paging | `PageRequest.of(...)` with an arbitrary size | `PageRequests.of/limit` + `PageResult` |
+| Sort order | `createdAt` only | `createdAt DESC, id DESC` |
+| API error body | Ad-hoc maps / custom error classes | `ProblemDetail` via `GlobalExceptionHandler` |
+| Enum → DB mapping | `switch` on `name()` | `getDbValue()` / `fromDbValue()` |
+| Entity ↔ domain conversion | Copy-paste setters in adapters | `EntityMapper` |
+| Frontend status union | A new literal union per component | shared `frontend/types` model |
+| Currency/date formatting | Per-page formatter | shared `formatters` utility |
+| Buttons/inputs | Native styled elements | `ui-skill` components and tokens |
+
+---
+
+## 3. Duplication Across Layers
+
+- **Validation:** DTO annotations are the HTTP contract; domain invariants still live in the model/use case. Do not copy a domain rule into a controller, and do not duplicate the same rule in two services.
+- **Enum values:** one Java enum, one database CHECK constraint, one frontend union. If you add a value, update all three in the same change.
+- **Persistence rules:** one adapter owns a table. Two adapters writing the same table is a defect even if the SQL differs.
+- **Migrations:** one baseline and append-only versions. Never re-create a table in a new migration because the first one drifted.
+
+---
+
+## 4. Review Questions
+
+- Is there already a port or service with this responsibility?
+- Does this logic exist in the domain model but was re-implemented in a controller or React component?
+- Am I adding a second clock, paging helper, mapper, ledger, or audit path?
+- Does a new enum value exist in the database CHECK, the Java enum, and the frontend type?
+- Did I add a helper that a future developer will have to keep in sync with an existing one?
