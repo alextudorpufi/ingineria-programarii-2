@@ -1,6 +1,7 @@
 package ro.marketplace.infrastructure.persistence.mapper;
 
 import ro.marketplace.domain.model.ProfessionalProfile;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.infrastructure.persistence.entity.ProfessionalProfileEntity;
 import ro.marketplace.infrastructure.persistence.entity.UserEntity;
 
@@ -24,7 +25,7 @@ public final class ProfessionalProfileMapper {
     }
 
     static ProfessionalProfileEntity toEntity(ProfessionalProfile profile, UserEntity user) {
-        if (profile == null && !"pro".equalsIgnoreCase(user.getRole())) return null;
+        if (profile == null && !UserRole.PRO.getDbValue().equalsIgnoreCase(user.getRole())) return null;
         ProfessionalProfile source = profile == null ? ProfessionalProfile.builder().build() : profile;
         ProfessionalProfileEntity entity = new ProfessionalProfileEntity();
         entity.setUserId(user.getId());

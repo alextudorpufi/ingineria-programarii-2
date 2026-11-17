@@ -9,6 +9,11 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        # Store and read TIMESTAMP WITHOUT TIME ZONE values in UTC so the
+        # application clock, auditing, and the database agree.
+        jdbc.time_zone: UTC
     open-in-view: false
   flyway:
     enabled: true
