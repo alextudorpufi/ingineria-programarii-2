@@ -7,13 +7,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.port.CurrentActorProvider;
+import ro.marketplace.infrastructure.persistence.entity.UserEntity;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataUserRepository;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -56,5 +60,58 @@ class UserRepositoryAdapterTest {
         assertThat(adapter.registerFailedLogin(userId, 5, lockoutUntil)).isTrue();
 
         verify(repository).registerFailedLogin(userId, 5, lockoutUntil, "system");
+    }
+
+    @Test
+    @DisplayName("adding credits uses overflow-checked domain arithmetic")
+    void addCreditsUpdatesBalance() {
+        UUID userId = UUID.randomUUID();
+        UserEntity user = UserEntity.builder().id(userId).creditsBalance(40).build();
+        when(repository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
+
+        OptionalInt balance = adapter.addCredits(userId, 25);
+
+        assertThat(balance).hasValue(65);
+        assertThat(user.getCreditsBalance()).isEqualTo(65);
+        verify(repository).flush();
+    }
+
+    @Test
+    @DisplayName("non-positive credit amounts are rejected before touching the balance")
+    void rejectsNonPositiveAmounts() {
+        UUID userId = UUID.randomUUID();
+
+        assertThatThrownBy(() -> adapter.addCredits(userId, 0))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> adapter.deductCredits(userId, -5))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(repository, never()).findByIdForUpdate(userId);
+    }
+
+    @Test
+    @DisplayName("deducting more than the balance returns empty and leaves the row intact")
+    void deductRejectsInsufficientBalance() {
+        UUID userId = UUID.randomUUID();
+        UserEntity user = UserEntity.builder().id(userId).creditsBalance(10).build();
+        when(repository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
+
+        OptionalInt balance = adapter.deductCredits(userId, 11);
+
+        assertThat(balance).isEmpty();
+        assertThat(user.getCreditsBalance()).isEqualTo(10);
+        verify(repository, never()).flush();
+    }
+
+    @Test
+    @DisplayName("deducting an affordable amount returns the remaining balance")
+    void deductUpdatesBalance() {
+        UUID userId = UUID.randomUUID();
+        UserEntity user = UserEntity.builder().id(userId).creditsBalance(10).build();
+        when(repository.findByIdForUpdate(userId)).thenReturn(Optional.of(user));
+
+        OptionalInt balance = adapter.deductCredits(userId, 4);
+
+        assertThat(balance).hasValue(6);
+        assertThat(user.getCreditsBalance()).isEqualTo(6);
     }
 }

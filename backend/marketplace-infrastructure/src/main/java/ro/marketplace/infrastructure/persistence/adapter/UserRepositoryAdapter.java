@@ -2,6 +2,7 @@ package ro.marketplace.infrastructure.persistence.adapter;
 
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.exception.ConflictException;
@@ -87,11 +88,15 @@ public class UserRepositoryAdapter implements UserRepository {
     @Transactional
     public OptionalInt addCredits(UUID userId, int amount) {
         Objects.requireNonNull(userId, "userId must not be null");
+        Credits delta = positiveAmount(amount);
         return springDataUserRepository.findByIdForUpdate(userId)
                 .map(user -> {
-                    user.setCreditsBalance(user.getCreditsBalance() + amount);
+                    // Overflow-checked domain arithmetic: a corrupted balance fails here
+                    // instead of wrapping around into a valid-looking number.
+                    Credits updated = Credits.of(user.getCreditsBalance()).plus(delta);
+                    user.setCreditsBalance(updated.asInt());
                     springDataUserRepository.flush();
-                    return OptionalInt.of(user.getCreditsBalance());
+                    return OptionalInt.of(updated.asInt());
                 })
                 .orElseGet(OptionalInt::empty);
     }
@@ -100,16 +105,26 @@ public class UserRepositoryAdapter implements UserRepository {
     @Transactional
     public OptionalInt deductCredits(UUID userId, int amount) {
         Objects.requireNonNull(userId, "userId must not be null");
+        Credits delta = positiveAmount(amount);
         return springDataUserRepository.findByIdForUpdate(userId)
                 .map(user -> {
-                    if (user.getCreditsBalance() < amount) {
+                    Credits balance = Credits.of(user.getCreditsBalance());
+                    if (!balance.isAtLeast(delta)) {
                         return OptionalInt.empty();
                     }
-                    user.setCreditsBalance(user.getCreditsBalance() - amount);
+                    Credits updated = balance.minus(delta);
+                    user.setCreditsBalance(updated.asInt());
                     springDataUserRepository.flush();
-                    return OptionalInt.of(user.getCreditsBalance());
+                    return OptionalInt.of(updated.asInt());
                 })
                 .orElseGet(OptionalInt::empty);
+    }
+
+    private static Credits positiveAmount(int amount) {
+        if (amount <= 0) {
+            throw new IllegalArgumentException("Credit amount must be positive: " + amount);
+        }
+        return Credits.of(amount);
     }
 
     @Override
