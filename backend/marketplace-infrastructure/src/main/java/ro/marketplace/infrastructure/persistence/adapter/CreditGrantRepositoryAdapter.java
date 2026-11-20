@@ -23,10 +23,13 @@ public class CreditGrantRepositoryAdapter implements CreditGrantRepository {
 
     @Override
     @Transactional
-    public CreditGrant save(CreditGrant grant) {
+    public CreditGrant append(CreditGrant grant) {
         Objects.requireNonNull(grant, "grant must not be null");
-        CreditGrantEntity saved = springDataCreditGrantRepository.save(EntityMapper.toEntity(grant));
-        return EntityMapper.toDomain(saved);
+        CreditGrantEntity entity = EntityMapper.toEntity(grant);
+        // One lifetime grant per user is enforced by a unique index; insert-only
+        // semantics make an accidental re-save fail instead of mutating the grant.
+        springDataCreditGrantRepository.save(entity);
+        return EntityMapper.toDomain(entity);
     }
 
     @Override

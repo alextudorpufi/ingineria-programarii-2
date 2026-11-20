@@ -96,6 +96,18 @@ public class LeadController {
                 .body(new LeadResponse.ClaimedProDto(claim.getProId(), claim.getProName(), claim.getClaimedAt()));
     }
 
+    @PostMapping("/{id}/close")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<LeadResponse> closeLead(@PathVariable UUID id,
+                                                   @AuthenticationPrincipal Jwt jwt) {
+        AuthenticatedUser admin = AuthenticatedUser.from(jwt);
+        String actor = admin.email() != null && !admin.email().isBlank()
+                ? admin.email()
+                : admin.id().toString();
+        Lead closed = leadService.closeLead(id, actor);
+        return ResponseEntity.ok(LeadDtoMapper.toResponse(closed, true, false));
+    }
+
     private boolean canViewContact(Lead lead, AuthenticatedUser user) {
         if (user == null) {
             return false;

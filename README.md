@@ -18,7 +18,7 @@ Credit bundles are priced by the backend (50 credits for 50 RON, 170 for 150 RON
 
 1. Copy `.env.example` to `.env` and replace every `changeme` value (at minimum `JWT_SECRET`, generated with `openssl rand -hex 48`).
 2. From the Stripe Dashboard with **Test mode** enabled, copy the secret key (`sk_test_...`) into `STRIPE_SECRET_KEY`.
-3. Install and authenticate the Stripe CLI, then run `stripe listen --forward-to localhost:8080/api/payments/stripe/webhook`. Copy its `whsec_...` signing secret into `STRIPE_WEBHOOK_SECRET`.
+3. Install and authenticate the Stripe CLI, then run `stripe listen --events checkout.session.completed --forward-to localhost:8080/api/payments/stripe/webhook`. Copy its `whsec_...` signing secret into `STRIPE_WEBHOOK_SECRET`.
 4. Start the stack with `docker compose up --build`. Checkout creates a pending purchase; only a verified Stripe webhook grants credits.
 
 The backend rejects live secret keys. The frontend return URL only displays purchase status and does not issue credits. For a local backend started outside Docker Compose, export the same variables in that process's environment; Spring does not load the root `.env` file automatically.

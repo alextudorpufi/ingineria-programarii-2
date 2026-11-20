@@ -32,7 +32,7 @@ The local integration needs two server-side test credentials: a Stripe API secre
 5. **Start local webhook forwarding.** Keep this command running in its own terminal:
 
    ```powershell
-   stripe listen --forward-to localhost:8080/api/payments/stripe/webhook
+   stripe listen --events checkout.session.completed --forward-to localhost:8080/api/payments/stripe/webhook
    ```
 
    The CLI prints a webhook signing secret beginning with `whsec_`. Copy that value into `STRIPE_WEBHOOK_SECRET` in the root `.env`. Use the secret printed by this local `stripe listen` command; it is distinct from any endpoint signing secret configured in the Stripe Dashboard. If you stop and restart the listener and it prints a different secret, update `.env` and restart the backend.

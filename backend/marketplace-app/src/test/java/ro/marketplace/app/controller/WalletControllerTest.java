@@ -13,6 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.WalletService;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
 
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,10 +68,12 @@ class WalletControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(walletService.getUserTransactions(userId)).thenReturn(List.of(tx));
+        when(walletService.getUserTransactions(userId, 0, 500))
+                .thenReturn(new PageResult<>(List.of(tx), 1, 0, 500));
 
         mockMvc.perform(get("/api/wallet/" + userId + "/transactions").with(token(userId, "PRO")))
                 .andExpect(status().isOk())
+                .andExpect(header().string(PageHeaders.TOTAL_COUNT, "1"))
                 .andExpect(jsonPath("$[0].type").value("lead_purchase"))
                 .andExpect(jsonPath("$[0].amount").value(-30))
                 .andExpect(jsonPath("$[0].balanceAfter").value(115));

@@ -15,5 +15,8 @@ public record UpdateCustomerRequest(
         String email,
 
         @Size(max = 50, message = "Phone must not exceed 50 characters")
-        String phone
+        String phone,
+
+        // Optional: send the version received from GET to detect a stale form.
+        Long version
 ) {}

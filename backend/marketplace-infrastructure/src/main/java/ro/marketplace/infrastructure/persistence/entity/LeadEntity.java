@@ -11,6 +11,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.domain.Persistable;
 import ro.marketplace.infrastructure.persistence.audit.AuditableEntity;
 import ro.marketplace.domain.model.Lead;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -27,7 +28,7 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class LeadEntity extends AuditableEntity {
+public class LeadEntity extends AuditableEntity implements Persistable<UUID> {
 
     @Id
     @Column(name = "id", nullable = false, updatable = false)
@@ -156,4 +157,13 @@ public class LeadEntity extends AuditableEntity {
 
     @Column(name = "match_expected_response_time", length = 100)
     private String matchExpectedResponseTime;
+
+    /**
+     * Append-only/create-only entity: a repeated id must fail instead of
+     * silently turning the save into an UPDATE.
+     */
+    @Override
+    public boolean isNew() {
+        return true;
+    }
 }

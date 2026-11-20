@@ -5,7 +5,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.port.AuditLogRepository;
-import ro.marketplace.infrastructure.persistence.PersistenceLimits;
+import ro.marketplace.infrastructure.persistence.PageRequests;
 import ro.marketplace.infrastructure.persistence.entity.AuditLogEntity;
 import ro.marketplace.infrastructure.persistence.mapper.EntityMapper;
 import ro.marketplace.infrastructure.persistence.repository.SpringDataAuditLogRepository;
@@ -25,20 +25,22 @@ public class AuditLogRepositoryAdapter implements AuditLogRepository {
 
     @Override
     @Transactional
-    public AuditLog save(AuditLog auditLog) {
+    public AuditLog append(AuditLog auditLog) {
         Objects.requireNonNull(auditLog, "auditLog must not be null");
         AuditLogEntity entity = EntityMapper.toEntity(auditLog);
-        AuditLogEntity saved = springDataAuditLogRepository.save(entity);
-        return EntityMapper.toDomain(saved);
+        // Audit history is append-only: the insert-only entity never turns a repeated id into an UPDATE.
+        springDataAuditLogRepository.save(entity);
+        return EntityMapper.toDomain(entity);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<AuditLog> findByEntityNameAndEntityId(String entityName, String entityId) {
+    public List<AuditLog> findRecentByEntityNameAndEntityId(String entityName, String entityId, int limit) {
         Objects.requireNonNull(entityName, "entityName must not be null");
         Objects.requireNonNull(entityId, "entityId must not be null");
-        return springDataAuditLogRepository.findByEntityNameAndEntityIdOrderByCreatedAtDesc(
-                        entityName, entityId, PersistenceLimits.firstPage()).stream()
+        int safeLimit = PageRequests.limit(limit, PageRequests.DEFAULT_LIMIT);
+        return springDataAuditLogRepository.findByEntityNameAndEntityIdOrderByCreatedAtDescIdDesc(
+                        entityName, entityId, PageRequest.of(0, safeLimit)).stream()
                 .map(EntityMapper::toDomain)
                 .toList();
     }
@@ -46,7 +48,7 @@ public class AuditLogRepositoryAdapter implements AuditLogRepository {
     @Override
     @Transactional(readOnly = true)
     public List<AuditLog> findRecent(int limit) {
-        int safeLimit = limit > 0 ? limit : 50;
+        int safeLimit = PageRequests.limit(limit, PageRequests.DEFAULT_LIMIT);
         return springDataAuditLogRepository.findRecentAuditLogs(PageRequest.of(0, safeLimit)).stream()
                 .map(EntityMapper::toDomain)
                 .toList();

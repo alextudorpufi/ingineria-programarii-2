@@ -3,6 +3,7 @@ package ro.marketplace.app.security;
 import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.User;
 
 import java.util.UUID;
@@ -22,7 +23,7 @@ class JwtTokenProviderTest {
                 .id(UUID.randomUUID())
                 .email("pro@example.com")
                 .name("Pro User")
-                .role("pro")
+                .role(UserRole.PRO)
                 .build();
 
         SignedJWT token = SignedJWT.parse(provider.generateToken(user));
@@ -40,7 +41,7 @@ class JwtTokenProviderTest {
     void jtiIsUniquePerToken() throws Exception {
         JwtTokenProvider provider = new JwtTokenProvider(SECRET, "marketplace-backend",
                 "marketplace-api", 1);
-        User user = User.builder().id(UUID.randomUUID()).role("client").build();
+        User user = User.builder().id(UUID.randomUUID()).role(UserRole.CLIENT).build();
 
         String first = SignedJWT.parse(provider.generateToken(user)).getJWTClaimsSet().getJWTID();
         String second = SignedJWT.parse(provider.generateToken(user)).getJWTClaimsSet().getJWTID();

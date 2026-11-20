@@ -10,6 +10,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import ro.marketplace.application.service.LeadService;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.model.Credits;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
@@ -92,10 +94,10 @@ class ClaimLeadIntegrationTest {
         assertThat(reloaded.getStatus()).isEqualTo(LeadStatus.ATRIBUIT);
 
         long winners = pros.stream()
-                .filter(pro -> userRepository.findById(pro.getId()).orElseThrow().getCreditsBalance() == 70)
+                .filter(pro -> userRepository.findById(pro.getId()).orElseThrow().getCreditsBalance().asInt() == 70)
                 .count();
         long untouched = pros.stream()
-                .filter(pro -> userRepository.findById(pro.getId()).orElseThrow().getCreditsBalance() == 100)
+                .filter(pro -> userRepository.findById(pro.getId()).orElseThrow().getCreditsBalance().asInt() == 100)
                 .count();
         assertThat(winners).isEqualTo(4);
         assertThat(untouched).isEqualTo(4);
@@ -113,7 +115,7 @@ class ClaimLeadIntegrationTest {
 
         assertThat(leadRepository.findClaimsByLeadId(lead.getId())).isEmpty();
         assertThat(leadRepository.findById(lead.getId()).orElseThrow().getCurrentPros()).isZero();
-        assertThat(userRepository.findById(poorPro.getId()).orElseThrow().getCreditsBalance()).isEqualTo(10);
+        assertThat(userRepository.findById(poorPro.getId()).orElseThrow().getCreditsBalance().asInt()).isEqualTo(10);
     }
 
     @Test
@@ -128,7 +130,23 @@ class ClaimLeadIntegrationTest {
         assertThatThrownBy(() -> leadService.claimLead(lead.getId(), pro.getId(), pro.getName()))
                 .isInstanceOf(ConflictException.class);
         assertThat(leadRepository.findClaimsByLeadId(lead.getId())).hasSize(1);
-        assertThat(userRepository.findById(pro.getId()).orElseThrow().getCreditsBalance()).isEqualTo(70);
+        assertThat(userRepository.findById(pro.getId()).orElseThrow().getCreditsBalance().asInt()).isEqualTo(70);
+    }
+
+    @Test
+    @DisplayName("A completed lead is never moved back to assigned by the capacity guard")
+    void markAssignedDoesNotResurrectClosedLead() {
+        User client = createUser("client4@example.com", 0, "client");
+        Lead lead = createLead(client, 1, 30);
+
+        assertThat(leadRepository.reserveSlot(lead.getId())).isTrue();
+        assertThat(leadRepository.updateStatus(
+                lead.getId(), LeadStatus.VALIDAT, LeadStatus.FINALIZAT)).isTrue();
+
+        leadRepository.markAssignedIfFull(lead.getId());
+
+        Lead reloaded = leadRepository.findById(lead.getId()).orElseThrow();
+        assertThat(reloaded.getStatus()).isEqualTo(LeadStatus.FINALIZAT);
     }
 
     private User createUser(String email, int credits, String role) {
@@ -136,14 +154,14 @@ class ClaimLeadIntegrationTest {
         User user = User.builder()
                 .id(id)
                 .email(email)
-                .role(role)
+                .role(UserRole.fromDbValue(role))
                 .name("User " + id)
                 .proVerified("pro".equalsIgnoreCase(role))
                 .rating(BigDecimal.valueOf(5))
                 .trustScore(BigDecimal.valueOf(100))
-                .creditsBalance(credits)
+                .creditsBalance(Credits.of(credits))
                 .build();
-        return userRepository.save(user);
+        return userRepository.create(user);
     }
 
     @Test
@@ -197,6 +215,6 @@ class ClaimLeadIntegrationTest {
                 .passportExtractedByAi(true)
                 .passportDuplicateRisk("Low")
                 .build();
-        return leadRepository.save(lead);
+        return leadRepository.create(lead);
     }
 }

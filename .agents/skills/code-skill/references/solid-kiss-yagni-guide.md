@@ -1,158 +1,139 @@
-# SOLID, KISS, and YAGNI Practical Guide
+# SOLID, KISS & YAGNI in Practice
 
-This guide provides concrete, stack-specific examples of how to apply and avoid violating SOLID, KISS, and YAGNI in the Intelligent Services Marketplace.
+Concrete examples from the marketplace codebase. The goal is code that is easy to change, easy to test, and honest about what it does.
 
 ---
 
-## 1. SOLID Principles in Practice
+## 1. SOLID
 
-### S - Single Responsibility Principle (SRP)
+### S — Single Responsibility
 
-**Anti-Pattern (Violation):**
+**Violation:** a controller that validates, queries, mutates credits, and writes audit rows.
+
+**Correct:** the controller only translates HTTP.
+
 ```java
-// BAD: Controller doing validation, DB queries, payment logic, and email sending
 @RestController
-public class BadLeadController {
-    @PostMapping("/leads/buy")
-    public ResponseEntity<?> buyLead(@RequestBody BuyLeadRequest req) {
-        // 1. Manually checks balance in DB
-        // 2. Decrements credits
-        // 3. Unmasks contact details
-        // 4. Sends email notification
-        // 5. Writes to audit log
+public class LeadController {
+    private final LeadService leadService;
+
+    @PostMapping("/api/leads")
+    public ResponseEntity<LeadResponse> create(@Valid @RequestBody CreateLeadRequest request) {
+        Lead lead = leadService.createLead(LeadDtoMapper.toDomain(request));
+        return ResponseEntity.status(HttpStatus.CREATED).body(LeadDtoMapper.toResponse(lead));
     }
 }
 ```
 
-**Clean Pattern (Adherence):**
-```java
-// GOOD: Controller delegates to specialized service
-@RestController
-@RequiredArgsConstructor
-public class LeadPurchaseController {
-    private final LeadPurchaseService purchaseService;
+The use case owns the transaction; the adapter owns SQL; the domain model owns invariants.
 
-    @PostMapping("/api/leads/{id}/purchase")
-    public ResponseEntity<LeadDetailsResponse> purchaseLead(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal currentUser) {
-        LeadDetailsResponse response = purchaseService.purchaseLead(id, currentUser.getId());
-        return ResponseEntity.ok(response);
-    }
+| Class | One reason to change |
+| :--- | :--- |
+| `LeadController` | HTTP contract |
+| `LeadServiceImpl` | Lead workflow |
+| `LeadRepositoryAdapter` | Lead persistence |
+| `EntityMapper` | Domain ↔ entity mapping |
+| `GlobalExceptionHandler` | HTTP error mapping |
+
+### O — Open/Closed
+
+Extend through a new implementation of an existing port, not another branch in a central method.
+
+```java
+public interface StripePaymentGateway {
+    StripeCheckoutSession createCheckoutSession(...);
+    StripeWebhookEvent verifyWebhook(String payload, String signature);
 }
 ```
+
+A second provider is a new adapter; `CreditPaymentService` does not change.
+
+Do **not** pre-build a strategy registry for a rule that has one implementation. YAGNI applies.
+
+### L — Liskov Substitution
+
+Implementations must honour the port's contract:
+- nullable inputs are documented and handled;
+- `Optional` means "may be absent", never "sometimes null";
+- a failed insert throws, it does not silently return the existing row;
+- `updateStatus` returns `false` when the guard did not match, not `true`.
+
+### I — Interface Segregation
+
+Ports are narrow and role-specific:
+
+```java
+public interface WalletTransactionRepository {
+    WalletTransaction append(WalletTransaction transaction);
+    PageResult<WalletTransaction> findPageByUserId(UUID userId, int page, int size);
+    List<WalletTransaction> findByUserIdAndLeadId(UUID userId, UUID leadId);
+}
+```
+
+Do not add `update`/`delete` to an append-only port just for symmetry.
+
+### D — Dependency Inversion
+
+Application services depend on ports and a clock, never on Spring:
+
+```java
+public LeadServiceImpl(LeadRepository leadRepository,
+                       WalletService walletService,
+                       UnitOfWork unitOfWork,
+                       Clock clock) { ... }
+```
+
+Wiring lives in `ApplicationServiceConfig`; transactions are an injected `UnitOfWork`, not `@Transactional` in the use case.
 
 ---
 
-### O - Open/Closed Principle (OCP)
+## 2. KISS
 
-**Anti-Pattern (Violation):**
-```java
-// BAD: Giant switch statement that must be modified for every new matching rule
-public class BadMatchingEngine {
-    public int scoreMatch(Lead lead, Professional pro, String ruleType) {
-        switch (ruleType) {
-            case "GEO": return calculateGeo(lead, pro);
-            case "CATEGORY": return calculateCategory(lead, pro);
-            case "AI_SEMANTIC": return calculateAi(lead, pro);
-            default: throw new IllegalArgumentException();
-        }
-    }
-}
-```
-
-**Clean Pattern (Adherence):**
-```java
-// GOOD: Open for new strategies via Strategy interface
-public interface MatchingRule {
-    boolean isApplicable(Lead lead, Professional pro);
-    MatchScore evaluate(Lead lead, Professional pro);
-}
-
-@Component
-public class GeoProximityRule implements MatchingRule { ... }
-
-@Component
-public class CategoryMatchRule implements MatchingRule { ... }
-```
+- Prefer a guarded SQL update to a read-modify-write with retries.
+- Prefer `PageRequests` to a hand-rolled `min/max` in every service.
+- Prefer `AuditActor.resolve` to repeating truncation + fallback logic.
+- Keep methods under ~40 lines; extract named private helpers.
+- No reflection, dynamic proxies, custom annotation frameworks, or generic base classes for one use case.
+- If a rule fits in the database (uniqueness, CHECK, FK, conditional update), put it there instead of orchestrating it in Java.
 
 ---
 
-### L - Liskov Substitution Principle (LSP)
+## 3. YAGNI
 
-Subtypes must behave predictably according to the contract of their base types without throwing unexpected exceptions.
+Do not add until a second concrete use case exists:
 
-```java
-// GOOD: Base contract is respected by all implementations
-public interface WalletService {
-    WalletBalance getBalance(UUID userId);
-    TransactionResult transact(UUID userId, BigDecimal amount, TransactionType type);
-}
-```
+| Speculative addition | Why it waits |
+| :--- | :--- |
+| `MatchingStrategy` engine | Matching rules are columns today; no engine or second algorithm exists |
+| Domain event publisher | No listener/bus is wired; audit + ledger cover current needs |
+| Redis / cache layer | No measured latency problem |
+| Generic `BaseEntity<T, ID>` | Each table has a different audit/locking shape |
+| Soft-delete + multitenancy mixins | Not a requirement |
+| Extra "just in case" columns | Schema is a contract; `V0` is deliberately minimal |
+| Extra repository methods "for later" | Dead code and untested SQL |
 
----
-
-### I - Interface Segregation Principle (ISP)
-
-**Anti-Pattern (Violation):**
-```java
-// BAD: Fat interface forcing clients to implement methods they don't use
-public interface SuperMarketplaceManager {
-    void createLead(Lead lead);
-    void purchaseLead(UUID leadId, UUID proId);
-    void resolveDispute(UUID disputeId, String decision); // Pros shouldn't have this
-    void configureAiPrompt(String prompt); // Clients shouldn't have this
-}
-```
-
-**Clean Pattern (Adherence):**
-```java
-// GOOD: Role-segregated contracts
-public interface LeadManagementService {
-    Lead createLead(CreateLeadCommand command);
-}
-
-public interface LeadPurchaseService {
-    LeadDetailsResponse purchaseLead(UUID leadId, UUID proId);
-}
-
-public interface DisputeResolutionService {
-    void resolveDispute(UUID disputeId, DisputeDecision decision);
-}
-```
+The migration baseline demonstrates the rule: legacy profile tables and speculative matching columns were removed rather than carried forward.
 
 ---
 
-### D - Dependency Inversion Principle (DIP)
+## 4. Applying the Principles to Persistence
 
-Always inject interfaces or abstractions rather than concrete classes.
-
-```java
-// GOOD: Injected via constructor using interface
-@Service
-@RequiredArgsConstructor
-public class LeadMatchingServiceImpl implements LeadMatchingService {
-    private final List<MatchingRule> activeRules;
-    private final ProfessionalRepository proRepository;
-    private final ApplicationEventPublisher eventPublisher;
-}
-```
+| Temptation | Better |
+| :--- | :--- |
+| Rebuild entity and `save()` | Load managed row, copy mutable fields, keep `@Version` |
+| `save()` for a ledger | `append()` + `Persistable.isNew() == true` |
+| `LocalDateTime.now()` | Injected UTC `Clock` |
+| `UPDATE ... SET updated_at = now()` | Bind `:updatedAt` from the clock |
+| `status = 'pro'` | `UserRole.PRO.getDbValue()` |
+| `findAll()` | `PageRequests` + `PageResult` |
+| `sort by createdAt` | `createdAt DESC, id DESC` |
+| Catch and ignore a duplicate | Let the unique constraint fail; map to 409 |
 
 ---
 
-## 2. KISS (Keep It Simple, Stupid)
+## 5. Tests as Design Pressure
 
-### Rules of Thumb:
-1. Prefer standard Java Streams and standard collections over third-party helper libraries when straightforward.
-2. Keep methods under 40 lines.
-3. Don't write 5 levels of inheritance; use flat composition.
-4. Prefer plain SQL or standard Spring Data method queries (`findByCategoryIdAndCity`) over complex Criteria queries unless dynamically constructed.
-
----
-
-## 3. YAGNI (You Aren't Gonna Need It)
-
-### What to Avoid:
-1. **Speculative Database Columns**: Do not add `bonus_points_tier_3`, `crypto_wallet_address`, or `referral_discount_code` if the story only calls for virtual credit purchases.
-2. **Premature Caching**: Do not wire Redis caches for leads before standard DB queries show measurable latency.
-3. **Over-abstracted Generic Classes**: Avoid `BaseEntityWithAuditingAndVersioningAndSoftDeleteAndMultitenancy<T, ID>` when a simple entity with Flyway table is sufficient.
+- If a service is hard to unit test, it depends on something it should not (static clock, concrete adapter, HTTP type).
+- If SQL is hard to test, it is probably untested and should be covered by a Testcontainers test.
+- If a mapping has no test, add one at the adapter boundary (bound parameters, enum values, timestamps).
+- A bug fix without a regression test is incomplete.

@@ -13,7 +13,6 @@ import ro.marketplace.domain.model.User;
 import java.nio.charset.StandardCharsets;
 import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -65,7 +64,7 @@ public class JwtTokenProvider {
 
             String roleUpper = user.getRole() == null
                     ? "CLIENT"
-                    : user.getRole().trim().toUpperCase(Locale.ROOT);
+                    : user.getRole().name();
 
             JWTClaimsSet claimsSet = new JWTClaimsSet.Builder()
                     .jwtID(UUID.randomUUID().toString())

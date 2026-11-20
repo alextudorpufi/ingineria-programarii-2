@@ -8,6 +8,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.Credits;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.port.CreditGrantRepository;
@@ -42,14 +45,17 @@ class AuthServiceImplTest {
     private CreditGrantRepository creditGrantRepository;
 
     @Mock
+    private WalletService walletService;
+
+    @Mock
     private PasswordHasher passwordHasher;
 
     private AuthServiceImpl authService;
 
     @BeforeEach
     void setUp() {
-        authService = new AuthServiceImpl(userRepository, creditGrantRepository, passwordHasher,
-                new DirectUnitOfWork(), CLOCK);
+        authService = new AuthServiceImpl(userRepository, creditGrantRepository, walletService,
+                passwordHasher, new DirectUnitOfWork(), CLOCK);
     }
 
     @Test
@@ -57,12 +63,26 @@ class AuthServiceImplTest {
     void registerDoesNotGrantCredits() {
         when(userRepository.existsByEmail("pro@example.com")).thenReturn(false);
         when(passwordHasher.encode("Secret123!")).thenReturn("hash");
-        when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userRepository.create(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         User registered = authService.register("pro@example.com", "Secret123!", "Pro", "pro", null, null);
 
-        assertThat(registered.getCreditsBalance()).isZero();
+        assertThat(registered.getCreditsBalance().asInt()).isZero();
         assertThat(registered.isProVerified()).isFalse();
+        assertThat(registered.getRating()).isEqualByComparingTo("0.00");
+        assertThat(registered.getTrustScore()).isEqualByComparingTo("0.00");
+    }
+
+    @Test
+    @DisplayName("registration enforces password rules even without the web layer")
+    void registerRejectsWeakPasswords() {
+        assertThatThrownBy(() -> authService.register("pro@example.com", "short1", "Pro", "pro", null, null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("between 8 and 128");
+        assertThatThrownBy(() -> authService.register("pro@example.com", "onlyletters", "Pro", "pro", null, null))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("letter and one digit");
+        verify(userRepository, never()).create(any());
     }
 
     @Test
@@ -73,7 +93,7 @@ class AuthServiceImplTest {
                 .id(userId)
                 .email("pro@example.com")
                 .passwordHash("stored-hash")
-                .role("pro")
+                .role(UserRole.PRO)
                 .loginAttemptsCount(9)
                 .build();
         when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
@@ -91,7 +111,7 @@ class AuthServiceImplTest {
                 .id(UUID.randomUUID())
                 .email("pro@example.com")
                 .passwordHash("stored-hash")
-                .role("pro")
+                .role(UserRole.PRO)
                 .lockoutUntil(CLOCK.instant().atZone(ZoneOffset.UTC).toLocalDateTime().plusMinutes(10))
                 .build();
         when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
@@ -102,6 +122,36 @@ class AuthServiceImplTest {
     }
 
     @Test
+    @DisplayName("unknown accounts still perform a dummy password verification")
+    void unknownAccountUsesDummyHash() {
+        when(userRepository.findByEmail("missing@example.com")).thenReturn(Optional.empty());
+
+        assertThat(authService.authenticate("missing@example.com", "Secret123!")).isEmpty();
+
+        verify(passwordHasher).matches(eq("Secret123!"), anyString());
+    }
+
+    @Test
+    @DisplayName("an expired lockout is cleared before the next attempt is evaluated")
+    void expiredLockoutStartsFreshAttemptWindow() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder()
+                .id(userId)
+                .email("pro@example.com")
+                .passwordHash("stored-hash")
+                .role(UserRole.PRO)
+                .loginAttemptsCount(10)
+                .lockoutUntil(CLOCK.instant().atZone(ZoneOffset.UTC).toLocalDateTime().minusMinutes(1))
+                .build();
+        when(userRepository.findByEmail("pro@example.com")).thenReturn(Optional.of(user));
+        when(passwordHasher.matches("Secret123!", "stored-hash")).thenReturn(true);
+
+        assertThat(authService.authenticate("pro@example.com", "Secret123!")).isPresent();
+
+        verify(userRepository).resetLoginState(userId);
+    }
+
+    @Test
     @DisplayName("administrator verification grants credits exactly once and records the grant")
     void verifyProfessionalGrantsCredits() {
         UUID userId = UUID.randomUUID();
@@ -109,33 +159,36 @@ class AuthServiceImplTest {
         User unverified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(false)
-                .creditsBalance(0)
+                .creditsBalance(Credits.ZERO)
                 .build();
         User verified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
-                .creditsBalance(30)
+                .creditsBalance(Credits.of(30))
                 .build();
         when(userRepository.findById(userId)).thenReturn(Optional.of(unverified), Optional.of(verified));
         when(creditGrantRepository.sumAmountByUserId(userId)).thenReturn(0L);
-        when(userRepository.verifyProAndAddCredits(userId, 30)).thenReturn(true);
-        when(creditGrantRepository.save(any(CreditGrant.class)))
+        when(userRepository.verifyPro(userId)).thenReturn(true);
+        when(creditGrantRepository.append(any(CreditGrant.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
 
         User result = authService.verifyProfessionalAndGrantCredits(userId, 30, adminId);
 
         assertThat(result.isProVerified()).isTrue();
-        assertThat(result.getCreditsBalance()).isEqualTo(30);
+        assertThat(result.getCreditsBalance().asInt()).isEqualTo(30);
 
         ArgumentCaptor<CreditGrant> captor = ArgumentCaptor.forClass(CreditGrant.class);
-        verify(creditGrantRepository).save(captor.capture());
+        verify(creditGrantRepository).append(captor.capture());
         assertThat(captor.getValue().userId()).isEqualTo(userId);
         assertThat(captor.getValue().adminId()).isEqualTo(adminId);
         assertThat(captor.getValue().amount()).isEqualTo(30);
+
+        // The balance change must be recorded through the wallet, never by a direct SQL update.
+        verify(walletService).grantBonusCredits(eq(userId), eq(30), anyString(), eq(adminId.toString()));
     }
 
     @Test
@@ -145,16 +198,39 @@ class AuthServiceImplTest {
         User verified = User.builder()
                 .id(userId)
                 .email("pro@example.com")
-                .role("pro")
+                .role(UserRole.PRO)
                 .proVerified(true)
-                .creditsBalance(30)
+                .creditsBalance(Credits.of(30))
                 .build();
         when(userRepository.findById(userId)).thenReturn(Optional.of(verified));
 
         assertThatThrownBy(() -> authService.verifyProfessionalAndGrantCredits(userId, 30, UUID.randomUUID()))
                 .isInstanceOf(ConflictException.class);
 
-        verify(creditGrantRepository, never()).save(any());
-        verify(userRepository, never()).verifyProAndAddCredits(any(), anyInt());
+        verify(creditGrantRepository, never()).append(any());
+        verify(userRepository, never()).verifyPro(any());
+        verify(walletService, never()).grantBonusCredits(any(), anyInt(), any(), any());
+    }
+
+    @Test
+    @DisplayName("a rejected verification never grants bonus credits")
+    void verifyProfessionalRejectedByRepositoryDoesNotGrantCredits() {
+        UUID userId = UUID.randomUUID();
+        User unverified = User.builder()
+                .id(userId)
+                .email("pro@example.com")
+                .role(UserRole.PRO)
+                .proVerified(false)
+                .creditsBalance(Credits.ZERO)
+                .build();
+        when(userRepository.findById(userId)).thenReturn(Optional.of(unverified));
+        when(creditGrantRepository.sumAmountByUserId(userId)).thenReturn(0L);
+        when(userRepository.verifyPro(userId)).thenReturn(false);
+
+        assertThatThrownBy(() -> authService.verifyProfessionalAndGrantCredits(userId, 30, UUID.randomUUID()))
+                .isInstanceOf(ConflictException.class);
+
+        verify(creditGrantRepository, never()).append(any());
+        verify(walletService, never()).grantBonusCredits(any(), anyInt(), any(), any());
     }
 }

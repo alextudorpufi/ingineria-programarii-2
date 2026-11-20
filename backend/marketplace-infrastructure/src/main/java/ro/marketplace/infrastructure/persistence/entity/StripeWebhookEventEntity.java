@@ -9,6 +9,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.springframework.data.domain.Persistable;
 
 import java.time.LocalDateTime;
 
@@ -19,7 +20,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class StripeWebhookEventEntity {
+public class StripeWebhookEventEntity implements Persistable<String> {
 
     @Id
     @Column(name = "event_id", nullable = false, updatable = false, length = 255)
@@ -30,4 +31,18 @@ public class StripeWebhookEventEntity {
 
     @Column(name = "received_at", nullable = false, updatable = false)
     private LocalDateTime receivedAt;
+
+    @Override
+    public String getId() {
+        return eventId;
+    }
+
+    /**
+     * Webhook events are an append-only inbox: a repeated event id must fail
+     * instead of overwriting the original receipt time.
+     */
+    @Override
+    public boolean isNew() {
+        return true;
+    }
 }

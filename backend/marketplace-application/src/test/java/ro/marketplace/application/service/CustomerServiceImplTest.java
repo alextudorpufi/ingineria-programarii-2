@@ -8,7 +8,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
+import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.Customer;
+import ro.marketplace.domain.model.PageResult;
 import ro.marketplace.domain.port.CustomerRepository;
 
 import java.time.Clock;
@@ -21,6 +23,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -98,14 +101,43 @@ class CustomerServiceImplTest {
     }
 
     @Test
-    @DisplayName("getAllCustomers returns list of customers")
-    void getAllCustomers_Success() {
+    @DisplayName("getCustomers returns a page with its total")
+    void getCustomers_Success() {
         Customer c1 = Customer.builder().id(UUID.randomUUID()).name("C1").build();
         Customer c2 = Customer.builder().id(UUID.randomUUID()).name("C2").build();
-        when(customerRepository.findAll()).thenReturn(List.of(c1, c2));
+        when(customerRepository.findPage(0, 20))
+                .thenReturn(new PageResult<>(List.of(c1, c2), 2, 0, 20));
 
-        List<Customer> all = customerService.getAllCustomers();
-        assertThat(all).hasSize(2);
+        PageResult<Customer> page = customerService.getCustomers(0, 20);
+        assertThat(page.content()).hasSize(2);
+        assertThat(page.totalElements()).isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("updateCustomer rejects blank required fields before touching storage")
+    void updateCustomer_BlankName_ThrowsValidation() {
+        assertThatThrownBy(() -> customerService.updateCustomer(UUID.randomUUID(),
+                Customer.builder().name("  ").email("valid@example.com").build()))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("Numele");
+        verify(customerRepository, never()).findById(any());
+    }
+
+    @Test
+    @DisplayName("updateCustomer rejects a stale client version before saving")
+    void updateCustomer_StaleVersion_ThrowsConflict() {
+        UUID id = UUID.randomUUID();
+        Customer existing = Customer.builder()
+                .id(id).name("Ion").email("ion@example.com").version(2L).build();
+        when(customerRepository.findById(id)).thenReturn(Optional.of(existing));
+
+        Customer stale = Customer.builder()
+                .name("Ion Updated").email("ion@example.com").version(1L).build();
+
+        assertThatThrownBy(() -> customerService.updateCustomer(id, stale))
+                .isInstanceOf(ConflictException.class)
+                .hasMessageContaining("concurrently");
+        verify(customerRepository, never()).save(any());
     }
 
     @Test

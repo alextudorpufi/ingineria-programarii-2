@@ -17,6 +17,7 @@ import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.CustomerService;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.model.Customer;
+import ro.marketplace.domain.model.PageResult;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -52,13 +54,29 @@ class CustomerControllerTest {
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        when(customerService.getAllCustomers()).thenReturn(List.of(customer));
+        when(customerService.getCustomers(0, 500))
+                .thenReturn(new PageResult<>(List.of(customer), 1, 0, 500));
 
         mockMvc.perform(get("/api/customers").with(adminToken()))
                 .andExpect(status().isOk())
+                .andExpect(header().string(PageHeaders.TOTAL_COUNT, "1"))
                 .andExpect(jsonPath("$[0].id").value(id.toString()))
                 .andExpect(jsonPath("$[0].name").value("Ion Popescu"))
                 .andExpect(jsonPath("$[0].email").value("ion@example.com"));
+    }
+
+    @Test
+    @DisplayName("GET /api/customers forwards page and size and exposes the total")
+    void getAllCustomersForwardsPaging() throws Exception {
+        when(customerService.getCustomers(1, 10))
+                .thenReturn(new PageResult<>(List.of(), 11, 1, 10));
+
+        mockMvc.perform(get("/api/customers?page=1&size=10").with(adminToken()))
+                .andExpect(status().isOk())
+                .andExpect(header().string(PageHeaders.TOTAL_COUNT, "11"))
+                .andExpect(header().string(PageHeaders.PAGE, "1"))
+                .andExpect(header().string(PageHeaders.PAGE_SIZE, "10"))
+                .andExpect(jsonPath("$").isEmpty());
     }
 
     @Test

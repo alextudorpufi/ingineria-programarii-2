@@ -40,11 +40,8 @@ public final class LeadDtoMapper {
                 .budgetIsNegotiable(req.budgetIsNegotiable() == null || req.budgetIsNegotiable())
                 .budgetIsConfirmed(req.budgetIsConfirmed() == null || req.budgetIsConfirmed())
                 .timeline(req.timeline())
-                .leadPrice(req.leadPrice() != null ? req.leadPrice() : 30)
-                .maxPros(req.maxPros() != null ? req.maxPros() : 4)
-                .clientName(req.clientName())
-                .clientPhone(req.clientPhone())
-                .clientEmail(req.clientEmail())
+                // Pricing, capacity, and contact identity are assigned server-side
+                // by LeadServiceImpl. The request only carries the lead's own data.
                 .clientCity(req.clientCity())
                 // Trust indicators must reflect checks that actually happened. A
                 // lead created through this endpoint has not been independently
@@ -66,7 +63,7 @@ public final class LeadDtoMapper {
         Object[] fields = {
                 req.title(), req.categoryId(), req.subcategory(), req.description(),
                 req.location(), req.budgetMin(), req.budgetMax(), req.timeline(),
-                req.workMode(), req.clientEmail(), req.clientPhone(), req.clientCity()
+                req.workMode(), req.clientCity()
         };
         int filled = 0;
         for (Object field : fields) {

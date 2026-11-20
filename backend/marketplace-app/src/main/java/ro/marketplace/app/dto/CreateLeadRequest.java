@@ -3,11 +3,8 @@ package ro.marketplace.app.dto;
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.PositiveOrZero;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
@@ -54,27 +51,8 @@ public record CreateLeadRequest(
         @Size(max = 255, message = "Timeline must not exceed 255 characters")
         String timeline,
 
-        @PositiveOrZero(message = "Lead price must not be negative")
-        @Max(value = 10_000, message = "Lead price must not exceed 10000")
-        Integer leadPrice,
-
-        @PositiveOrZero(message = "Max pros must not be negative")
-        @Max(value = 100, message = "Max pros must not exceed 100")
-        Integer maxPros,
-
-        @NotBlank(message = "Client name is required")
-        @Size(max = 255, message = "Client name must not exceed 255 characters")
-        String clientName,
-
-        // Optional: users who registered without a phone can still publish. The
-        // mapper stores an empty string, which the NOT NULL column accepts.
-        @Size(max = 50, message = "Client phone must not exceed 50 characters")
-        String clientPhone,
-
-        @NotBlank(message = "Client email is required")
-        @Email(message = "Client email must be valid")
-        @Size(max = 255, message = "Client email must not exceed 255 characters")
-        String clientEmail,
+        // Contact identity (name, email, phone) is never taken from the request:
+        // LeadServiceImpl fills it from the authenticated account.
 
         @NotBlank(message = "Client city is required")
         @Size(max = 255, message = "Client city must not exceed 255 characters")

@@ -39,7 +39,9 @@ public class ApplicationServiceConfig {
 
     @Bean
     public Clock clock() {
-        return Clock.systemDefaultZone();
+        // One clock for the application and JPA auditing, pinned to UTC so the
+        // written timestamps do not depend on the JVM's default zone.
+        return Clock.systemUTC();
     }
 
     @Bean
@@ -52,10 +54,12 @@ public class ApplicationServiceConfig {
     @Bean
     public AuthService authService(UserRepository userRepository,
                                    CreditGrantRepository creditGrantRepository,
+                                   WalletService walletService,
                                    PasswordHasher passwordHasher,
                                    UnitOfWork unitOfWork,
                                    Clock clock) {
-        return new AuthServiceImpl(userRepository, creditGrantRepository, passwordHasher, unitOfWork, clock);
+        return new AuthServiceImpl(userRepository, creditGrantRepository, walletService,
+                passwordHasher, unitOfWork, clock);
     }
 
     @Bean
@@ -108,11 +112,12 @@ public class ApplicationServiceConfig {
     public DisputeService disputeService(DisputeRepository disputeRepository,
                                          LeadRepository leadRepository,
                                          UserRepository userRepository,
+                                         WalletTransactionRepository walletTransactionRepository,
                                          WalletService walletService,
                                          AuditService auditService,
                                          UnitOfWork unitOfWork,
                                          Clock clock) {
         return new DisputeServiceImpl(disputeRepository, leadRepository, userRepository,
-                walletService, auditService, unitOfWork, clock);
+                walletTransactionRepository, walletService, auditService, unitOfWork, clock);
     }
 }
