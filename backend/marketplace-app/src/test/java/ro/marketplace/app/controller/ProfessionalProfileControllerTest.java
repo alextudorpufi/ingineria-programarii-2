@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import ro.marketplace.app.security.SecurityConfig;
 import ro.marketplace.application.service.ProfessionalProfileService;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
 
@@ -86,7 +87,7 @@ class ProfessionalProfileControllerTest {
     }
 
     private User user() {
-        return User.builder().id(userId).name("Pro").role("pro").passwordHash("never-return")
+        return User.builder().id(userId).name("Pro").role(UserRole.PRO).passwordHash("never-return")
                 .professionalProfile(ProfessionalProfile.builder().supportsRemote(true).build()).build();
     }
 

@@ -17,11 +17,6 @@ public enum CreditPurchaseStatus {
     }
 
     public static CreditPurchaseStatus fromDbValue(String value) {
-        for (CreditPurchaseStatus status : values()) {
-            if (status.dbValue.equalsIgnoreCase(value)) {
-                return status;
-            }
-        }
-        throw new IllegalArgumentException("Unknown credit purchase status: " + value);
+        return DbEnumValue.parse(value, "credit purchase status", values(), CreditPurchaseStatus::getDbValue);
     }
 }

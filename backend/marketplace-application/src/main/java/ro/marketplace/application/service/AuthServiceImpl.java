@@ -3,9 +3,11 @@ package ro.marketplace.application.service;
 import ro.marketplace.domain.exception.ConflictException;
 import ro.marketplace.domain.exception.ResourceNotFoundException;
 import ro.marketplace.domain.exception.ValidationException;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.port.CreditGrantRepository;
 import ro.marketplace.domain.port.PasswordHasher;
 import ro.marketplace.domain.port.UnitOfWork;
@@ -20,11 +22,10 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 public class AuthServiceImpl implements AuthService {
 
-    private static final String ROLE_CLIENT = "client";
-    private static final String ROLE_PRO = "pro";
     private static final int MAX_FAILED_LOGIN_ATTEMPTS = 10;
     private static final Duration LOCKOUT_DURATION = Duration.ofMinutes(30);
     private static final int MAX_LIFETIME_FREE_CREDITS = 30;
@@ -33,21 +34,33 @@ public class AuthServiceImpl implements AuthService {
      * different long passwords could authenticate the same account.
      */
     private static final int BCRYPT_MAX_PASSWORD_BYTES = 72;
+    /**
+     * Valid BCrypt hash used only to keep unknown-account logins as expensive as
+     * real ones. Its result is intentionally ignored.
+     */
+    private static final String DUMMY_PASSWORD_HASH =
+            "$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+    private static final int MIN_PASSWORD_LENGTH = 8;
+    private static final int MAX_PASSWORD_LENGTH = 128;
+    private static final Pattern PASSWORD_COMPOSITION = Pattern.compile("^(?=.*[A-Za-z])(?=.*\\d).*$");
 
     private final UserRepository userRepository;
     private final CreditGrantRepository creditGrantRepository;
+    private final WalletService walletService;
     private final PasswordHasher passwordHasher;
     private final UnitOfWork unitOfWork;
     private final Clock clock;
 
     public AuthServiceImpl(UserRepository userRepository,
                            CreditGrantRepository creditGrantRepository,
+                           WalletService walletService,
                            PasswordHasher passwordHasher,
                            UnitOfWork unitOfWork,
                            Clock clock) {
         this.userRepository = Objects.requireNonNull(userRepository, "userRepository must not be null");
         this.creditGrantRepository = Objects.requireNonNull(creditGrantRepository,
                 "creditGrantRepository must not be null");
+        this.walletService = Objects.requireNonNull(walletService, "walletService must not be null");
         this.passwordHasher = Objects.requireNonNull(passwordHasher, "passwordHasher must not be null");
         this.unitOfWork = Objects.requireNonNull(unitOfWork, "unitOfWork must not be null");
         this.clock = Objects.requireNonNull(clock, "clock must not be null");
@@ -66,13 +79,23 @@ public class AuthServiceImpl implements AuthService {
         String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
         Optional<User> candidate = userRepository.findByEmail(normalizedEmail);
         if (candidate.isEmpty()) {
+            // Perform the same expensive BCrypt work as for an existing account so
+            // response timing does not reveal whether an email is registered.
+            passwordHasher.matches(rawPassword, DUMMY_PASSWORD_HASH);
             return Optional.empty();
         }
 
         User user = candidate.get();
         LocalDateTime now = LocalDateTime.now(clock);
-        if (user.getLockoutUntil() != null && user.getLockoutUntil().isAfter(now)) {
-            return Optional.empty();
+        if (user.getLockoutUntil() != null) {
+            if (user.getLockoutUntil().isAfter(now)) {
+                return Optional.empty();
+            }
+            // The lockout has expired. Clear it before processing this attempt so a
+            // single typo does not immediately re-lock the account for 30 minutes.
+            userRepository.resetLoginState(user.getId());
+            user.setLoginAttemptsCount(0);
+            user.setLockoutUntil(null);
         }
 
         if (user.getPasswordHash() != null
@@ -94,14 +117,30 @@ public class AuthServiceImpl implements AuthService {
         String normalizedEmail = requireText(email, "Email").toLowerCase(Locale.ROOT);
         String normalizedName = requireText(name, "Name");
         requireText(rawPassword, "Password");
+        if (rawPassword.length() < MIN_PASSWORD_LENGTH || rawPassword.length() > MAX_PASSWORD_LENGTH) {
+            throw new ValidationException("Password must be between " + MIN_PASSWORD_LENGTH
+                    + " and " + MAX_PASSWORD_LENGTH + " characters.");
+        }
+        if (!PASSWORD_COMPOSITION.matcher(rawPassword).matches()) {
+            throw new ValidationException("Password must contain at least one letter and one digit.");
+        }
         if (exceedsBcryptLimit(rawPassword)) {
             throw new ValidationException("Password must not exceed 72 bytes when UTF-8 encoded.");
         }
 
-        String normalizedRole = role == null ? "" : role.trim().toLowerCase(Locale.ROOT);
-        if (!ROLE_CLIENT.equals(normalizedRole) && !ROLE_PRO.equals(normalizedRole)) {
+        UserRole requestedRole;
+        if (role == null || role.isBlank()) {
             throw new ValidationException("Public registration allows only the 'client' or 'pro' roles.");
         }
+        try {
+            requestedRole = UserRole.fromRegistrationRole(role);
+        } catch (IllegalArgumentException ex) {
+            throw new ValidationException("Public registration allows only the 'client' or 'pro' roles.");
+        }
+
+        // BCrypt is intentionally expensive; do it before opening a connection so
+        // registration does not hold a database transaction while hashing.
+        String passwordHash = passwordHasher.encode(rawPassword);
 
         return unitOfWork.executeInTransaction(() -> {
             if (userRepository.existsByEmail(normalizedEmail)) {
@@ -111,23 +150,25 @@ public class AuthServiceImpl implements AuthService {
             User newUser = User.builder()
                     .id(UUID.randomUUID())
                     .email(normalizedEmail)
-                    .passwordHash(passwordHasher.encode(rawPassword))
-                    .role(normalizedRole)
+                    .passwordHash(passwordHash)
+                    .role(requestedRole)
                     .name(normalizedName)
                     .companyName(companyName)
                     .phone(phone)
                     .verifiedBadge(false)
                     // Welcome credits are granted only after administrator verification.
                     .proVerified(false)
-                    .creditsBalance(0)
-                    .rating(BigDecimal.valueOf(5.00))
+                    .creditsBalance(Credits.ZERO)
+                    // No reviews and no completed jobs yet: a perfect score would be
+                    // fabricated trust. The columns are NOT NULL, so use zero.
+                    .rating(BigDecimal.ZERO.setScale(2))
                     .reviewCount(0)
                     .completedJobs(0)
-                    .trustScore(BigDecimal.valueOf(100.00))
-                    .professionalProfile(ROLE_PRO.equals(normalizedRole) ? ProfessionalProfile.builder().build() : null)
+                    .trustScore(BigDecimal.ZERO.setScale(2))
+                    .professionalProfile(requestedRole.isPro() ? ProfessionalProfile.builder().build() : null)
                     .build();
 
-            return userRepository.save(newUser);
+            return userRepository.create(newUser);
         });
     }
 
@@ -156,8 +197,7 @@ public class AuthServiceImpl implements AuthService {
         return unitOfWork.executeInTransaction(() -> {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-            String role = user.getRole() == null ? "" : user.getRole().trim().toLowerCase(Locale.ROOT);
-            if (!ROLE_PRO.equals(role)) {
+            if (user.getRole() != UserRole.PRO) {
                 throw new ValidationException("Only professional accounts can be verified.");
             }
             if (user.isProVerified()) {
@@ -167,17 +207,22 @@ public class AuthServiceImpl implements AuthService {
             if (alreadyGranted + credits > MAX_LIFETIME_FREE_CREDITS) {
                 throw new ValidationException("The lifetime free-credit limit for this account would be exceeded.");
             }
-            if (!userRepository.verifyProAndAddCredits(userId, credits)) {
+            if (!userRepository.verifyPro(userId)) {
                 throw new ConflictException("The professional account is already verified.");
             }
 
-            creditGrantRepository.save(new CreditGrant(
+            creditGrantRepository.append(new CreditGrant(
                     UUID.randomUUID(),
                     userId,
                     credits,
                     adminId,
                     LocalDateTime.now(clock)
             ));
+
+            // The welcome credit must reach the balance through the wallet so a
+            // 'bonus' ledger entry keeps ledger and balance consistent.
+            walletService.grantBonusCredits(userId, credits,
+                    "Welcome credits (" + credits + ")", adminId.toString());
 
             return userRepository.findById(userId).orElse(user);
         });

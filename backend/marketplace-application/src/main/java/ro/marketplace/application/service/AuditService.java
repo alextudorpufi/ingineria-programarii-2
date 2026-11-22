@@ -9,7 +9,7 @@ public interface AuditService {
 
     AuditLog recordEvent(String entityName, String entityId, AuditAction action, String changedBy, String details);
 
-    List<AuditLog> getEntityAuditTrail(String entityName, String entityId);
+    List<AuditLog> getEntityAuditTrail(String entityName, String entityId, int limit);
 
     List<AuditLog> getRecentAuditLogs(int limit);
 }

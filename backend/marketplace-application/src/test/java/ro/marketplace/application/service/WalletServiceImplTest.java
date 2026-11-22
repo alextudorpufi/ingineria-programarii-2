@@ -7,6 +7,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import ro.marketplace.domain.exception.ConflictException;
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.User;
 import ro.marketplace.domain.model.WalletTransaction;
@@ -18,6 +19,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -54,12 +56,12 @@ class WalletServiceImplTest {
     @DisplayName("topUpCredits atomically adds credits and creates a ledger entry")
     void topUpCredits_Success() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(50).build();
-        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(150).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(50)).build();
+        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(150)).build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user), Optional.of(updated));
-        when(userRepository.addCredits(userId, 100)).thenReturn(true);
-        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.addCredits(userId, 100)).thenReturn(OptionalInt.of(150));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.topUpCredits(userId, 100, "Reîncărcare pachet");
 
@@ -75,12 +77,12 @@ class WalletServiceImplTest {
     void deductCredits_Success() {
         UUID userId = UUID.randomUUID();
         UUID leadId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(50).build();
-        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(20).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(50)).build();
+        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(20)).build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user), Optional.of(updated));
-        when(userRepository.deductCredits(userId, 30)).thenReturn(true);
-        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.deductCredits(userId, 30)).thenReturn(OptionalInt.of(20));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.deductCredits(userId, 30, "Achiziție lead", leadId);
 
@@ -95,15 +97,15 @@ class WalletServiceImplTest {
     @DisplayName("deductCredits throws ConflictException when the atomic update refuses")
     void deductCredits_InsufficientBalance_ThrowsConflict() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(10).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(10)).build();
 
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
-        when(userRepository.deductCredits(userId, 30)).thenReturn(false);
+        when(userRepository.deductCredits(userId, 30)).thenReturn(OptionalInt.empty());
 
         assertThatThrownBy(() -> walletService.deductCredits(userId, 30, "Achiziție lead", UUID.randomUUID()))
                 .isInstanceOf(ConflictException.class)
                 .hasMessageContaining("Insufficient credit balance");
-        verify(walletTransactionRepository, never()).save(any());
+        verify(walletTransactionRepository, never()).append(any());
         verify(auditService, never()).recordEvent(any(), any(), any(), any(), any());
     }
 
@@ -111,12 +113,12 @@ class WalletServiceImplTest {
     @DisplayName("refundCredits adds credits and records a refund ledger entry")
     void refundCredits_Success() {
         UUID userId = UUID.randomUUID();
-        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(10).build();
-        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(40).build();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(10)).build();
+        User updated = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.of(40)).build();
 
-        when(userRepository.findById(userId)).thenReturn(Optional.of(user), Optional.of(updated));
-        when(userRepository.addCredits(userId, 30)).thenReturn(true);
-        when(walletTransactionRepository.save(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(40));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
         WalletTransaction tx = walletService.refundCredits(userId, 30, "Rambursare", UUID.randomUUID());
 
@@ -124,5 +126,32 @@ class WalletServiceImplTest {
         assertThat(tx.getType()).isEqualTo(WalletTransactionType.REFUND);
         verify(auditService).recordEvent(eq("User"), eq(userId.toString()), eq(AuditAction.REFUND_APPROVED),
                 eq("admin"), any());
+    }
+
+    @Test
+    @DisplayName("grantBonusCredits writes a bonus ledger entry so balances stay reconcilable")
+    void grantBonusCredits_Success() {
+        UUID userId = UUID.randomUUID();
+        User user = User.builder().id(userId).email("pro@test.ro").creditsBalance(Credits.ZERO).build();
+
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(userRepository.addCredits(userId, 30)).thenReturn(OptionalInt.of(30));
+        when(walletTransactionRepository.append(any(WalletTransaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        WalletTransaction tx = walletService.grantBonusCredits(userId, 30, "Welcome credits", "admin-1");
+
+        assertThat(tx.getAmount()).isEqualTo(30);
+        assertThat(tx.getBalanceAfter()).isEqualTo(30);
+        assertThat(tx.getType()).isEqualTo(WalletTransactionType.BONUS);
+        verify(auditService).recordEvent(eq("User"), eq(userId.toString()), eq(AuditAction.CREDIT_BONUS),
+                eq("admin-1"), any());
+    }
+
+    @Test
+    @DisplayName("grantBonusCredits rejects a non-positive amount before touching the balance")
+    void grantBonusCredits_RejectsNonPositiveAmount() {
+        assertThatThrownBy(() -> walletService.grantBonusCredits(UUID.randomUUID(), 0, "Bonus", "admin-1"))
+                .isInstanceOf(ro.marketplace.domain.exception.ValidationException.class);
+        verify(walletTransactionRepository, never()).append(any());
     }
 }

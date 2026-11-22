@@ -3,13 +3,13 @@ package ro.marketplace.domain.port;
 import ro.marketplace.domain.model.AuditLog;
 
 import java.util.List;
-import java.util.UUID;
 
 public interface AuditLogRepository {
 
-    AuditLog save(AuditLog auditLog);
+    /** Appends an immutable audit entry. Reusing an id must fail, never overwrite. */
+    AuditLog append(AuditLog auditLog);
 
-    List<AuditLog> findByEntityNameAndEntityId(String entityName, String entityId);
+    List<AuditLog> findRecentByEntityNameAndEntityId(String entityName, String entityId, int limit);
 
     List<AuditLog> findRecent(int limit);
 }

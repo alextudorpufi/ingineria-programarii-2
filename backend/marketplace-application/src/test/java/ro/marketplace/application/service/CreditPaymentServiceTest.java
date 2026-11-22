@@ -25,6 +25,7 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -135,6 +136,20 @@ class CreditPaymentServiceTest {
         paymentService.processWebhook("signed payload", "valid signature");
 
         assertThat(storedPurchase.get().status()).isEqualTo(CreditPurchaseStatus.FAILED);
+        verify(walletService, never()).topUpCredits(any(), org.mockito.ArgumentMatchers.anyInt(), any());
+    }
+
+    @Test
+    @DisplayName("a webhook for an unknown checkout session is acknowledged without side effects")
+    void processWebhookUnknownSessionIsAcknowledged() {
+        when(paymentGateway.verifyWebhook("signed payload", "valid signature"))
+                .thenReturn(new StripeWebhookEvent("evt_unknown", "checkout.session.completed", "cs_unknown",
+                        UUID.randomUUID().toString(), 15_000L, "ron", "paid"));
+        when(purchaseRepository.hasProcessedWebhookEvent("evt_unknown")).thenReturn(false);
+        when(purchaseRepository.findByStripeSessionIdForUpdate("cs_unknown")).thenReturn(Optional.empty());
+
+        assertThatCode(() -> paymentService.processWebhook("signed payload", "valid signature"))
+                .doesNotThrowAnyException();
         verify(walletService, never()).topUpCredits(any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 

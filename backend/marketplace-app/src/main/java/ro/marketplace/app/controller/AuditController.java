@@ -37,8 +37,9 @@ public class AuditController {
     @GetMapping("/{entityName}/{entityId}")
     public ResponseEntity<List<AuditLogResponse>> getEntityAuditTrail(
             @PathVariable String entityName,
-            @PathVariable String entityId) {
-        List<AuditLogResponse> logs = auditService.getEntityAuditTrail(entityName, entityId).stream()
+            @PathVariable String entityId,
+            @RequestParam(name = "limit", defaultValue = "200") int limit) {
+        List<AuditLogResponse> logs = auditService.getEntityAuditTrail(entityName, entityId, limit).stream()
                 .map(AuditDtoMapper::toResponse)
                 .toList();
         return ResponseEntity.ok(logs);

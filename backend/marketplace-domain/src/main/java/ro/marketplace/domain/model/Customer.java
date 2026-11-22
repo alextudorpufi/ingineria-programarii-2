@@ -20,4 +20,5 @@ public class Customer {
     private String email;
     private String phone;
     private LocalDateTime createdAt;
+    private Long version;
 }

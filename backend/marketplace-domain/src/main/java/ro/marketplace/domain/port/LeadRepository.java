@@ -11,15 +11,13 @@ import java.util.UUID;
 
 public interface LeadRepository {
 
-    Lead save(Lead lead);
+    /**
+     * Persists a new lead. Existing leads change only through the focused
+     * lifecycle methods below, so an update can never be mistaken for an insert.
+     */
+    Lead create(Lead lead);
 
     Optional<Lead> findById(UUID id);
-
-    List<Lead> findAll();
-
-    List<Lead> findByStatus(LeadStatus status);
-
-    List<Lead> findByCategoryId(String categoryId);
 
     List<Lead> findPage(int page, int size);
 
@@ -33,9 +31,8 @@ public interface LeadRepository {
 
     long countByStatus(LeadStatus status);
 
-    void deleteById(UUID id);
-
-    LeadClaim saveClaim(LeadClaim claim);
+    /** Appends a claim. Claims are immutable history and are never updated. */
+    LeadClaim createClaim(LeadClaim claim);
 
     List<LeadClaim> findClaimsByLeadId(UUID leadId);
 
@@ -54,12 +51,15 @@ public interface LeadRepository {
     boolean reserveSlot(UUID leadId);
 
     /**
-     * Releases a previously reserved slot (compensation for a failed claim).
-     */
-    void releaseSlot(UUID leadId);
-
-    /**
      * Marks the lead as assigned when the authoritative counter is full.
      */
     void markAssignedIfFull(UUID leadId);
+
+    /**
+     * Atomically applies a lifecycle transition only when the row is still in the
+     * state that was validated in memory.
+     *
+     * @return {@code false} when the lead is missing or its status already changed
+     */
+    boolean updateStatus(UUID leadId, LeadStatus expectedStatus, LeadStatus newStatus);
 }

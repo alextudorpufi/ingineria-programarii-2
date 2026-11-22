@@ -9,12 +9,22 @@ spring:
   jpa:
     hibernate:
       ddl-auto: validate
+    properties:
+      hibernate:
+        # Store and read TIMESTAMP WITHOUT TIME ZONE values in UTC so the
+        # application clock, auditing, and the database agree.
+        jdbc.time_zone: UTC
     open-in-view: false
   flyway:
     enabled: true
 
 app:
   frontend-url: ${FRONTEND_URL:http://localhost:3000}
+  sql-analysis:
+    # Disabled by default outside development; SQL bind values are never captured.
+    enabled: ${SQL_ANALYSIS_ENABLED:false}
+    slow-threshold-ms: ${SQL_SLOW_THRESHOLD_MS:250}
+    log-statements: ${SQL_LOG_STATEMENTS:false}
   stripe:
     secret-key: ${STRIPE_SECRET_KEY:}
     webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
@@ -70,6 +80,10 @@ spring:
     password: ${DB_PASSWORD:local_dev_password}
 
 app:
+  sql-analysis:
+    enabled: ${SQL_ANALYSIS_ENABLED:true}
+    slow-threshold-ms: ${SQL_SLOW_THRESHOLD_MS:250}
+    log-statements: ${SQL_LOG_STATEMENTS:true}
   security:
     jwt:
       # No development fallback: a publicly known signing key must never be

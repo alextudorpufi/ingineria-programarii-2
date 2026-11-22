@@ -1,15 +1,18 @@
 package ro.marketplace.infrastructure.persistence.mapper;
 
+import ro.marketplace.domain.model.Credits;
 import ro.marketplace.domain.model.AuditAction;
 import ro.marketplace.domain.model.AuditLog;
 import ro.marketplace.domain.model.CreditGrant;
 import ro.marketplace.domain.model.Customer;
 import ro.marketplace.domain.model.Dispute;
+import ro.marketplace.domain.model.DisputeReason;
 import ro.marketplace.domain.model.DisputeStatus;
 import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.model.WalletTransaction;
 import ro.marketplace.domain.model.WalletTransactionType;
 import ro.marketplace.infrastructure.persistence.entity.AuditLogEntity;
@@ -39,6 +42,7 @@ public final class EntityMapper {
                 .email(entity.getEmail())
                 .phone(entity.getPhone())
                 .createdAt(entity.getCreatedAt())
+                .version(entity.getVersion())
                 .build();
     }
 
@@ -50,7 +54,20 @@ public final class EntityMapper {
                 .email(domain.getEmail())
                 .phone(domain.getPhone())
                 .createdAt(domain.getCreatedAt())
+                .version(domain.getVersion())
                 .build();
+    }
+
+    /**
+     * Copies mutable customer fields onto a managed entity. Version and
+     * {@code createdAt} stay owned by JPA so optimistic locking is not bypassed.
+     */
+    public static void updateEntity(Customer domain, CustomerEntity entity) {
+        Objects.requireNonNull(domain, "domain must not be null");
+        Objects.requireNonNull(entity, "entity must not be null");
+        entity.setName(domain.getName());
+        entity.setEmail(domain.getEmail());
+        entity.setPhone(domain.getPhone());
     }
 
     // User
@@ -60,7 +77,7 @@ public final class EntityMapper {
                 .id(entity.getId())
                 .email(entity.getEmail())
                 .passwordHash(entity.getPasswordHash())
-                .role(entity.getRole())
+                .role(entity.getRole() == null ? null : UserRole.fromDbValue(entity.getRole()))
                 .name(entity.getName())
                 .companyName(entity.getCompanyName())
                 .title(entity.getTitle())
@@ -70,7 +87,7 @@ public final class EntityMapper {
                 .verifiedBadge(entity.isVerifiedBadge())
                 .rating(entity.getRating())
                 .reviewCount(entity.getReviewCount())
-                .creditsBalance(entity.getCreditsBalance())
+                .creditsBalance(Credits.of(entity.getCreditsBalance()))
                 .hourlyRate(entity.getHourlyRate())
                 .clientBudget(entity.getClientBudget())
                 .responseTime(entity.getResponseTime())
@@ -90,7 +107,7 @@ public final class EntityMapper {
                 .id(domain.getId())
                 .email(domain.getEmail())
                 .passwordHash(domain.getPasswordHash())
-                .role(domain.getRole())
+                .role(domain.getRole() == null ? null : domain.getRole().getDbValue())
                 .name(domain.getName())
                 .companyName(domain.getCompanyName())
                 .title(domain.getTitle())
@@ -100,7 +117,7 @@ public final class EntityMapper {
                 .verifiedBadge(domain.isVerifiedBadge())
                 .rating(domain.getRating())
                 .reviewCount(domain.getReviewCount())
-                .creditsBalance(domain.getCreditsBalance())
+                .creditsBalance(domain.getCreditsBalance() == null ? 0 : domain.getCreditsBalance().asInt())
                 .hourlyRate(domain.getHourlyRate())
                 .clientBudget(domain.getClientBudget())
                 .responseTime(domain.getResponseTime())
@@ -164,6 +181,8 @@ public final class EntityMapper {
 
     public static LeadEntity toEntity(Lead domain) {
         if (domain == null) return null;
+        // createdAt/updatedAt/createdBy/updatedBy are owned by JPA auditing, which
+        // uses the shared application clock; copying them here would be overwritten.
         return LeadEntity.builder()
                 .id(domain.getId())
                 .title(domain.getTitle())
@@ -269,7 +288,7 @@ public final class EntityMapper {
                 .leadTitle(entity.getLeadTitle())
                 .proId(entity.getProId())
                 .proName(entity.getProName())
-                .reason(entity.getReason())
+                .reason(entity.getReason() == null ? null : DisputeReason.fromDbValue(entity.getReason()))
                 .details(entity.getDetails())
                 .creditsRequested(entity.getCreditsRequested())
                 .status(entity.getStatus() != null ? DisputeStatus.fromDbValue(entity.getStatus()) : null)
@@ -281,13 +300,14 @@ public final class EntityMapper {
 
     public static DisputeEntity toEntity(Dispute domain) {
         if (domain == null) return null;
+        // createdAt/updatedAt and the actor columns are owned by JPA auditing.
         return DisputeEntity.builder()
                 .id(domain.getId())
                 .leadId(domain.getLeadId())
                 .leadTitle(domain.getLeadTitle())
                 .proId(domain.getProId())
                 .proName(domain.getProName())
-                .reason(domain.getReason())
+                .reason(domain.getReason() == null ? null : domain.getReason().getDbValue())
                 .details(domain.getDetails())
                 .creditsRequested(domain.getCreditsRequested())
                 .status(domain.getStatus() != null ? domain.getStatus().getDbValue() : null)
@@ -307,7 +327,7 @@ public final class EntityMapper {
         entity.setLeadTitle(domain.getLeadTitle());
         entity.setProId(domain.getProId());
         entity.setProName(domain.getProName());
-        entity.setReason(domain.getReason());
+        entity.setReason(domain.getReason() == null ? null : domain.getReason().getDbValue());
         entity.setDetails(domain.getDetails());
         entity.setCreditsRequested(domain.getCreditsRequested());
         entity.setStatus(domain.getStatus() != null ? domain.getStatus().getDbValue() : null);
@@ -322,7 +342,7 @@ public final class EntityMapper {
                 .id(entity.getId())
                 .entityName(entity.getEntityName())
                 .entityId(entity.getEntityId())
-                .action(entity.getAction() != null ? AuditAction.valueOf(entity.getAction()) : null)
+                .action(entity.getAction() != null ? AuditAction.fromDbValue(entity.getAction()) : null)
                 .changedBy(entity.getChangedBy())
                 .details(entity.getDetails())
                 .createdAt(entity.getCreatedAt())

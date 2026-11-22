@@ -5,6 +5,7 @@ import ro.marketplace.domain.exception.ValidationException;
 import ro.marketplace.domain.model.ProfessionalProfile;
 import ro.marketplace.domain.model.RomanianCounty;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.domain.port.UnitOfWork;
 import ro.marketplace.domain.port.UserRepository;
@@ -27,9 +28,10 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
 
     @Override
     public User get(UUID userId) {
+        Objects.requireNonNull(userId, "userId must not be null");
         User user = users.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profilul nu a fost găsit."));
-        if (!"pro".equals(user.getRole())) {
+        if (user.getRole() != UserRole.PRO) {
             throw new ValidationException("Doar profesioniștii pot modifica acest profil.");
         }
         return user;
@@ -37,7 +39,10 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
 
     @Override
     public User update(UUID userId, Update update) {
-        Objects.requireNonNull(update);
+        Objects.requireNonNull(update, "update must not be null");
+        if (update.profile() == null) {
+            throw new ValidationException("Datele profilului sunt obligatorii.");
+        }
         return unitOfWork.executeInTransaction(() -> {
             User user = get(userId);
             ProfessionalProfile profile = normalize(update.profile());

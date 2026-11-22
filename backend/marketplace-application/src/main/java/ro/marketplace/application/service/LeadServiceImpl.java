@@ -9,6 +9,7 @@ import ro.marketplace.domain.model.Lead;
 import ro.marketplace.domain.model.LeadClaim;
 import ro.marketplace.domain.model.LeadStatus;
 import ro.marketplace.domain.model.User;
+import ro.marketplace.domain.model.UserRole;
 import ro.marketplace.domain.port.LeadRepository;
 import ro.marketplace.domain.port.ServiceCategoryRepository;
 import ro.marketplace.domain.port.UnitOfWork;
@@ -17,18 +18,12 @@ import ro.marketplace.domain.port.UserRepository;
 import java.time.Clock;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 public class LeadServiceImpl implements LeadService {
-
-    private static final int DEFAULT_MAX_PROS = 4;
-    private static final int MAX_MAX_PROS = 100;
-    private static final int DEFAULT_LEAD_PRICE = 30;
-    private static final int MAX_LEAD_PRICE = 10_000;
 
     private final LeadRepository leadRepository;
     private final ServiceCategoryRepository serviceCategoryRepository;
@@ -58,37 +53,37 @@ public class LeadServiceImpl implements LeadService {
     public Lead createLead(Lead lead) {
         Objects.requireNonNull(lead, "lead must not be null");
         return unitOfWork.executeInTransaction(() -> {
-            validateBudget(lead);
+            lead.validateForCreation();
             if (lead.getClientId() == null) {
                 throw new ValidationException("clientId is required");
             }
-            if (lead.getCategoryId() == null || !serviceCategoryRepository.existsById(lead.getCategoryId())) {
+            int categoryPrice = lead.getCategoryId() == null
+                    ? -1
+                    : serviceCategoryRepository.findAvgLeadPriceById(lead.getCategoryId()).orElse(-1);
+            if (categoryPrice < 0) {
                 throw new ValidationException("Unknown service category: " + lead.getCategoryId());
             }
-            normalizeMatchingRequirements(lead);
+            lead.normalizeRequirements();
             if (lead.getId() == null) {
                 lead.setId(UUID.randomUUID());
             }
             if (lead.getCreatedAt() == null) {
                 lead.setCreatedAt(LocalDateTime.now(clock));
             }
-            if (lead.getStatus() == null) {
-                lead.setStatus(LeadStatus.VALIDAT);
-            }
-            if (lead.getMaxPros() <= 0) {
-                lead.setMaxPros(DEFAULT_MAX_PROS);
-            }
-            if (lead.getMaxPros() > MAX_MAX_PROS) {
-                throw new ValidationException("maxPros must not exceed " + MAX_MAX_PROS);
-            }
-            if (lead.getLeadPrice() <= 0) {
-                lead.setLeadPrice(DEFAULT_LEAD_PRICE);
-            }
-            if (lead.getLeadPrice() > MAX_LEAD_PRICE) {
-                throw new ValidationException("leadPrice must not exceed " + MAX_LEAD_PRICE);
-            }
+            // New leads always start in the platform's initial state; callers cannot
+            // skip the workflow by posting a different status or price.
+            lead.applyPlatformPolicy(categoryPrice);
 
-            Lead saved = leadRepository.save(lead);
+            // The contact snapshot must belong to the authenticated account. A client
+            // can no longer publish somebody else's name, email, or phone number.
+            User client = userRepository.findById(lead.getClientId())
+                    .orElseThrow(() -> new ValidationException("Unknown client account."));
+            if (client.getRole() != UserRole.CLIENT && client.getRole() != UserRole.ADMIN) {
+                throw new ValidationException("Only client accounts can publish leads.");
+            }
+            lead.snapshotClient(client);
+
+            Lead saved = leadRepository.create(lead);
             auditService.recordEvent("Lead", saved.getId().toString(), AuditAction.CREATE, saved.getClientEmail(),
                     AuditDetails.of(
                             "categoryId", saved.getCategoryId(),
@@ -99,31 +94,6 @@ public class LeadServiceImpl implements LeadService {
         });
     }
 
-    private void normalizeMatchingRequirements(Lead lead) {
-        if (lead.getWorkMode() == null) {
-            throw new ValidationException("Selectează modul de lucru: la locație sau la distanță.");
-        }
-        List<String> required = normalizeCapabilities(lead.getRequiredCapabilities());
-        List<String> preferred = normalizeCapabilities(lead.getPreferredCapabilities()).stream()
-                .filter(value -> required.stream().noneMatch(value::equalsIgnoreCase)).toList();
-        lead.setRequiredCapabilities(required);
-        lead.setPreferredCapabilities(preferred);
-    }
-
-    private List<String> normalizeCapabilities(List<String> values) {
-        if (values == null) return List.of();
-        if (values.size() > 50 || values.stream()
-                .anyMatch(value -> value == null || value.isBlank() || value.length() > 255)) {
-            throw new ValidationException("Folosește maximum 50 de competențe în fiecare listă, cu 1–255 de caractere fiecare.");
-        }
-        List<String> normalized = new ArrayList<>();
-        for (String value : values) {
-            String trimmed = value.trim();
-            if (normalized.stream().noneMatch(trimmed::equalsIgnoreCase)) normalized.add(trimmed);
-        }
-        return List.copyOf(normalized);
-    }
-
     @Override
     public Lead getLeadById(UUID id) {
         Objects.requireNonNull(id, "id must not be null");
@@ -131,29 +101,6 @@ public class LeadServiceImpl implements LeadService {
                 .orElseThrow(() -> new ResourceNotFoundException("Lead not found with id: " + id));
         lead.setClaimedPros(leadRepository.findClaimsByLeadId(id));
         return lead;
-    }
-
-    @Override
-    public List<Lead> getAllLeads() {
-        List<Lead> leads = leadRepository.findAll();
-        attachClaims(leads);
-        return leads;
-    }
-
-    @Override
-    public List<Lead> getLeadsByCategory(String categoryId) {
-        Objects.requireNonNull(categoryId, "categoryId must not be null");
-        List<Lead> leads = leadRepository.findByCategoryId(categoryId);
-        attachClaims(leads);
-        return leads;
-    }
-
-    @Override
-    public List<Lead> getLeadsByStatus(LeadStatus status) {
-        Objects.requireNonNull(status, "status must not be null");
-        List<Lead> leads = leadRepository.findByStatus(status);
-        attachClaims(leads);
-        return leads;
     }
 
     @Override
@@ -196,11 +143,9 @@ public class LeadServiceImpl implements LeadService {
             if (lead.getClientId() != null && lead.getClientId().equals(proId)) {
                 throw new ConflictException("A professional cannot claim their own lead.");
             }
-            if (lead.getStatus() != null
-                    && lead.getStatus() != LeadStatus.VALIDAT
-                    && lead.getStatus() != LeadStatus.IN_ASTEPTARE) {
-                throw new ConflictException(
-                        "Lead " + leadId + " is no longer open for claims (status=" + lead.getStatus().getDbValue() + ")");
+            if (!lead.isOpenForClaims()) {
+                throw new ConflictException("Lead " + leadId + " is no longer open for claims (status="
+                        + (lead.getStatus() != null ? lead.getStatus().getDbValue() : "unknown") + ")");
             }
 
             // Idempotency guard. The UNIQUE (lead_id, pro_id) constraint remains the hard backstop.
@@ -214,31 +159,44 @@ public class LeadServiceImpl implements LeadService {
                         + lead.getMaxPros() + " professionals");
             }
 
-            try {
-                walletService.deductCredits(proId, lead.getLeadPrice(), "Achiziție lead #" + leadId, leadId);
+            walletService.deductCredits(proId, lead.getLeadPrice(), "Achiziție lead #" + leadId, leadId);
 
-                LeadClaim claim = LeadClaim.builder()
-                        .id(UUID.randomUUID())
-                        .leadId(leadId)
-                        .proId(proId)
-                        .proName(proName != null && !proName.isBlank() ? proName : "Professional")
-                        .claimedAt(LocalDateTime.now(clock))
-                        .build();
+            LeadClaim claim = LeadClaim.builder()
+                    .id(UUID.randomUUID())
+                    .leadId(leadId)
+                    .proId(proId)
+                    .proName(proName != null && !proName.isBlank() ? proName : "Professional")
+                    .claimedAt(LocalDateTime.now(clock))
+                    .build();
 
-                LeadClaim savedClaim = leadRepository.saveClaim(claim);
-                leadRepository.markAssignedIfFull(leadId);
+            LeadClaim savedClaim = leadRepository.createClaim(claim);
+            leadRepository.markAssignedIfFull(leadId);
 
-                auditService.recordEvent("Lead", leadId.toString(), AuditAction.CLAIM_LEAD, claim.getProName(),
-                        AuditDetails.of(
-                                "leadId", leadId,
-                                "proId", proId,
-                                "leadPrice", lead.getLeadPrice()));
-                return savedClaim;
-            } catch (RuntimeException ex) {
-                // Compensation inside the same unit of work: the reservation is rolled back with it.
-                leadRepository.releaseSlot(leadId);
-                throw ex;
+            auditService.recordEvent("Lead", leadId.toString(), AuditAction.CLAIM_LEAD, claim.getProName(),
+                    AuditDetails.of(
+                            "leadId", leadId,
+                            "proId", proId,
+                            "leadPrice", lead.getLeadPrice()));
+            return savedClaim;
+        });
+    }
+
+    @Override
+    public Lead closeLead(UUID leadId, String actor) {
+        Objects.requireNonNull(leadId, "leadId must not be null");
+        return unitOfWork.executeInTransaction(() -> {
+            Lead lead = leadRepository.findById(leadId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Lead not found with id: " + leadId));
+            LeadStatus previous = lead.getStatus();
+            lead.close();
+            if (!leadRepository.updateStatus(leadId, previous, lead.getStatus())) {
+                throw new ConflictException("Lead status changed concurrently; please retry.");
             }
+            Lead updated = leadRepository.findById(leadId).orElse(lead);
+            auditService.recordEvent("Lead", leadId.toString(), AuditAction.STATUS_CHANGE,
+                    actor != null && !actor.isBlank() ? actor : "admin",
+                    AuditDetails.of("previousStatus", previous, "status", updated.getStatus()));
+            return updated;
         });
     }
 
@@ -250,12 +208,5 @@ public class LeadServiceImpl implements LeadService {
         Map<UUID, List<LeadClaim>> claimsByLead = leadRepository.findClaimsByLeadIds(leadIds).stream()
                 .collect(Collectors.groupingBy(LeadClaim::getLeadId));
         leads.forEach(lead -> lead.setClaimedPros(claimsByLead.getOrDefault(lead.getId(), List.of())));
-    }
-
-    private void validateBudget(Lead lead) {
-        if (lead.getBudgetMin() != null && lead.getBudgetMax() != null
-                && lead.getBudgetMin().compareTo(lead.getBudgetMax()) > 0) {
-            throw new ValidationException("budgetMin must not exceed budgetMax");
-        }
     }
 }
